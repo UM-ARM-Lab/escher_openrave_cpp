@@ -98,27 +98,28 @@ struct RPY_tf
 	float yaw; // degrees
 };
 
-// euclidean distance btwn two points in a 2D coordinate system
-float euclideanDistance2D(const Translation2D& q, const Translation2D& p);
+// Distance
+float euclideanDistance2D(const Translation2D& q, const Translation2D& p); // euclidean distance btwn two points in a 2D coordinate system
+float euclideanDistance3D(const Translation3D& q, const Translation3D& p); // euclidean distance btwn two points in a 3D coordinate system
 
-// euclidean distance btwn two points in a 3D coordinate system
-float euclideanDistance3D(const Translation3D& q, const Translation3D& p);
-
+// Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
-
-RotationMatrix RPYToSO3(const RPY_tf& e); // TODO: need to change to the more robust version
-
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
+RotationMatrix RPYToSO3(const RPY_tf& e);
 TransformationMatrix XYZRPYToSE3(const RPY_tf& e);
 
-
+// Data structure translation
 Translation2D gridPositions2DToTranslation2D(GridPositions2D positions);
-
 GridPositions2D translation2DToGridPositions2D(Translation2D positions);
 
+// Validate data integrity
 bool isValidPosition(Translation3D p);
-
 bool isValidPosition(Translation2D p);
 
+// Color
+std::array<float,4> HSVToRGB(std::array<float,4> hsv);
+
+#include "Drawing.hpp"
 #include "Structure.hpp"
 #include "ContactPoint.hpp"
 #include "PointGrid.hpp"
@@ -126,6 +127,5 @@ bool isValidPosition(Translation2D p);
 #include "GroundContactPointGrid.hpp"
 #include "TrimeshSurface.hpp"
 #include "EscherMotionPlanning.hpp"
-
 
 #endif

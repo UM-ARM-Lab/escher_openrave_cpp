@@ -43,6 +43,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         std::vector< std::array<float,2> > hand_transition_model_;
 
+        std::shared_ptr< DrawingHandler > drawing_handler_;
         
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
 };

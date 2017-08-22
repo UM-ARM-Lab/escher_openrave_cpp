@@ -59,5 +59,6 @@ float ContactPoint::getTotalScore(ContactType type, Translation3D approaching_di
             //     self.foot_contact_score = self.clearance_score(contact_type) * self.orientation_score(contact_direction)
 
             // return self.foot_contact_score
-    return (getClearanceScore(type) * getOrientationScore(approaching_direction));
+    // return (getClearanceScore(type) * getOrientationScore(approaching_direction));
+    return getClearanceScore(type);
 }

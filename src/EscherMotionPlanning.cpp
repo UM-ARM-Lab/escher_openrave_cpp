@@ -15,6 +15,7 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
 bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::istream& sinput)
 {
     penv_ = GetEnv();
+    drawing_handler_ = std::make_shared<DrawingHandler>(penv_);
     std::string robot_name;
     std::string param;
     std::vector< std::array<int,5> > torso_transitions;
@@ -262,13 +263,6 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     RAVELOG_INFO("Now construct the contact point grid on each surface...");
     constructContactPointGrid();
 
-    RAVELOG_INFO("Contact point grid constructed...");
-    
-    int a;
-    std::cin >> a;
-
-    return true;
-
     // project the ground surface contact points onto the 2D grid
     RAVELOG_INFO("Now construct the contact point grid on the 2D ground surface...");
     constructGroundContactPointGrid();
@@ -294,11 +288,20 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     
     hand_traversability = calculateHandTransitionTraversability(torso_grid_dimensions, torso_poses);
 
+    RAVELOG_INFO("All finished...");
+    
+    // int a;
+    // std::cin >> a;
+
     return true;
 }
 
 void EscherMotionPlanning::constructContactPointGrid()
 {
+    int dead_1 = 0;
+    int dead_2 = 0;
+    int alive = 0;
+
     for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
     {
         std::shared_ptr<SurfaceContactPointGrid> surface_contact_point_grid = st_it->contact_point_grid_;
@@ -345,8 +348,8 @@ void EscherMotionPlanning::constructContactPointGrid()
                         Translation2D struct2_center_in_struct_frame = cs_it->first;
                         std::vector<TrimeshSurface>::iterator st_it2 = cs_it->second;
 
-                        if((sample_p_2D-struct2_center_in_struct_frame).norm() < st_it2->getCircumRadius())
-                        {
+                        // if((sample_p_2D-struct2_center_in_struct_frame).norm() < st_it2->getCircumRadius())
+                        // {
                             Translation3D proj_origin_p = sample_p_3D + project_dist * st_it->getNormal();
                             Translation3D struct2_proj_p = st_it2->projectionGlobalFrame(proj_origin_p,project_ray);
 
@@ -357,21 +360,23 @@ void EscherMotionPlanning::constructContactPointGrid()
                                 if(struct2_project_dist < project_dist)
                                 {
                                     collision_free = false;
+                                    dead_2 += 1;
                                     break;
                                 }
                             }
-                        }
+                        // }
                     }
                 }
                 else
                 {
                     collision_free = false;
+                    dead_1 += 1;
                 }
 
                 if(collision_free)
                 {
-                    // DrawLineStrips(self.env,sample_p.T,(sample_p+0.01*struct.getNormal()).T,color=(1,0,0))
                     tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-st_it->getNormal(),9999.0,true));
+                    alive += 1;
                 }
                 else
                 {
@@ -442,9 +447,20 @@ void EscherMotionPlanning::constructContactPointGrid()
                         }
                     }
                 }
+
+                // if(st_it->contact_point_grid_->contact_point_list_[i][j].isFeasible())
+                // {
+                //     ContactPoint cp = st_it->contact_point_grid_->contact_point_list_[i][j];
+                //     std::array<float,4> color = HSVToRGB({((1-cp.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z))*2.0/3.0)*360,1,1,1});
+                //     // std::array<float,4> color = HSVToRGB({((1-cp.getClearance()/0.2)*2.0/3.0)*360,1,1,1});
+
+                //     drawing_handler_->DrawLineSegment(cp.getPosition(), cp.getPosition()-0.02*cp.getNormal(), color);
+                // }
             }
         }
     }
+
+    // std::cout<<"Dead 1:" << dead_1 <<", Dead 2:" << dead_2<<", Alive:"<< alive << std::endl;
 
 }
 
@@ -455,7 +471,9 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
     for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
     {
         std::array<int,2> surface_grid_dim = st_it->contact_point_grid_->getDimensions();
-        if(st_it->getType() == TrimeshType::GROUND && st_it->getId() != 99999 && st_it->getId() != 49999 &&
+        // if(st_it->getType() == TrimeshType::GROUND && st_it->getId() != 99999 && st_it->getId() != 49999 &&
+        //    surface_grid_dim[0] > 1 && surface_grid_dim[1] > 1)
+        if(st_it->getType() == TrimeshType::GROUND &&
            surface_grid_dim[0] > 1 && surface_grid_dim[1] > 1)
         {
             feet_contact_structures.push_back(st_it);
@@ -466,7 +484,7 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
     std::array<int,2> feet_contact_point_grid_dim = feet_contact_point_grid_->getDimensions();
     for(int i = 0; i < feet_contact_point_grid_dim[0]; i++)
     {
-        std::vector<float> tmp_score_list(feet_contact_point_grid_dim[1],0);
+        std::vector<float> tmp_score_list(feet_contact_point_grid_dim[1],0.0);
 
         for(int j = 0; j < feet_contact_point_grid_dim[1]; j++)
         {
@@ -484,50 +502,63 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
                     GridPositions2D proj_feet_contact_point_positions = translation2DToGridPositions2D(st_it->projectionPlaneFrame(Translation3D(cell_x,cell_y,9999.0),GLOBAL_NEGATIVE_Z));
 
                     std::array<int,2> surface_contact_grid_dim = st_it->contact_point_grid_->getDimensions();
-                    GridIndices2D proj_feet_contact_point_indices = st_it->contact_point_grid_->positionsToIndices(proj_feet_contact_point_positions);
-
 
                     // Check if the projection is inside the grid
-                    if(st_it->contact_point_grid_->insideGrid(proj_feet_contact_point_indices) && 
-                       proj_feet_contact_point_indices[0] < surface_contact_grid_dim[0]-1 &&
-                       proj_feet_contact_point_indices[1] < surface_contact_grid_dim[1]-1)
+                    if(st_it->contact_point_grid_->insideGrid(proj_feet_contact_point_positions))
                     {
-                        int pfcp_ix = proj_feet_contact_point_indices[0];
-                        int pfcp_iy = proj_feet_contact_point_indices[1];
-
-                        ContactPoint p1 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy];
-                        ContactPoint p2 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy];
-                        ContactPoint p3 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy+1];
-                        ContactPoint p4 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy+1];
-
-                        if(p1.isFeasible() && p2.isFeasible() && p3.isFeasible() && p4.isFeasible())
+                        GridIndices2D proj_feet_contact_point_indices = st_it->contact_point_grid_->positionsToIndices(proj_feet_contact_point_positions);
+                        
+                        if(proj_feet_contact_point_indices[0] < surface_contact_grid_dim[0]-1 &&
+                        proj_feet_contact_point_indices[1] < surface_contact_grid_dim[1]-1)
                         {
-                            float p1_score = p1.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
-                            float p2_score = p2.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
-                            float p3_score = p3.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
-                            float p4_score = p4.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
+                                                        
+                            int pfcp_ix = proj_feet_contact_point_indices[0];
+                            int pfcp_iy = proj_feet_contact_point_indices[1];
 
-                            GridPositions2D cell_center_positions = st_it->contact_point_grid_->indicesToPositions(proj_feet_contact_point_indices);
+                            ContactPoint p1 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy];
+                            ContactPoint p2 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy];
+                            ContactPoint p3 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy+1];
+                            ContactPoint p4 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy+1];
 
-                            float lx1 = proj_feet_contact_point_positions[0] - cell_center_positions[0];
-                            float lx2 = st_it->contact_point_grid_->getResolution() - lx1;
-                            float ly1 = proj_feet_contact_point_positions[1] - cell_center_positions[1];
-                            float ly2 = st_it->contact_point_grid_->getResolution() - ly1;
+                            if(p1.isFeasible() && p2.isFeasible() && p3.isFeasible() && p4.isFeasible())
+                            {
+                                float p1_score = p1.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
+                                float p2_score = p2.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
+                                float p3_score = p3.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
+                                float p4_score = p4.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
 
-                            tmp_score_list[j] = st_it->contact_point_grid_->getInterpolatedScore({p1_score,p2_score,p3_score,p4_score}, {lx1,lx2,ly1,ly2});
+                                GridPositions2D cell_center_positions = st_it->contact_point_grid_->indicesToPositions(proj_feet_contact_point_indices);
 
-                            break; // the contact points on the ground structures does not overlap
+                                float lx1 = proj_feet_contact_point_positions[0] - (cell_center_positions[0] - 0.5*st_it->contact_point_grid_->getResolution());
+                                float lx2 = st_it->contact_point_grid_->getResolution() - lx1;
+                                float ly1 = proj_feet_contact_point_positions[1] - (cell_center_positions[1] - 0.5*st_it->contact_point_grid_->getResolution());
+                                float ly2 = st_it->contact_point_grid_->getResolution() - ly1;
+
+                                tmp_score_list[j] = st_it->contact_point_grid_->getInterpolatedScore({p1_score,p2_score,p3_score,p4_score}, {lx1,lx2,ly1,ly2});
+
+                                break; // the contact points on the ground structures does not overlap
+                            }
                         }
-
                     }
                 }
-
             }
         }
 
         feet_contact_point_grid_->score_cell_list_.push_back(tmp_score_list);
 
     }
+
+    // for(int i = 0; i < feet_contact_point_grid_dim[0]; i++)
+    // {
+    //     for(int j = 0; j < feet_contact_point_grid_dim[1]; j++)
+    //     {
+    //         std::array<float,4> color = HSVToRGB({((1-feet_contact_point_grid_->score_cell_list_[i][j])*2.0/3.0)*360,1,1,1});
+    //         GridPositions2D cell_position = feet_contact_point_grid_->indicesToPositions({i,j});
+    //         Translation3D drawing_cell_position(cell_position[0],cell_position[1],0.1);
+            
+    //         drawing_handler_->DrawLineSegment(drawing_cell_position, drawing_cell_position-0.02*GLOBAL_NEGATIVE_Z, color);
+    //     }
+    // }
 }
 
 std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransitionTraversability(std::array<float,3> torso_grid_dimensions, std::vector<std::array<int,5>> transitions)

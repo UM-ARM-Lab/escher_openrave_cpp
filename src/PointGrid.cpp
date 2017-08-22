@@ -35,9 +35,7 @@ GridIndices2D PointGrid::positionsToIndices(GridPositions2D position)
         RAVELOG_ERROR("Error: Input position (%5.3f,%5.3f) out of bound.\n",x,y);
     }
 
-    GridIndices2D indices = {index_x,index_y};
-
-    return indices;
+    return {index_x,index_y};
 }
 
 GridPositions2D PointGrid::indicesToPositions(GridIndices2D indices)
@@ -53,9 +51,7 @@ GridPositions2D PointGrid::indicesToPositions(GridIndices2D indices)
         RAVELOG_ERROR("Error: Input index (%d,%d) out of bound.\n",index_x,index_y);
     }
 
-    GridPositions2D positions = {position_x,position_y};
-
-    return positions;
+    return {position_x,position_y};
 }
 
 float PointGrid::getInterpolatedScore(std::array<float,4> scores, std::array<float,4> dist_to_boundaries)
@@ -66,18 +62,18 @@ float PointGrid::getInterpolatedScore(std::array<float,4> scores, std::array<flo
     score_matrix(0,1) = scores[2];
     score_matrix(1,1) = scores[3];
 
-    Eigen::MatrixXf M1(1,2);
-    M1(0,0) = dist_to_boundaries[1];
-    M1(0,1) = dist_to_boundaries[0];
-
-    Eigen::MatrixXf M2(2,1);
-    M2(0,0) = dist_to_boundaries[3];
-    M2(1,0) = dist_to_boundaries[2];
-
     float l_x1 = dist_to_boundaries[0];
     float l_x2 = dist_to_boundaries[1];
     float l_y1 = dist_to_boundaries[2];
     float l_y2 = dist_to_boundaries[3];
+
+    Eigen::MatrixXf M1(1,2);
+    M1(0,0) = l_x2;
+    M1(0,1) = l_x1;
+
+    Eigen::MatrixXf M2(2,1);
+    M2(0,0) = l_y2;
+    M2(1,0) = l_y1;    
 
     float interpolated_score = (1.0/((l_x1+l_x2)*(l_y1+l_y2))) * ((M1*score_matrix*M2)(0,0));
 

@@ -60,7 +60,6 @@ public:
 
 private:
 	// boundaries historically called "approx_boundary"
-	Eigen::Vector4f plane_parameters_;
 	std::map<float, std::vector<float> > boundaries_; // discretized mapping from x coord to y bounds
 	TransformationMatrix transformation_matrix_;
 	TransformationMatrix inverse_transformation_matrix_;
