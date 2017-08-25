@@ -95,9 +95,14 @@ class escher_openrave_cpp_wrapper(object):
 
         return
 
-    def SendStartCalculatingTraversabilityCommand(self,structures=None, footstep_windows=None, torso_transitions=None, footstep_window_grid_dimension=None, 
-                                                torso_grid_dimension=None, hand_transition_model=None, parallelization=None):
+    def SendStartCalculatingTraversabilityCommand(self, structures=None, footstep_windows=None, torso_transitions=None, footstep_window_grid_dimension=None, 
+                                                torso_grid_dimension=None, hand_transition_model=None, parallelization=None, printing=False):
+        start = time.time()
+        
         cmd = ['StartCalculatingTraversability']
+
+        if(printing):
+            cmd.append('printing')
 
         if(structures is not None):
             cmd.append('structures')
@@ -178,12 +183,41 @@ class escher_openrave_cpp_wrapper(object):
 
         cmd_str = " ".join(str(item) for item in cmd)
 
+        after_constructing_command = time.time()
+
         result_str = self.module.SendCommand(cmd_str)
 
-        print("Output message received in Python:")
-        print(result_str)
+        after_calculation = time.time()
 
-        return
+        result = [float(x) for x in result_str.split()]
+
+        footstep_transition_traversability = {}
+        hand_transition_traversability = {}
+
+        counter = 0
+
+        footstep_transition_num = result[counter]
+        counter += 1
+        for i in range(int(footstep_transition_num)):
+            footstep_transition_traversability[tuple(int(x) for x in result[counter:counter+5])] = result[counter+5]
+            counter += 6
+
+        hand_transition_num = result[counter]
+        counter += 1
+        for i in range(int(hand_transition_num)):
+            hand_transition_traversability[tuple(int(x) for x in result[counter:counter+3])] = result[counter+3:counter+7]
+            counter += 7        
+
+        # print("Output message received in Python:")
+        # print(result_str)
+
+        after_parsing_output = time.time()
+
+        print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
+        print('Calculation Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
+        print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
+
+        return (footstep_transition_traversability,hand_transition_traversability)
 
 # def main():
 #     env = rave.Environment()

@@ -24,7 +24,7 @@ void TrimeshSurface::updateCenter()
 		}
 	}
 
-	std::cout << "Radius: " << circum_radius_ << std::endl;
+	// std::cout << "Radius: " << circum_radius_ << std::endl;
 }
 
 void TrimeshSurface::updateProjVertices()
@@ -37,9 +37,8 @@ void TrimeshSurface::updateProjVertices()
 
 	for(Translation3D const & vertex : vertices_)
 	{
-		std::cout << "(" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ") --> ";
 		Translation2D proj_vertex = projectionPlaneFrame(vertex);
-		std::cout << "(" << proj_vertex[0] << "," << proj_vertex[1] << ")" << std::endl;
+		
 		proj_vertices_.push_back(proj_vertex);
 		
 		min_proj_x_ = std::min(min_proj_x_, proj_vertex[0]);
@@ -47,6 +46,9 @@ void TrimeshSurface::updateProjVertices()
 
 		min_proj_y_ = std::min(min_proj_y_, proj_vertex[1]);
 		max_proj_y_ = std::max(max_proj_y_, proj_vertex[1]);
+
+		// std::cout << "(" << vertex[0] << "," << vertex[1] << "," << vertex[2] << ") --> ";
+		// std::cout << "(" << proj_vertex[0] << "," << proj_vertex[1] << ")" << std::endl;
 	}
 
 	// if(proj_vertices_.size())
@@ -99,22 +101,24 @@ void TrimeshSurface::updateApproxBoundary()
 		}
 	}
 
-	std::cout << getId() << std::endl;
-	std::cout << "Edges: ";
-	for(std::pair<int, int> edge : edges_)
-	{
-		std::cout << "(" << edge.first << "," << edge.second << ")";
-	}
-	std::cout << std::endl;
+	// std::cout << getId() << std::endl;
+	// std::cout << "Edges: ";
+	// for(std::pair<int, int> edge : edges_)
+	// {
+	// 	std::cout << "(" << edge.first << "," << edge.second << ")";
+	// }
+	// std::cout << std::endl;
 
-	std::cout << "Projected Vertices: " << std::endl;
-	for(auto & vertex: proj_vertices_)
-	{
-		std::cout << "(" << vertex[0] << "," << vertex[1] << ")" << std::endl;
-	}
-	std::cout << std::endl;
+	// std::cout << "Projected Vertices: " << std::endl;
+	// for(auto & vertex: proj_vertices_)
+	// {
+	// 	std::cout << "(" << vertex[0] << "," << vertex[1] << ")" << std::endl;
+	// }
+	// std::cout << std::endl;
 
-	std::cout << "===============================================" << std::endl;
+	// std::cout << "===============================================" << std::endl;
+
+
 	// for(auto & boundary_pair : boundaries_)
 	// {
 	// 	sort(boundary_pair.second.begin(), boundary_pair.second.end());
@@ -180,8 +184,8 @@ TrimeshSurface::TrimeshSurface(OpenRAVE::KinBodyPtr _kinbody, Eigen::Vector4f _p
 	
 	inverse_transformation_matrix_ = inverseTransformationMatrix(transformation_matrix_);
 
-	std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
-	std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
+	// std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
+	// std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
 	
 	updateProjVertices();
 	updateApproxBoundary();
@@ -236,8 +240,8 @@ TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _k
 		
 	inverse_transformation_matrix_ = inverseTransformationMatrix(transformation_matrix_);
 
-	std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
-	std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
+	// std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
+	// std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
 
 	updateProjVertices();
 	updateApproxBoundary();

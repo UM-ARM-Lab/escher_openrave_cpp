@@ -46,6 +46,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         std::shared_ptr< DrawingHandler > drawing_handler_;
         
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
+        bool printing_ = false;
 };
 
 #endif

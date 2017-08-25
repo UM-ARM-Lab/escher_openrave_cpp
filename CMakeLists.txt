@@ -1,12 +1,19 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(escher_openrave_cpp)
 
-set(CMAKE_CXX_FLAGS "-std=c++0x -O3 ${CMAKE_CXX_FLAGS}")
- 
+set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
+
 find_package(catkin REQUIRED roslib urdf srdfdom openrave_catkin)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(OpenRAVE REQUIRED)
+find_package(OpenMP REQUIRED)
+
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})
+  set(OpenMP_LIBRARIES gomp)
+endif()
 
 catkin_package()
 catkin_python_setup()
@@ -36,4 +43,5 @@ openrave_plugin("${PROJECT_NAME}_plugin"
 target_link_libraries("${PROJECT_NAME}_plugin"
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
+    ${OpenMP_LIBRARIES}
 )

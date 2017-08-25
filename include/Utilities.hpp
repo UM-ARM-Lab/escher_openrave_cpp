@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <chrono>
+#include <ctime>
 
 // Eigen
 #include <eigen3/Eigen/Core>
@@ -118,6 +119,7 @@ bool isValidPosition(Translation2D p);
 
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);
+
 
 #include "Drawing.hpp"
 #include "Structure.hpp"

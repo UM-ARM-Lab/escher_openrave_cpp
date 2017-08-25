@@ -2,6 +2,7 @@
 #include "Utilities.hpp"
 
 #include <openrave/plugin.h>
+#include <omp.h>
 
 EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, std::istream& ss) : OpenRAVE::ModuleBase(penv)
 {
@@ -25,6 +26,8 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     // pass the windows
     // pass the grid information
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     while(!sinput.eof())
     {
         sinput >> param;
@@ -44,7 +47,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             sinput >> structures_num;
 
-            RAVELOG_INFO("Input %d structures:",structures_num);
+            if(printing_)
+            {
+                RAVELOG_INFO("Input %d structures:",structures_num);
+            }
 
             for(int i = 0; i < structures_num; i++)
             {
@@ -123,8 +129,12 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                     Translation3D surface_center = new_surface.getCenter();
                     Translation3D surface_normal = new_surface.getNormal();
 
-                    RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s",
-                                 new_surface.getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface.getKinbody()->GetName().c_str());
+                    if(printing_)
+                    {
+                        RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s",
+                                     new_surface.getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface.getKinbody()->GetName().c_str());
+                    }
+
                 }
                 else if(strcmp(geometry.c_str(), "box") == 0)
                 {
@@ -138,7 +148,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             int footstep_transition_num;
             sinput >> footstep_transition_num;
 
-            RAVELOG_INFO("Input %d footstep transitions:",footstep_transition_num);
+            if(printing_)
+            {
+                RAVELOG_INFO("Input %d footstep transitions:",footstep_transition_num);
+            }
 
             for(int i = 0; i < footstep_transition_num; i++)
             {
@@ -150,7 +163,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                 sinput >> torso_transition[2];
                 sinput >> footstep_transition_cell_tuple_num;
 
-                RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
+                if(printing_)
+                {
+                    RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
+                }
 
                 std::vector< std::array<std::array<int,2>,3> > footstep_window_cell_tuples(footstep_transition_cell_tuple_num);
                 std::array<std::array<int,2>,3> cell_tuple;
@@ -176,7 +192,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             int torso_transition_num;
             sinput >> torso_transition_num;
 
-            RAVELOG_INFO("%d torso transitions queried.",torso_transition_num);
+            if(printing_)
+            {
+                RAVELOG_INFO("%d torso transitions queried.",torso_transition_num);
+            }
 
             for(int i = 0; i < torso_transition_num; i++)
             {
@@ -201,7 +220,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             sinput >> ground_grid_max_y;
             sinput >> ground_grid_resolution;
 
-            RAVELOG_INFO("Footstep window grid dimensions : x=[%5.3f,%5.3f), y=[%5.3f,%5.3f), Resolution=%5.3f.",ground_grid_min_x,ground_grid_max_x,ground_grid_min_y,ground_grid_max_y,ground_grid_resolution);
+            if(printing_)
+            {
+                RAVELOG_INFO("Footstep window grid dimensions : x=[%5.3f,%5.3f), y=[%5.3f,%5.3f), Resolution=%5.3f.",ground_grid_min_x,ground_grid_max_x,ground_grid_min_y,ground_grid_max_y,ground_grid_resolution);
+            }
 
             feet_contact_point_grid_ = std::make_shared<GroundContactPointGrid>(ground_grid_min_x,ground_grid_max_x,ground_grid_min_y,ground_grid_max_y,ground_grid_resolution);
             // feet_contact_point_grid_->initializeParameters(ground_grid_min_x,ground_grid_max_x,ground_grid_min_y,ground_grid_max_y,ground_grid_resolution);
@@ -213,7 +235,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             sinput >> torso_grid_min_y;
             sinput >> torso_grid_resolution;
 
-            RAVELOG_INFO("Torso grid dimensions : min_x=%5.3f, min_y=%5.3f, Resolution=%5.3f.",torso_grid_min_x,torso_grid_min_y,torso_grid_resolution);
+            if(printing_)
+            {
+                RAVELOG_INFO("Torso grid dimensions : min_x=%5.3f, min_y=%5.3f, Resolution=%5.3f.",torso_grid_min_x,torso_grid_min_y,torso_grid_resolution);
+            }
             
             torso_grid_dimensions = {torso_grid_min_x,torso_grid_min_y,torso_grid_resolution};
         }
@@ -225,7 +250,10 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             hand_transition_model_.resize(hand_transition_num);
 
-            RAVELOG_INFO("Load %d hand transition models",hand_transition_num);
+            if(printing_)
+            {
+                RAVELOG_INFO("Load %d hand transition models",hand_transition_num);
+            }
 
             float hand_pitch, hand_yaw;
 
@@ -244,36 +272,68 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             if(strcmp(param.c_str(), "0") == 0)
             {
                 is_parallel_ = false;
-                RAVELOG_INFO("Don't do parallelization.");
+                if(printing_)
+                {
+                    RAVELOG_INFO("Don't do parallelization.");
+                }
             }
             else
             {
                 is_parallel_ = true;
-                RAVELOG_INFO("Do parallelization.");
+                if(printing_)
+                {
+                    RAVELOG_INFO("Do parallelization.");
+                }
             }
+        }
+
+        if(strcmp(param.c_str(), "printing") == 0)
+        {
+            printing_ = true;
         }
 
     }
 
-    RAVELOG_INFO("Command parsed; now start calculating traversability...");
+    auto after_receving_command = std::chrono::high_resolution_clock::now();
 
-    // return true;
+    if(printing_)
+    {
+        RAVELOG_INFO("Command parsed; now start calculating traversability...");
+    }
 
     // calculate the clearance on each surface
-    RAVELOG_INFO("Now construct the contact point grid on each surface...");
+    if(printing_)
+    {
+        RAVELOG_INFO("Now construct the contact point grid on each surface...");
+    }
     constructContactPointGrid();
 
+    auto after_constructing_point_grid = std::chrono::high_resolution_clock::now();
+
     // project the ground surface contact points onto the 2D grid
-    RAVELOG_INFO("Now construct the contact point grid on the 2D ground surface...");
+    if(printing_)
+    {
+        RAVELOG_INFO("Now construct the contact point grid on the 2D ground surface...");
+    }
     constructGroundContactPointGrid();
 
+    auto after_constructing_ground_point_grid = std::chrono::high_resolution_clock::now();
+
     // batch calculation of every transition traversability of footsteps
-    RAVELOG_INFO("Now calculate the footstep contact transition traversability...");
+    if(printing_)
+    {
+        RAVELOG_INFO("Now calculate the footstep contact transition traversability...");
+    }
     std::map<std::array<int,5>,float> footstep_traversability;
     footstep_traversability = calculateFootstepTransitionTraversability(torso_grid_dimensions, torso_transitions);
 
+    auto after_calculating_footstep_transition_traversability = std::chrono::high_resolution_clock::now();
+
     // batch calculation of every transition traversability of hands
-    RAVELOG_INFO("Now construct the hand contact transition traversability...");
+    if(printing_)
+    {
+        RAVELOG_INFO("Now construct the hand contact transition traversability...");
+    }
     std::map< std::array<int,3>, std::array<float,4> > hand_traversability;
     
     std::set< std::array<int,3> > torso_poses_set;
@@ -288,22 +348,60 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     
     hand_traversability = calculateHandTransitionTraversability(torso_grid_dimensions, torso_poses);
 
-    RAVELOG_INFO("All finished...");
+    auto after_calculating_hand_transition_traversability = std::chrono::high_resolution_clock::now();
     
     // int a;
     // std::cin >> a;
+
+    sout << footstep_traversability.size() << " ";
+    for(auto & traversability_pair : footstep_traversability)
+    {
+        sout << traversability_pair.first.at(0) << " "
+             << traversability_pair.first.at(1) << " "
+             << traversability_pair.first.at(2) << " "
+             << traversability_pair.first.at(3) << " "
+             << traversability_pair.first.at(4) << " "
+             << traversability_pair.second << " ";
+    }
+
+    sout << hand_traversability.size() << " ";
+    for(auto & traversability_pair : hand_traversability)
+    {
+        sout << traversability_pair.first.at(0) << " "
+             << traversability_pair.first.at(1) << " "
+             << traversability_pair.first.at(2) << " "
+             << traversability_pair.second.at(0) << " "
+             << traversability_pair.second.at(1) << " "
+             << traversability_pair.second.at(2) << " "
+             << traversability_pair.second.at(3) << " ";
+    }
+
+    auto after_output = std::chrono::high_resolution_clock::now();
+
+    std::cout << "Receiving Command: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_receving_command - start).count() << " miliseconds." << std::endl;
+    std::cout << "Constructing Contact Point Grid: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_constructing_point_grid - after_receving_command).count() << " miliseconds." << std::endl;
+    std::cout << "Constructing Ground Contact Point Grid: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_constructing_ground_point_grid - after_constructing_point_grid).count() << " miliseconds." << std::endl;
+    std::cout << "Calculating Footstep Traversability: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_calculating_footstep_transition_traversability - after_constructing_ground_point_grid).count() << " miliseconds." << std::endl;
+    std::cout << "Calculating Hand Traversability: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_calculating_hand_transition_traversability - after_calculating_footstep_transition_traversability).count() << " miliseconds." << std::endl;
+    std::cout << "Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(after_output - after_calculating_hand_transition_traversability).count() << " miliseconds." << std::endl;
 
     return true;
 }
 
 void EscherMotionPlanning::constructContactPointGrid()
 {
-    int dead_1 = 0;
-    int dead_2 = 0;
-    int alive = 0;
+    // int dead_1 = 0;
+    // int dead_2 = 0;
+    // int alive = 0;
 
-    for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
+    omp_set_num_threads(8);
+    #pragma omp parallel for schedule(dynamic)
+    // for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
+    // {
+    for(int st_index = 0; st_index < structures_.size(); st_index++)
     {
+        std::vector<TrimeshSurface>::iterator st_it = structures_.begin() + st_index;
+
         std::shared_ptr<SurfaceContactPointGrid> surface_contact_point_grid = st_it->contact_point_grid_;
 
         std::array<int,2> grid_dimensions = surface_contact_point_grid->getDimensions();
@@ -348,8 +446,8 @@ void EscherMotionPlanning::constructContactPointGrid()
                         Translation2D struct2_center_in_struct_frame = cs_it->first;
                         std::vector<TrimeshSurface>::iterator st_it2 = cs_it->second;
 
-                        // if((sample_p_2D-struct2_center_in_struct_frame).norm() < st_it2->getCircumRadius())
-                        // {
+                        if((sample_p_2D-struct2_center_in_struct_frame).norm() < st_it2->getCircumRadius())
+                        {
                             Translation3D proj_origin_p = sample_p_3D + project_dist * st_it->getNormal();
                             Translation3D struct2_proj_p = st_it2->projectionGlobalFrame(proj_origin_p,project_ray);
 
@@ -360,23 +458,23 @@ void EscherMotionPlanning::constructContactPointGrid()
                                 if(struct2_project_dist < project_dist)
                                 {
                                     collision_free = false;
-                                    dead_2 += 1;
+                                    // dead_2 += 1;
                                     break;
                                 }
                             }
-                        // }
+                        }
                     }
                 }
                 else
                 {
                     collision_free = false;
-                    dead_1 += 1;
+                    // dead_1 += 1;
                 }
 
                 if(collision_free)
                 {
                     tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-st_it->getNormal(),9999.0,true));
-                    alive += 1;
+                    // alive += 1;
                 }
                 else
                 {
@@ -565,41 +663,47 @@ std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransit
 {
     std::map<std::array<int,5>,float> traversability_map;
 
-	float torso_grid_min_x = torso_grid_dimensions[0];
-	float torso_grid_min_y = torso_grid_dimensions[1];
-	int torso_grid_min_theta = TORSO_GRID_MIN_THETA;
-    float torso_grid_resolution = torso_grid_dimensions[2];
-    int torso_grid_angular_resolution = TORSO_GRID_ANGULAR_RESOLUTION;
+	const float torso_grid_min_x = torso_grid_dimensions[0];
+	const float torso_grid_min_y = torso_grid_dimensions[1];
+	const int torso_grid_min_theta = TORSO_GRID_MIN_THETA;
+    const float torso_grid_resolution = torso_grid_dimensions[2];
+    const int torso_grid_angular_resolution = TORSO_GRID_ANGULAR_RESOLUTION;
 
-	int ix1, iy1, itheta1;
-	int ix2, iy2;
+	// int ix1, iy1, itheta1;
+	// int ix2, iy2;
 	
-    float x1, y1;
-	int theta1;
-	
-    int window_theta, window_dix, window_diy;
-	
-    std::array<int,4> correspondence;
+    // float x1, y1;
+	// int theta1;
 	
 	// printf("torso grid dimension: (%5.3f,%5.3f).\n",torso_grid_min_x,torso_grid_min_y);
-	// printf("footstep grid dimension: (%5.3f,%5.3f).\n",footstep_window_grid_min_x,footstep_window_grid_min_y);
+    // printf("footstep grid dimension: (%5.3f,%5.3f).\n",footstep_window_grid_min_x,footstep_window_grid_min_y);
+    
+    for(int i = 0; i < transitions.size(); i++)
+    {
+        traversability_map.insert(std::make_pair(transitions[i],0));
+    }
 
+    omp_set_num_threads(8);
+    #pragma omp parallel for schedule(dynamic)
 	for(int i = 0; i < transitions.size(); i++)
 	{
-		ix1 = transitions[i][0];
-		iy1 = transitions[i][1];
-		itheta1 = transitions[i][2];
+		int ix1 = transitions[i][0];
+		int iy1 = transitions[i][1];
+		int itheta1 = transitions[i][2];
 
-		ix2 = transitions[i][3];
-		iy2 = transitions[i][4];
+		int ix2 = transitions[i][3];
+		int iy2 = transitions[i][4];
 
 		// printf("From (%d,%d,%d) to (%d,%d): \n",ix1,iy1,itheta1,ix2,iy2);
 
-		x1 = torso_grid_min_x + torso_grid_resolution * float(ix1 + 0.5);
-		y1 = torso_grid_min_y + torso_grid_resolution * float(iy1 + 0.5);
-		theta1 = torso_grid_min_theta + torso_grid_angular_resolution * itheta1;
+		float x1 = torso_grid_min_x + torso_grid_resolution * float(ix1 + 0.5);
+		float y1 = torso_grid_min_y + torso_grid_resolution * float(iy1 + 0.5);
+		int theta1 = torso_grid_min_theta + torso_grid_angular_resolution * itheta1;
 
-		// printf("(x1,y1,theta1)=(%5.5f,%5.5f,%d)\n",x1,y1,theta1);
+        // printf("(x1,y1,theta1)=(%5.5f,%5.5f,%d)\n",x1,y1,theta1);
+        
+        std::array<int,4> correspondence;
+        int window_theta, window_dix, window_diy;
 
 		window_theta = (theta1+360) % 90;
 		window_dix = 0;
@@ -645,11 +749,13 @@ std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransit
 
 		// printf("Now entering score calculation.\n");
         float traversability = sumFootstepTransitionTraversability(correspondence, footstep_window, torso_indices);
-		
-        traversability_map.insert(std::make_pair(transitions[i],traversability));   
+        // traversability_map.insert(std::make_pair(transitions[i],traversability));
 
-		// getchar();
-	}
+        std::map<std::array<int,5>,float>::iterator tm_it = traversability_map.find(transitions[i]);
+        tm_it->second = traversability;
+
+        // getchar();
+    }
 
 	return traversability_map;
 }
@@ -665,7 +771,6 @@ float EscherMotionPlanning::sumFootstepTransitionTraversability(std::array<int,4
 
 	float footstep_window_score = 0.0;
 
-	// #pragma omp parallel for
 	for(int i = 0; i < footstep_window.size(); i++)
 	{
 		int left_cell_x_global = torso_indices[0] + x_sign * footstep_window[i][0][x_addition_index];
@@ -687,7 +792,6 @@ float EscherMotionPlanning::sumFootstepTransitionTraversability(std::array<int,4
                                                           * feet_contact_point_grid_->score_cell_list_[left_cell_x_global][left_cell_y_global]
                                                           * feet_contact_point_grid_->score_cell_list_[right_cell_x_global][right_cell_y_global];
         }
-
 	}
 
 	// printf("FootstepNum: %d, Score: %5.3f.\n",footstep_window.size(),footstep_window_score);
@@ -698,10 +802,18 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
 {
     // given torso pose, and the environment structures find projection score of each hand transition model
     std::map< std::array<int,3>, std::array<float,4> > hand_transition_traversability;
-    float torso_grid_min_x = torso_grid_dimensions[0];
-    float torso_grid_min_y = torso_grid_dimensions[1];
-    float torso_grid_resolution = torso_grid_dimensions[2];
+    const float torso_grid_min_x = torso_grid_dimensions[0];
+    const float torso_grid_min_y = torso_grid_dimensions[1];
+    const float torso_grid_resolution = torso_grid_dimensions[2];
 
+    std::array<float,4> default_traversability = {0,0,0,0};
+    for(int i = 0; i < torso_poses.size(); i++)
+    {
+        hand_transition_traversability.insert(std::make_pair(torso_poses[i],default_traversability));
+    }
+
+	omp_set_num_threads(8);
+	#pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < torso_poses.size(); i++)
     {
         int ix = torso_poses[i][0];
@@ -769,14 +881,19 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
 
                 for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
                 {
-                    Translation3D tmp_proj_point = st_it->projectionGlobalFrame(current_shoulder_position, contact_direction);
-                    float tmp_proj_dist = (tmp_proj_point-current_shoulder_position).norm();
+                    float shoulder_struct_center_dist = (st_it->getCenter() - current_shoulder_position).norm();
 
-                    if(isValidPosition(tmp_proj_point) && st_it->insidePolygon(tmp_proj_point) && tmp_proj_dist < proj_dist)
+                    if(st_it->getType() == TrimeshType::OTHERS && shoulder_struct_center_dist <= MAX_ARM_LENGTH + st_it->getCircumRadius())
                     {
-                        proj_dist = tmp_proj_dist;
-                        proj_point = tmp_proj_point;
-                        contact_st = st_it;
+                        Translation3D tmp_proj_point = st_it->projectionGlobalFrame(current_shoulder_position, contact_direction);
+                        float tmp_proj_dist = (tmp_proj_point-current_shoulder_position).norm();
+
+                        if(isValidPosition(tmp_proj_point) && st_it->insidePolygon(tmp_proj_point) && tmp_proj_dist < proj_dist)
+                        {
+                            proj_dist = tmp_proj_dist;
+                            proj_point = tmp_proj_point;
+                            contact_st = st_it;
+                        }
                     }
                 }
 
@@ -817,8 +934,10 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
         }
 
         std::array<float,4> traversability_scores = {forward_left_hand_score,backward_left_hand_score,forward_right_hand_score,backward_right_hand_score};
-        hand_transition_traversability.insert(std::make_pair(torso_poses[i],traversability_scores));
-        
+        // hand_transition_traversability.insert(std::make_pair(torso_poses[i],traversability_scores));
+
+        std::map< std::array<int,3>, std::array<float,4> >::iterator htt_it = hand_transition_traversability.find(torso_poses[i]); 
+        htt_it->second = traversability_scores;
     }
 
     
