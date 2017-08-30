@@ -96,7 +96,7 @@ class escher_openrave_cpp_wrapper(object):
         return
 
     def SendStartCalculatingTraversabilityCommand(self, structures=None, footstep_windows=None, torso_transitions=None, footstep_window_grid_dimension=None, 
-                                                torso_grid_dimension=None, hand_transition_model=None, parallelization=None, printing=False):
+                                                dh_grid=None, hand_transition_model=None, parallelization=None, printing=False):
         start = time.time()
         
         cmd = ['StartCalculatingTraversability']
@@ -162,9 +162,60 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append('footstep_window_grid_dimension')
             cmd.extend(footstep_window_grid_dimension)
 
-        if(torso_grid_dimension is not None):
-            cmd.append('torso_grid_dimension')
-            cmd.extend(torso_grid_dimension)
+        if(dh_grid is not None):
+            cmd.append('map_grid')
+            cmd.append(dh_grid.min_x)
+            cmd.append(dh_grid.max_x)
+            cmd.append(dh_grid.min_y)
+            cmd.append(dh_grid.max_y)
+            cmd.append(dh_grid.resolution)
+
+            for i in range(dh_grid.dim_x):
+                for j in range(dh_grid.dim_y):
+                    
+                    cmd.append(dh_grid.cell_2D_list[i][j].height)
+
+                    if(dh_grid.cell_2D_list[i][j].foot_ground_projection[0]):
+                        cmd.append(1)
+                    else:
+                        cmd.append(0)
+
+                    if(dh_grid.cell_2D_list[i][j].foot_ground_projection[1] is None):
+                        cmd.append(-99)
+                    else:
+                        cmd.append(dh_grid.cell_2D_list[i][j].foot_ground_projection[1])
+
+                    cmd.append(len(dh_grid.cell_2D_list[i][j].all_ground_structures))
+                    cmd.extend(dh_grid.cell_2D_list[i][j].all_ground_structures)
+
+                    for k in range(dh_grid.dim_theta):
+                        if(dh_grid.cell_3D_list[i][j][k].parent is not None):
+                            cmd.extend(dh_grid.cell_3D_list[i][j][k].parent.get_indices())
+                        else:
+                            cmd.extend((-99,-99,-99))
+                        cmd.append(dh_grid.cell_3D_list[i][j][k].g)
+                        cmd.append(dh_grid.cell_3D_list[i][j][k].h)
+
+                        cmd.append(len(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index))
+                        cmd.extend(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index)
+                        cmd.append(len(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index))
+                        cmd.extend(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index)
+
+            # import IPython; IPython.embed()
+            for key,window in dh_grid.left_foot_neighbor_window.iteritems():
+                cmd.append(len(window))
+                for cell in window:
+                    cmd.extend(cell)
+            
+            for key,window in dh_grid.right_foot_neighbor_window.iteritems():
+                cmd.append(len(window))
+                for cell in window:
+                    cmd.extend(cell)
+
+            for key,window in dh_grid.chest_neighbor_window.iteritems():
+                cmd.append(len(window))
+                for cell in window:
+                    cmd.extend(cell)
 
         if(hand_transition_model is not None):
             cmd.append('hand_transition_model')
@@ -241,7 +292,21 @@ class escher_openrave_cpp_wrapper(object):
 #     SendStartPlanningCommand(EscherMotionPlanning,robotname=robot.GetName(),goal=[2.5,0.5,0.0],parallelization=True)
 
 #     raw_input("Press enter to exit...")
-#     # import IPython; IPython.embed();
+#     # import IPython; IPython.embe        
+
+        # print("Output message received in Python:")
+        # print(result_str)
+
+        after_parsing_output = time.time()
+
+        print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
+        print('Calculation Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
+        print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
+
+        return (footstep_transition_traversability,hand_transition_traversability)
+
+# def main():
+#     env = rave.Environment()d();
 
 #     return
 

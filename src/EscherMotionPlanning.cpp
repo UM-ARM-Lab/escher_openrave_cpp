@@ -20,7 +20,6 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     std::string robot_name;
     std::string param;
     std::vector< std::array<int,5> > torso_transitions;
-    std::array<float,3> torso_grid_dimensions;
     float torso_grid_min_x, torso_grid_min_y, torso_grid_resolution;
     // pass the structures
     // pass the windows
@@ -124,15 +123,16 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                     // std::cout << bodies.size() << std::endl;
                     // std::cout << penv_->GetKinBody(kinbody_name)->GetName() << std::endl;
                     // std::cout << penv_->GetKinBody(kinbody_name)->GetName().c_str() << std::endl;
-                    TrimeshSurface new_surface(penv_, kinbody_name, plane_parameters, edges, vertices, type, id);
+                    std::shared_ptr<TrimeshSurface> new_surface = std::make_shared<TrimeshSurface>(penv_, kinbody_name, plane_parameters, edges, vertices, type, id);
                     structures_.push_back(new_surface);
-                    Translation3D surface_center = new_surface.getCenter();
-                    Translation3D surface_normal = new_surface.getNormal();
+                    structures_dict_.insert(std::make_pair(new_surface->getId(), structures_[structures_.size()-1]));
+                    Translation3D surface_center = new_surface->getCenter();
+                    Translation3D surface_normal = new_surface->getNormal();
 
                     if(printing_)
                     {
                         RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s",
-                                     new_surface.getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface.getKinbody()->GetName().c_str());
+                                     new_surface->getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface->getKinbody()->GetName().c_str());
                     }
 
                 }
@@ -141,6 +141,138 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                     RAVELOG_WARN("WARNING: Box is not implemented yet.\n");
                 }
             }   
+        }
+
+        if(strcmp(param.c_str(), "map_grid") == 0)
+        {
+            float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
+            float map_grid_xy_resolution;
+
+            sinput >> map_grid_min_x;
+            sinput >> map_grid_max_x;
+            sinput >> map_grid_min_y;
+            sinput >> map_grid_max_y;
+            sinput >> map_grid_xy_resolution;
+
+            map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+
+            for(int i = 0; i < map_grid_->dim_x_; i++)
+            {
+                for(int j = 0; j < map_grid_->dim_y_; j++)
+                {
+                    sinput >> map_grid_->cell_2D_list_[i][j].height_;
+
+                    int foot_ground_projection_surface_id;
+                    int safe_projection;
+                    sinput >> safe_projection;
+                    sinput >> foot_ground_projection_surface_id;
+
+                    if(foot_ground_projection_surface_id == -99)
+                    {
+                        map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
+                        std::make_pair(safe_projection != 0, nullptr);
+                    }
+                    else
+                    {
+                        map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
+                        std::make_pair(safe_projection != 0, structures_dict_[foot_ground_projection_surface_id]);
+                    }
+
+                    int cell_ground_surfaces_num, cell_ground_surface_id;
+                    sinput >> cell_ground_surfaces_num;
+
+                    for(int n = 0; n < cell_ground_surfaces_num; n++)
+                    {
+                        sinput >> cell_ground_surface_id;
+                        map_grid_->cell_2D_list_[i][j].all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
+                    }                    
+                    
+                    for(int k = 0; k < map_grid_->dim_theta_; k++)
+                    {
+                        std::array<int,3> parent_indices;
+                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[0];
+                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[1];
+                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[2];                        
+
+                        sinput >> map_grid_->cell_3D_list_[i][j][k].g_;
+                        sinput >> map_grid_->cell_3D_list_[i][j][k].h_;
+
+                        int left_hand_checking_surfaces_num, right_hand_checking_surfaces_num;
+                        int surface_id;
+
+                        sinput >> left_hand_checking_surfaces_num;
+                        for(int n = 0; n < left_hand_checking_surfaces_num; n++)
+                        {
+                            sinput >> surface_id;
+                            map_grid_->cell_3D_list_[i][j][k].left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
+                        }
+
+                        sinput >> right_hand_checking_surfaces_num;
+                        for(int n = 0; n < right_hand_checking_surfaces_num; n++)
+                        {
+                            sinput >> surface_id;
+                            map_grid_->cell_3D_list_[i][j][k].right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
+                        }
+                    }
+                }
+            }
+
+
+            // the neighbor windows
+            for(int i = 0; i < map_grid_->dim_theta_; i++)
+            {
+                int cell_num;
+                sinput >> cell_num;
+
+                int ix, iy;
+                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+                for(int j = 0; j < cell_num; j++)
+                {
+                    sinput >> ix;
+                    sinput >> iy;
+                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
+                }
+
+                // map_grid_->left_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+            }
+
+            for(int i = 0; i < map_grid_->dim_theta_; i++)
+            {
+                int cell_num;
+                sinput >> cell_num;
+
+                int ix, iy;
+                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+                for(int j = 0; j < cell_num; j++)
+                {
+                    sinput >> ix;
+                    sinput >> iy;
+                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
+                }
+
+                map_grid_->right_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+            }
+
+            for(int i = 0; i < map_grid_->dim_theta_; i++)
+            {
+                int cell_num;
+                sinput >> cell_num;
+
+                int ix, iy;
+                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+                for(int j = 0; j < cell_num; j++)
+                {
+                    sinput >> ix;
+                    sinput >> iy;
+                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
+                }
+
+                map_grid_->torso_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+            }
+
         }
 
         if(strcmp(param.c_str(), "transition_footstep_window_cells") == 0)
@@ -229,20 +361,6 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
             // feet_contact_point_grid_->initializeParameters(ground_grid_min_x,ground_grid_max_x,ground_grid_min_y,ground_grid_max_y,ground_grid_resolution);
         }
 
-        if(strcmp(param.c_str(), "torso_grid_dimension") == 0)
-        {
-            sinput >> torso_grid_min_x;
-            sinput >> torso_grid_min_y;
-            sinput >> torso_grid_resolution;
-
-            if(printing_)
-            {
-                RAVELOG_INFO("Torso grid dimensions : min_x=%5.3f, min_y=%5.3f, Resolution=%5.3f.",torso_grid_min_x,torso_grid_min_y,torso_grid_resolution);
-            }
-            
-            torso_grid_dimensions = {torso_grid_min_x,torso_grid_min_y,torso_grid_resolution};
-        }
-
         if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
             int hand_transition_num;
@@ -325,7 +443,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
         RAVELOG_INFO("Now calculate the footstep contact transition traversability...");
     }
     std::map<std::array<int,5>,float> footstep_traversability;
-    footstep_traversability = calculateFootstepTransitionTraversability(torso_grid_dimensions, torso_transitions);
+    footstep_traversability = calculateFootstepTransitionTraversability(torso_transitions);
 
     auto after_calculating_footstep_transition_traversability = std::chrono::high_resolution_clock::now();
 
@@ -346,7 +464,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
     std::vector< std::array<int,3> > torso_poses(torso_poses_set.begin(), torso_poses_set.end());
     
-    hand_traversability = calculateHandTransitionTraversability(torso_grid_dimensions, torso_poses);
+    hand_traversability = calculateHandTransitionTraversability(torso_poses);
 
     auto after_calculating_hand_transition_traversability = std::chrono::high_resolution_clock::now();
     
@@ -394,32 +512,32 @@ void EscherMotionPlanning::constructContactPointGrid()
     // int dead_2 = 0;
     // int alive = 0;
 
-    omp_set_num_threads(8);
-    #pragma omp parallel for schedule(dynamic)
+    // omp_set_num_threads(16);
+    #pragma omp parallel for schedule(dynamic) num_threads(16)
     // for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
     // {
     for(int st_index = 0; st_index < structures_.size(); st_index++)
     {
-        std::vector<TrimeshSurface>::iterator st_it = structures_.begin() + st_index;
+        std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it = structures_.begin() + st_index;
 
-        std::shared_ptr<SurfaceContactPointGrid> surface_contact_point_grid = st_it->contact_point_grid_;
+        std::shared_ptr<SurfaceContactPointGrid> surface_contact_point_grid = (*st_it)->contact_point_grid_;
 
         std::array<int,2> grid_dimensions = surface_contact_point_grid->getDimensions();
         const int grid_dim_x = grid_dimensions[0];
         const int grid_dim_y = grid_dimensions[1];
 
-        Translation3D project_ray = -st_it->getNormal();
+        Translation3D project_ray = -(*st_it)->getNormal();
         float project_dist = 0.5;
 
-        std::vector< std::pair<Translation2D,std::vector<TrimeshSurface>::iterator> > checking_structures;
+        std::vector< std::pair<Translation2D,std::vector< std::shared_ptr<TrimeshSurface> >::iterator> > checking_structures;
 
-        for(std::vector<TrimeshSurface>::iterator st_it2 = structures_.begin(); st_it2 != structures_.end(); st_it2++)
+        for(std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it2 = structures_.begin(); st_it2 != structures_.end(); st_it2++)
         {                   
-            if(st_it->getId() != st_it2->getId() && st_it->getType() == st_it2->getType())
+            if((*st_it)->getId() != (*st_it2)->getId() && (*st_it)->getType() == (*st_it2)->getType())
             {
-                Translation2D struct2_center_in_struct_frame = st_it->projectionPlaneFrame(st_it2->getCenter());
+                Translation2D struct2_center_in_struct_frame = (*st_it)->projectionPlaneFrame((*st_it2)->getCenter());
 
-                if(struct2_center_in_struct_frame.norm() < st_it->getCircumRadius() + st_it2->getCircumRadius())
+                if(struct2_center_in_struct_frame.norm() < (*st_it)->getCircumRadius() + (*st_it2)->getCircumRadius())
                 {
                     checking_structures.push_back(std::make_pair(struct2_center_in_struct_frame,st_it2));
                 }
@@ -435,23 +553,23 @@ void EscherMotionPlanning::constructContactPointGrid()
             {
                 GridPositions2D cell_center_position = surface_contact_point_grid->indicesToPositions({i,j});
                 Translation2D sample_p_2D = gridPositions2DToTranslation2D(cell_center_position);
-                Translation3D sample_p_3D = st_it->getGlobalPosition(sample_p_2D);
+                Translation3D sample_p_3D = (*st_it)->getGlobalPosition(sample_p_2D);
                 
                 bool collision_free = true;
 
-                if(st_it->insidePolygonPlaneFrame(sample_p_2D))
+                if((*st_it)->insidePolygonPlaneFrame(sample_p_2D))
                 {
                     for(auto cs_it = checking_structures.begin(); cs_it != checking_structures.end(); cs_it++)
                     {
                         Translation2D struct2_center_in_struct_frame = cs_it->first;
-                        std::vector<TrimeshSurface>::iterator st_it2 = cs_it->second;
+                        std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it2 = cs_it->second;
 
-                        if((sample_p_2D-struct2_center_in_struct_frame).norm() < st_it2->getCircumRadius())
+                        if((sample_p_2D-struct2_center_in_struct_frame).norm() < (*st_it2)->getCircumRadius())
                         {
-                            Translation3D proj_origin_p = sample_p_3D + project_dist * st_it->getNormal();
-                            Translation3D struct2_proj_p = st_it2->projectionGlobalFrame(proj_origin_p,project_ray);
+                            Translation3D proj_origin_p = sample_p_3D + project_dist * (*st_it)->getNormal();
+                            Translation3D struct2_proj_p = (*st_it2)->projectionGlobalFrame(proj_origin_p,project_ray);
 
-                            if(isValidPosition(struct2_proj_p) && st_it2->insidePolygon(struct2_proj_p))
+                            if(isValidPosition(struct2_proj_p) && (*st_it2)->insidePolygon(struct2_proj_p))
                             {
                                 float struct2_project_dist = (proj_origin_p-struct2_proj_p).norm();
 
@@ -473,17 +591,17 @@ void EscherMotionPlanning::constructContactPointGrid()
 
                 if(collision_free)
                 {
-                    tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-st_it->getNormal(),9999.0,true));
+                    tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-(*st_it)->getNormal(),9999.0,true));
                     // alive += 1;
                 }
                 else
                 {
-                    tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-st_it->getNormal(),9999.0,false));
+                    tmp_contact_point_list.push_back(ContactPoint(sample_p_3D,sample_p_2D,-(*st_it)->getNormal(),9999.0,false));
                 }
 
             }
 
-            st_it->contact_point_grid_->contact_point_list_.push_back(tmp_contact_point_list);
+            (*st_it)->contact_point_grid_->contact_point_list_.push_back(tmp_contact_point_list);
         }
 
         // find the boundaries points in the contact point grid.
@@ -493,13 +611,13 @@ void EscherMotionPlanning::constructContactPointGrid()
         {
             for(int j = 0; j < grid_dim_y; j++)
             {
-                if(st_it->contact_point_grid_->contact_point_list_[i][j].feasible_)
+                if((*st_it)->contact_point_grid_->contact_point_list_[i][j].feasible_)
                 {
                     // points in the index limit are guaranteed to be boundary points
                     if(i == 0 || i == grid_dim_x-1 || j == 0 || j == grid_dim_y-1)
                     {
                         boundary_contact_point_indices.push_back({i,j});
-                        st_it->contact_point_grid_->contact_point_list_[i][j].setClearance(0);
+                        (*st_it)->contact_point_grid_->contact_point_list_[i][j].setClearance(0);
                         continue;
                     }
 
@@ -509,10 +627,10 @@ void EscherMotionPlanning::constructContactPointGrid()
                     {
                         for(int j2 = j-1; j2 <= j+1; j2++)
                         {
-                            if(!st_it->contact_point_grid_->contact_point_list_[i2][j2].feasible_)
+                            if(!(*st_it)->contact_point_grid_->contact_point_list_[i2][j2].feasible_)
                             {
                                 boundary_contact_point_indices.push_back({i,j});
-                                st_it->contact_point_grid_->contact_point_list_[i][j].setClearance(0);
+                                (*st_it)->contact_point_grid_->contact_point_list_[i][j].setClearance(0);
                                 is_boundary_point = true;
                                 break;
                             }
@@ -532,16 +650,16 @@ void EscherMotionPlanning::constructContactPointGrid()
         {
             for(int j = 0; j < grid_dim_y; j++)
             {
-                if(st_it->contact_point_grid_->contact_point_list_[i][j].isFeasible() && 
-                   st_it->contact_point_grid_->contact_point_list_[i][j].getClearance() != 0)
+                if((*st_it)->contact_point_grid_->contact_point_list_[i][j].isFeasible() && 
+                   (*st_it)->contact_point_grid_->contact_point_list_[i][j].getClearance() != 0)
                 {
                     float dist_to_boundary_point;
                     for(std::vector< std::array<int,2> >::iterator bcpi_it = boundary_contact_point_indices.begin(); bcpi_it != boundary_contact_point_indices.end(); bcpi_it++)
                     {
-                        dist_to_boundary_point = hypot(float(bcpi_it->at(0)-i),float(bcpi_it->at(1)-j)) * st_it->contact_point_grid_->getResolution();
-                        if(dist_to_boundary_point < st_it->contact_point_grid_->contact_point_list_[i][j].getClearance())
+                        dist_to_boundary_point = hypot(float(bcpi_it->at(0)-i),float(bcpi_it->at(1)-j)) * (*st_it)->contact_point_grid_->getResolution();
+                        if(dist_to_boundary_point < (*st_it)->contact_point_grid_->contact_point_list_[i][j].getClearance())
                         {
-                            st_it->contact_point_grid_->contact_point_list_[i][j].setClearance(dist_to_boundary_point);
+                            (*st_it)->contact_point_grid_->contact_point_list_[i][j].setClearance(dist_to_boundary_point);
                         }
                     }
                 }
@@ -565,13 +683,13 @@ void EscherMotionPlanning::constructContactPointGrid()
 void EscherMotionPlanning::constructGroundContactPointGrid()
 {
     // filter out interesting structures
-    std::vector< std::vector<TrimeshSurface>::iterator > feet_contact_structures;
-    for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
+    std::vector< std::vector< std::shared_ptr<TrimeshSurface> >::iterator > feet_contact_structures;
+    for(std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
     {
-        std::array<int,2> surface_grid_dim = st_it->contact_point_grid_->getDimensions();
+        std::array<int,2> surface_grid_dim = (*st_it)->contact_point_grid_->getDimensions();
         // if(st_it->getType() == TrimeshType::GROUND && st_it->getId() != 99999 && st_it->getId() != 49999 &&
         //    surface_grid_dim[0] > 1 && surface_grid_dim[1] > 1)
-        if(st_it->getType() == TrimeshType::GROUND &&
+        if((*st_it)->getType() == TrimeshType::GROUND &&
            surface_grid_dim[0] > 1 && surface_grid_dim[1] > 1)
         {
             feet_contact_structures.push_back(st_it);
@@ -592,19 +710,19 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
 
             for(int k = 0; k < feet_contact_structures.size(); k++)
             {
-                std::vector<TrimeshSurface>::iterator st_it = feet_contact_structures[k];
-                Translation3D surface_center = st_it->getCenter();
+                std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it = feet_contact_structures[k];
+                Translation3D surface_center = (*st_it)->getCenter();
 
-                if(hypot(surface_center[0]-cell_x,surface_center[1]-cell_y) < st_it->getCircumRadius())
+                if(hypot(surface_center[0]-cell_x,surface_center[1]-cell_y) < (*st_it)->getCircumRadius())
                 {
-                    GridPositions2D proj_feet_contact_point_positions = translation2DToGridPositions2D(st_it->projectionPlaneFrame(Translation3D(cell_x,cell_y,9999.0),GLOBAL_NEGATIVE_Z));
+                    GridPositions2D proj_feet_contact_point_positions = translation2DToGridPositions2D((*st_it)->projectionPlaneFrame(Translation3D(cell_x,cell_y,9999.0),GLOBAL_NEGATIVE_Z));
 
-                    std::array<int,2> surface_contact_grid_dim = st_it->contact_point_grid_->getDimensions();
+                    std::array<int,2> surface_contact_grid_dim = (*st_it)->contact_point_grid_->getDimensions();
 
                     // Check if the projection is inside the grid
-                    if(st_it->contact_point_grid_->insideGrid(proj_feet_contact_point_positions))
+                    if((*st_it)->contact_point_grid_->insideGrid(proj_feet_contact_point_positions))
                     {
-                        GridIndices2D proj_feet_contact_point_indices = st_it->contact_point_grid_->positionsToIndices(proj_feet_contact_point_positions);
+                        GridIndices2D proj_feet_contact_point_indices = (*st_it)->contact_point_grid_->positionsToIndices(proj_feet_contact_point_positions);
                         
                         if(proj_feet_contact_point_indices[0] < surface_contact_grid_dim[0]-1 &&
                         proj_feet_contact_point_indices[1] < surface_contact_grid_dim[1]-1)
@@ -613,10 +731,10 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
                             int pfcp_ix = proj_feet_contact_point_indices[0];
                             int pfcp_iy = proj_feet_contact_point_indices[1];
 
-                            ContactPoint p1 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy];
-                            ContactPoint p2 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy];
-                            ContactPoint p3 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy+1];
-                            ContactPoint p4 = st_it->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy+1];
+                            ContactPoint p1 = (*st_it)->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy];
+                            ContactPoint p2 = (*st_it)->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy];
+                            ContactPoint p3 = (*st_it)->contact_point_grid_->contact_point_list_[pfcp_ix][pfcp_iy+1];
+                            ContactPoint p4 = (*st_it)->contact_point_grid_->contact_point_list_[pfcp_ix+1][pfcp_iy+1];
 
                             if(p1.isFeasible() && p2.isFeasible() && p3.isFeasible() && p4.isFeasible())
                             {
@@ -625,14 +743,14 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
                                 float p3_score = p3.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
                                 float p4_score = p4.getTotalScore(ContactType::FOOT, GLOBAL_NEGATIVE_Z);
 
-                                GridPositions2D cell_center_positions = st_it->contact_point_grid_->indicesToPositions(proj_feet_contact_point_indices);
+                                GridPositions2D cell_center_positions = (*st_it)->contact_point_grid_->indicesToPositions(proj_feet_contact_point_indices);
 
-                                float lx1 = proj_feet_contact_point_positions[0] - (cell_center_positions[0] - 0.5*st_it->contact_point_grid_->getResolution());
-                                float lx2 = st_it->contact_point_grid_->getResolution() - lx1;
-                                float ly1 = proj_feet_contact_point_positions[1] - (cell_center_positions[1] - 0.5*st_it->contact_point_grid_->getResolution());
-                                float ly2 = st_it->contact_point_grid_->getResolution() - ly1;
+                                float lx1 = proj_feet_contact_point_positions[0] - (cell_center_positions[0] - 0.5*(*st_it)->contact_point_grid_->getResolution());
+                                float lx2 = (*st_it)->contact_point_grid_->getResolution() - lx1;
+                                float ly1 = proj_feet_contact_point_positions[1] - (cell_center_positions[1] - 0.5*(*st_it)->contact_point_grid_->getResolution());
+                                float ly2 = (*st_it)->contact_point_grid_->getResolution() - ly1;
 
-                                tmp_score_list[j] = st_it->contact_point_grid_->getInterpolatedScore({p1_score,p2_score,p3_score,p4_score}, {lx1,lx2,ly1,ly2});
+                                tmp_score_list[j] = (*st_it)->contact_point_grid_->getInterpolatedScore({p1_score,p2_score,p3_score,p4_score}, {lx1,lx2,ly1,ly2});
 
                                 break; // the contact points on the ground structures does not overlap
                             }
@@ -659,15 +777,9 @@ void EscherMotionPlanning::constructGroundContactPointGrid()
     // }
 }
 
-std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransitionTraversability(std::array<float,3> torso_grid_dimensions, std::vector<std::array<int,5>> transitions)
+std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransitionTraversability(std::vector< std::array<int,5> > transitions)
 {
     std::map<std::array<int,5>,float> traversability_map;
-
-	const float torso_grid_min_x = torso_grid_dimensions[0];
-	const float torso_grid_min_y = torso_grid_dimensions[1];
-	const int torso_grid_min_theta = TORSO_GRID_MIN_THETA;
-    const float torso_grid_resolution = torso_grid_dimensions[2];
-    const int torso_grid_angular_resolution = TORSO_GRID_ANGULAR_RESOLUTION;
 
 	// int ix1, iy1, itheta1;
 	// int ix2, iy2;
@@ -683,8 +795,8 @@ std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransit
         traversability_map.insert(std::make_pair(transitions[i],0));
     }
 
-    omp_set_num_threads(8);
-    #pragma omp parallel for schedule(dynamic)
+    // omp_set_num_threads(16);
+    #pragma omp parallel for schedule(dynamic) num_threads(16)
 	for(int i = 0; i < transitions.size(); i++)
 	{
 		int ix1 = transitions[i][0];
@@ -694,11 +806,13 @@ std::map<std::array<int,5>,float> EscherMotionPlanning::calculateFootstepTransit
 		int ix2 = transitions[i][3];
 		int iy2 = transitions[i][4];
 
-		// printf("From (%d,%d,%d) to (%d,%d): \n",ix1,iy1,itheta1,ix2,iy2);
+        // printf("From (%d,%d,%d) to (%d,%d): \n",ix1,iy1,itheta1,ix2,iy2);
+        
+        GridPositions3D torso_grid_position1 = map_grid_->indicesToPositions({ix1,iy1,itheta1});
 
-		float x1 = torso_grid_min_x + torso_grid_resolution * float(ix1 + 0.5);
-		float y1 = torso_grid_min_y + torso_grid_resolution * float(iy1 + 0.5);
-		int theta1 = torso_grid_min_theta + torso_grid_angular_resolution * itheta1;
+        float x1 = torso_grid_position1[0];
+        float y1 = torso_grid_position1[1];
+        int theta1 = int(torso_grid_position1[2]);
 
         // printf("(x1,y1,theta1)=(%5.5f,%5.5f,%d)\n",x1,y1,theta1);
         
@@ -798,13 +912,10 @@ float EscherMotionPlanning::sumFootstepTransitionTraversability(std::array<int,4
 	return footstep_window_score;
 }
 
-std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calculateHandTransitionTraversability(std::array<float,3> torso_grid_dimensions, std::vector< std::array<int,3> > torso_poses)
+std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calculateHandTransitionTraversability(std::vector< GridIndices3D > torso_poses)
 {
     // given torso pose, and the environment structures find projection score of each hand transition model
     std::map< std::array<int,3>, std::array<float,4> > hand_transition_traversability;
-    const float torso_grid_min_x = torso_grid_dimensions[0];
-    const float torso_grid_min_y = torso_grid_dimensions[1];
-    const float torso_grid_resolution = torso_grid_dimensions[2];
 
     std::array<float,4> default_traversability = {0,0,0,0};
     for(int i = 0; i < torso_poses.size(); i++)
@@ -812,24 +923,80 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
         hand_transition_traversability.insert(std::make_pair(torso_poses[i],default_traversability));
     }
 
-	omp_set_num_threads(8);
-	#pragma omp parallel for schedule(dynamic)
+	// omp_set_num_threads(16);
+	#pragma omp parallel for schedule(dynamic) num_threads(16)
     for(int i = 0; i < torso_poses.size(); i++)
     {
         int ix = torso_poses[i][0];
         int iy = torso_poses[i][1];
         int itheta = torso_poses[i][2];
 
-        float x = torso_grid_min_x + torso_grid_resolution * (float(ix) + 0.5);
-		float y = torso_grid_min_y + torso_grid_resolution * (float(iy) + 0.5);
+        GridPositions3D torso_position = map_grid_->indicesToPositions({ix,iy,itheta});
+
+        float x = torso_position[0];
+		float y = torso_position[1];
         float z = 0.0; // assume the robot height is 0, which is clearly not precise
-		float theta = TORSO_GRID_MIN_THETA + TORSO_GRID_ANGULAR_RESOLUTION * itheta;
+		float theta = torso_position[2];
         float theta_rad = theta * DEG2RAD;
 
         float forward_left_hand_score = 0;
         float forward_right_hand_score = 0;
         float backward_left_hand_score = 0;
         float backward_right_hand_score = 0;
+
+        // determine the height of the robot
+        int left_counted_cell_num = 0;
+        float left_mean_height = 0;
+        int right_counted_cell_num = 0;
+        float right_mean_height = 0;
+
+        for(std::vector< GridIndices2D >::iterator lfn_it = map_grid_->left_foot_neighbor_window_[itheta].begin(); 
+            lfn_it != map_grid_->left_foot_neighbor_window_[itheta].end(); lfn_it++)
+        {
+            int lfix = ix + lfn_it->at(0);
+            int lfiy = iy + lfn_it->at(1);
+
+            if(map_grid_->insideGrid(GridIndices3D({lfix,lfiy,itheta})) &&
+               map_grid_->cell_2D_list_[lfix][lfiy].height_ > -0.5 && 
+               map_grid_->cell_2D_list_[lfix][lfiy].height_ < 0.5)
+            {
+                left_mean_height = left_mean_height + map_grid_->cell_2D_list_[lfix][lfiy].height_;
+                left_counted_cell_num = left_counted_cell_num + 1;
+            }
+        }
+
+        if(left_counted_cell_num == 0)
+        {
+            // RAVELOG_WARN("WARNING: env_transition_feature_calculation receive a query with no standing position for left foot.");
+            std::map< std::array<int,3>, std::array<float,4> >::iterator htt_it = hand_transition_traversability.find(torso_poses[i]); 
+            htt_it->second = {0,0,0,0};
+            continue;
+        }
+
+        for(std::vector< GridIndices2D >::iterator rfn_it = map_grid_->right_foot_neighbor_window_[itheta].begin(); 
+        rfn_it != map_grid_->right_foot_neighbor_window_[itheta].end(); rfn_it++)
+        {
+            int rfix = ix + rfn_it->at(0);
+            int rfiy = iy + rfn_it->at(1);
+
+            if(map_grid_->insideGrid(GridIndices3D({rfix,rfiy,itheta})) &&
+               map_grid_->cell_2D_list_[rfix][rfiy].height_ > -0.5 && 
+               map_grid_->cell_2D_list_[rfix][rfiy].height_ < 0.5)
+            {
+                right_mean_height = right_mean_height + map_grid_->cell_2D_list_[rfix][rfiy].height_;
+                right_counted_cell_num = right_counted_cell_num + 1;
+            }
+        }
+
+        if(right_counted_cell_num == 0)
+        {
+            // RAVELOG_WARN("WARNING: env_transition_feature_calculation receive a query with no standing position for left foot.");
+            std::map< std::array<int,3>, std::array<float,4> >::iterator htt_it = hand_transition_traversability.find(torso_poses[i]); 
+            htt_it->second = {0,0,0,0};
+            continue;
+        }
+
+        z = (left_mean_height + right_mean_height)/2.0;
 
         // hand_contact_structures = left_contact_structures
         // hand_contact_structures = right_contact_structures
@@ -877,18 +1044,18 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
 
                 float proj_dist = 9999.0;
                 Translation3D proj_point;
-                std::vector<TrimeshSurface>::iterator contact_st;
+                std::vector< std::shared_ptr<TrimeshSurface> >::iterator contact_st;
 
-                for(std::vector<TrimeshSurface>::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
+                for(std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it = structures_.begin(); st_it != structures_.end(); st_it++)
                 {
-                    float shoulder_struct_center_dist = (st_it->getCenter() - current_shoulder_position).norm();
+                    float shoulder_struct_center_dist = ((*st_it)->getCenter() - current_shoulder_position).norm();
 
-                    if(st_it->getType() == TrimeshType::OTHERS && shoulder_struct_center_dist <= MAX_ARM_LENGTH + st_it->getCircumRadius())
+                    if((*st_it)->getType() == TrimeshType::OTHERS && shoulder_struct_center_dist <= MAX_ARM_LENGTH + (*st_it)->getCircumRadius())
                     {
-                        Translation3D tmp_proj_point = st_it->projectionGlobalFrame(current_shoulder_position, contact_direction);
+                        Translation3D tmp_proj_point = (*st_it)->projectionGlobalFrame(current_shoulder_position, contact_direction);
                         float tmp_proj_dist = (tmp_proj_point-current_shoulder_position).norm();
 
-                        if(isValidPosition(tmp_proj_point) && st_it->insidePolygon(tmp_proj_point) && tmp_proj_dist < proj_dist)
+                        if(isValidPosition(tmp_proj_point) && (*st_it)->insidePolygon(tmp_proj_point) && tmp_proj_dist < proj_dist)
                         {
                             proj_dist = tmp_proj_dist;
                             proj_point = tmp_proj_point;
@@ -899,8 +1066,8 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
 
                 if(proj_dist > MIN_ARM_LENGTH && proj_dist < MAX_ARM_LENGTH)
                 {
-                    GridPositions2D proj_point_plane_frame = translation2DToGridPositions2D(contact_st->projectionPlaneFrame(proj_point));
-                    float score = contact_st->contact_point_grid_->getScore(proj_point_plane_frame,ContactType::HAND,contact_direction);
+                    GridPositions2D proj_point_plane_frame = translation2DToGridPositions2D((*contact_st)->projectionPlaneFrame(proj_point));
+                    float score = (*contact_st)->contact_point_grid_->getScore(proj_point_plane_frame,ContactType::HAND,contact_direction);
 
                     if(manip == ContactManipulator::L_ARM)
                     {

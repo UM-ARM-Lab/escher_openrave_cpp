@@ -36,6 +36,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/PointGrid.cpp
     src/ContactPoint.cpp
     src/SurfaceContactPointGrid.cpp
+    src/MapGrid.cpp
     src/EscherMotionPlanning.cpp
     src/Drawing.cpp
 )

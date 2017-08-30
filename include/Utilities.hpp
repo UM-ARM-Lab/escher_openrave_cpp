@@ -128,6 +128,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "SurfaceContactPointGrid.hpp"
 #include "GroundContactPointGrid.hpp"
 #include "TrimeshSurface.hpp"
+#include "MapGrid.hpp"
 #include "EscherMotionPlanning.hpp"
 
 #endif
