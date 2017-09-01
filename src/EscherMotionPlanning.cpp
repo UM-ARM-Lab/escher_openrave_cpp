@@ -234,7 +234,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                     neighbor_window_vector[j] = GridIndices2D({ix,iy});
                 }
 
-                // map_grid_->left_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+                map_grid_->left_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
             }
 
             for(int i = 0; i < map_grid_->dim_theta_; i++)
@@ -924,7 +924,7 @@ std::map< std::array<int,3>, std::array<float,4> > EscherMotionPlanning::calcula
     }
 
 	// omp_set_num_threads(16);
-	#pragma omp parallel for schedule(dynamic) num_threads(16)
+	// #pragma omp parallel for schedule(dynamic) num_threads(16)
     for(int i = 0; i < torso_poses.size(); i++)
     {
         int ix = torso_poses[i][0];
