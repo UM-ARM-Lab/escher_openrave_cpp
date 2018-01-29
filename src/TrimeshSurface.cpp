@@ -35,6 +35,8 @@ void TrimeshSurface::updateProjVertices()
 	min_proj_y_ = std::numeric_limits<float>::max();
 	max_proj_y_ = std::numeric_limits<float>::min();
 
+	proj_vertices_.clear();
+
 	for(Translation3D const & vertex : vertices_)
 	{
 		Translation2D proj_vertex = projectionPlaneFrame(vertex);
@@ -134,6 +136,210 @@ void TrimeshSurface::updateApproxBoundary()
 	// int a;
 	// std::cin >> a;
 
+}
+
+void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSurface> > structures)
+{
+	// RAVELOG_INFO("A");
+	
+	proj_boundaries_.clear();
+
+	float project_dist = 0.5;
+	Translation2D origin(0,0);
+	float min_z, max_z;
+	int index1, index2;
+	Translation3D vertex1, vertex2;
+	Translation3D transformed_vertex;
+	Translation3D transformed_vertex1, transformed_vertex2;
+	Translation2D proj_vertex1, proj_vertex2;
+	Translation3D intersection_point_3d;
+	Translation2D intersection_point_2d;
+
+	// RAVELOG_INFO("B");
+
+    // first add its own boundary
+	for(std::vector< std::pair<int, int> >::iterator edge_it = edges_.begin(); edge_it != edges_.end(); edge_it++)
+	{
+		index1 = edge_it->first;
+		index2 = edge_it->second;
+		Boundary new_boundary(proj_vertices_[index1], proj_vertices_[index2]);
+		proj_boundaries_.push_back(new_boundary);
+	}
+
+	// RAVELOG_INFO("C");
+
+	// collect all the surface boundaries and do the projection
+	for(int st_index = 0; st_index < structures.size(); st_index++)
+    {
+		// RAVELOG_INFO("C-1");
+
+        std::vector< std::shared_ptr<TrimeshSurface> >::iterator st_it = structures.begin() + st_index;
+
+		if(getId() == (*st_it)->getId())
+		{
+			continue;
+		}
+
+		if(getType() != (*st_it)->getType())
+		{
+			continue;
+		}
+
+		// RAVELOG_INFO("C-2");
+
+		// find the boundaries caused by edges
+		std::vector<Translation2D> proj_vertices_from_other_surface;
+		std::vector<Translation3D> transformed_vertices_from_other_surface;
+
+		for(std::vector<Translation3D>::iterator vertex_it = (*st_it)->vertices_.begin(); vertex_it != (*st_it)->vertices_.end(); vertex_it++)
+		{
+			transformed_vertex = (inverse_transformation_matrix_ * vertex_it->homogeneous()).block(0,0,3,1);
+			transformed_vertices_from_other_surface.push_back(transformed_vertex);
+
+			proj_vertices_from_other_surface.push_back(projectionPlaneFrame(*vertex_it));
+		}
+
+		// RAVELOG_INFO("C-3");
+		
+        for(std::vector< std::pair<int, int> >::iterator edge_it = (*st_it)->edges_.begin(); edge_it != (*st_it)->edges_.end(); edge_it++)
+		{
+			// RAVELOG_INFO("C-3-1");
+
+			index1 = edge_it->first;
+			index2 = edge_it->second;
+
+			transformed_vertex1 = transformed_vertices_from_other_surface[index1];
+			transformed_vertex2 = transformed_vertices_from_other_surface[index2];
+
+			max_z = std::max(transformed_vertex1(2), transformed_vertex2(2));
+			min_z = std::min(transformed_vertex1(2), transformed_vertex2(2));
+
+			// RAVELOG_INFO("C-3-2");
+
+			// make sure the boundary is close enough in z
+			if(max_z <= project_dist && max_z >= 0)
+			{
+				proj_vertex1 = proj_vertices_from_other_surface[index1];
+				proj_vertex2 = proj_vertices_from_other_surface[index2];
+				Boundary new_boundary(proj_vertex1, proj_vertex2);
+
+				// RAVELOG_INFO("C-3-3");
+
+				// make sure the boundary is close enough in xy
+				if(new_boundary.getDistance(origin) <= circum_radius_)
+				{
+					// update one of the vertex to be the intersection point
+					if(min_z < 0)
+					{
+						Translation2D intersection_proj_vertex;
+						if(transformed_vertex1(2) > transformed_vertex2(2))
+						{
+							intersection_proj_vertex = ((-min_z)*proj_vertex1 + max_z*proj_vertex2)/(max_z-min_z);
+							new_boundary = Boundary(proj_vertex1, intersection_proj_vertex);
+						}
+						else
+						{
+							intersection_proj_vertex = ((-min_z)*proj_vertex2 + max_z*proj_vertex1)/(max_z-min_z);
+							new_boundary = Boundary(intersection_proj_vertex, proj_vertex2);
+						}
+					}
+					
+					proj_boundaries_.push_back(new_boundary);
+				}
+
+				// RAVELOG_INFO("C-3-4");
+			}
+
+			// RAVELOG_INFO("C-3-5");
+		}
+
+		// RAVELOG_INFO("C-4");
+
+		// find the boundaries caused by the planar intersections
+		// first check if they could possibly touch each other
+		if(euclideanDistance3D(getCenter(), (*st_it)->getCenter()) < circum_radius_ + (*st_it)->circum_radius_)
+		{
+			// find planar intersection line
+			Translation3D normal1 = getNormal();
+			Translation3D normal2 = (*st_it)->getNormal();
+
+			// if they are parallel, skip it.
+			if(euclideanDistance3D(normal1, normal2) < 0.001)
+			{
+				continue;
+			}
+
+			std::vector<Translation2D> intersection_points;
+
+			// project the other surface edges to the subject surface
+			for(std::vector< std::pair<int, int> >::iterator edge_it = (*st_it)->edges_.begin(); edge_it != (*st_it)->edges_.end(); edge_it++)
+			{
+				index1 = edge_it->first;
+			    index2 = edge_it->second;
+
+				vertex1 = (*st_it)->vertices_[index1];
+				vertex2 = (*st_it)->vertices_[index2];
+
+				transformed_vertex1 = transformed_vertices_from_other_surface[index1];
+				transformed_vertex2 = transformed_vertices_from_other_surface[index2];
+				
+				// check if the two vertices are in different side of the plane
+				if(transformed_vertex1(2)*transformed_vertex2(2) < 0)
+				{
+					intersection_point_2d = projectionPlaneFrame(vertex1, (vertex2-vertex1).normalized());
+					
+					if(insidePolygonPlaneFrame(intersection_point_2d))
+					{
+						intersection_points.push_back(intersection_point_2d);
+					}
+				}
+			}
+
+			TransformationMatrix other_surface_inverse_transform = (*st_it)->getInverseTransform();
+			std::vector<Translation3D> transformed_subject_vertices_to_other_surfaces;
+			for(std::vector<Translation3D>::iterator vertex_it = vertices_.begin(); vertex_it != vertices_.end(); vertex_it++)
+			{
+				transformed_vertex = (other_surface_inverse_transform * vertex_it->homogeneous()).block(0,0,3,1);
+				transformed_subject_vertices_to_other_surfaces.push_back(transformed_vertex);
+			}
+
+			// project the subject surface edges to the other surface
+			for(std::vector< std::pair<int, int> >::iterator edge_it = edges_.begin(); edge_it != edges_.end(); edge_it++)
+			{
+				index1 = edge_it->first;
+			    index2 = edge_it->second;
+
+				vertex1 = vertices_[index1];
+				vertex2 = vertices_[index2];
+
+				transformed_vertex1 = transformed_subject_vertices_to_other_surfaces[index1];
+				transformed_vertex2 = transformed_subject_vertices_to_other_surfaces[index2];
+				
+				// check if the two vertices are in different side of the plane
+				if(transformed_vertex1(2)*transformed_vertex2(2) < 0)
+				{
+					intersection_point_3d = (*st_it)->projectionGlobalFrame(vertex1, (vertex2-vertex1).normalized());
+					
+					if((*st_it)->insidePolygon(intersection_point_3d))
+					{
+						intersection_point_2d = projectionPlaneFrame(intersection_point_3d);
+						intersection_points.push_back(intersection_point_2d);
+					}
+				}
+			}
+
+			if(intersection_points.size() >= 2) // should be either 0 or 2
+			{
+				Boundary new_boundary(intersection_points[0], intersection_points[1]);
+				proj_boundaries_.push_back(new_boundary);
+			}
+			
+		}
+
+		// RAVELOG_INFO("C-5");
+
+    }
+	
 }
 
 /*** PUBLIC MEM FNS ***/
@@ -287,7 +493,7 @@ Translation2D TrimeshSurface::projectionPlaneFrame(const Translation3D& start_po
 {
 	Translation3D proj_point = (inverse_transformation_matrix_ * start_point.homogeneous()).block(0,0,3,1);
 
-	return Translation2D(proj_point[0],proj_point[1]);	
+	return Translation2D(proj_point[0],proj_point[1]);
 }
 
 Translation2D TrimeshSurface::projectionPlaneFrame(const Translation3D& start_point, const Translation3D& ray) const

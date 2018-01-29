@@ -5,11 +5,11 @@
 float ContactPoint::getOrientationScore(Translation3D approaching_direction)
 {
     Translation3D n = getNormal();
-    float angular_deviation = (acos(n.dot(approaching_direction)) * M_PI/180);
+    float angular_deviation = (acos(n.dot(approaching_direction)) * RAD2DEG);
 
     if(angular_deviation < MAX_ANGULAR_DEVIATION)
     {
-        return (MAX_ANGULAR_DEVIATION - tan(angular_deviation * M_PI/180))/MAX_ANGULAR_DEVIATION;
+        return (MAX_ANGULAR_DEVIATION - tan(angular_deviation * DEG2RAD))/MAX_ANGULAR_DEVIATION;
     }
     else
     {
@@ -59,6 +59,6 @@ float ContactPoint::getTotalScore(ContactType type, Translation3D approaching_di
             //     self.foot_contact_score = self.clearance_score(contact_type) * self.orientation_score(contact_direction)
 
             // return self.foot_contact_score
-    // return (getClearanceScore(type) * getOrientationScore(approaching_direction));
-    return getClearanceScore(type);
+    return (getClearanceScore(type) * getOrientationScore(approaching_direction));
+    // return getClearanceScore(type);
 }

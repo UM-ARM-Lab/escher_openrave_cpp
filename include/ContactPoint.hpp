@@ -15,7 +15,8 @@ public:
     projected_position_(_projected_position),
     normal_(_normal),
     clearance_(_clearance),
-    feasible_(_feasible) {};
+    feasible_(_feasible),
+    convered_(false) {};
 
 	inline Translation3D getPosition() const { return position_; }
     inline Translation2D getProjectedPosition() const { return projected_position_; }
@@ -27,14 +28,20 @@ public:
     float getClearanceScore(ContactType type);
     float getTotalScore(ContactType type, Translation3D approaching_direction);
 
+    bool operator < (const ContactPoint& cp) const
+    {
+        return (clearance_ < cp.getClearance());
+    }
+
     inline void setClearance(float c){clearance_ = c;}
 
     bool feasible_;
+    bool convered_;
 
 private:
-	const Translation3D position_;
-    const Translation2D projected_position_;
-    const Translation3D normal_;
+	Translation3D position_;
+    Translation2D projected_position_;
+    Translation3D normal_;
     float clearance_;
 
 };

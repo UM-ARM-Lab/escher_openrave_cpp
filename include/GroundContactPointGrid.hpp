@@ -11,7 +11,7 @@ public:
 
     // float getScore(GridPositions2D position, ContactType type, Translation3D contact_direction);
 
-    std::vector< std::vector<float> > score_cell_list_;
+    std::vector< std::vector< std::array<float,3> > > score_cell_list_;
 
 private:
 

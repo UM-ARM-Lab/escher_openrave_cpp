@@ -35,10 +35,13 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/TrimeshSurface.cpp    
     src/PointGrid.cpp
     src/ContactPoint.cpp
+    src/ContactRegion.cpp
     src/SurfaceContactPointGrid.cpp
     src/MapGrid.cpp
+    src/ContactState.cpp
     src/EscherMotionPlanning.cpp
     src/Drawing.cpp
+    src/Boundary.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"

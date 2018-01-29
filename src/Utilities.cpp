@@ -39,11 +39,11 @@ TransformationMatrix inverseTransformationMatrix(TransformationMatrix T)
 	return T_inverse;
 }
 
-RotationMatrix RPYToSO3(const RPY_tf& e) // TODO: need to change to the more robust version
+RotationMatrix RPYToSO3(const RPYTF& e) // TODO: need to change to the more robust version
 {
-	float roll_in_rad = e.roll * (M_PI / 180);
-	float pitch_in_rad = e.pitch * (M_PI / 180);
-	float yaw_in_rad = e.yaw * (M_PI / 180);
+	float roll_in_rad = e.roll_ * DEG2RAD;
+	float pitch_in_rad = e.pitch_ * DEG2RAD;
+	float yaw_in_rad = e.yaw_ * DEG2RAD;
 
 	float roll_x = cos(roll_in_rad);
 	float roll_y = sin(roll_in_rad);
@@ -68,11 +68,11 @@ RotationMatrix RPYToSO3(const RPY_tf& e) // TODO: need to change to the more rob
 	return rot_mat;
 }
 
-TransformationMatrix XYZRPYToSE3(const RPY_tf& e)
+TransformationMatrix XYZRPYToSE3(const RPYTF& e)
 {
-	float roll_in_rad = e.roll * (M_PI / 180);
-	float pitch_in_rad = e.pitch * (M_PI / 180);
-	float yaw_in_rad = e.yaw * (M_PI / 180);
+	float roll_in_rad = e.roll_ * DEG2RAD;
+	float pitch_in_rad = e.pitch_ * DEG2RAD;
+	float yaw_in_rad = e.yaw_ * DEG2RAD;
 
 	float roll_x = cos(roll_in_rad);
 	float roll_y = sin(roll_in_rad);
@@ -83,9 +83,9 @@ TransformationMatrix XYZRPYToSE3(const RPY_tf& e)
 	float yaw_x = cos(yaw_in_rad);
 	float yaw_y = sin(yaw_in_rad);
 
-	return constructTransformationMatrix(pitch_x * yaw_x, -pitch_x * yaw_y, pitch_y, e.x,
-	                                     roll_x * yaw_y + yaw_x * roll_y * pitch_y, roll_x * yaw_x - roll_y * pitch_y * yaw_y, -pitch_x * roll_y, e.y,
-									     roll_y * yaw_y - roll_x * yaw_x * pitch_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, e.z);
+	return constructTransformationMatrix(pitch_x * yaw_x, -pitch_x * yaw_y, pitch_y, e.x_,
+	                                     roll_x * yaw_y + yaw_x * roll_y * pitch_y, roll_x * yaw_x - roll_y * pitch_y * yaw_y, -pitch_x * roll_y, e.y_,
+									     roll_y * yaw_y - roll_x * yaw_x * pitch_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, e.z_);
 
 }
 

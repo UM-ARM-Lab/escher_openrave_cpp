@@ -1,4 +1,3 @@
-
 #include "Utilities.hpp"
 
 // using namespace OpenRAVE;

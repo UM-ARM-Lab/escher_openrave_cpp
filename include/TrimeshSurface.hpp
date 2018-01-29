@@ -2,6 +2,7 @@
 #define TRIMESHSURFACE_HPP
 
 // #include "Utilities.hpp"
+#include "Boundary.hpp"
 
 // // OpenRAVE
 // #include <openrave/plugin.h>
@@ -57,6 +58,10 @@ public:
 
 	// inline std::shared_ptr<SurfaceContactPointGrid> get_contact_point_grid(){return contact_point_grid_;}
 	std::shared_ptr<SurfaceContactPointGrid> contact_point_grid_;
+	std::vector<Boundary> proj_boundaries_;
+	std::vector<ContactRegion> contact_regions_; // constains a vector of contact regions belong to this surface
+
+	void updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSurface> > structures);
 
 private:
 	// boundaries historically called "approx_boundary"
@@ -66,6 +71,7 @@ private:
 	std::vector< std::pair<int, int> > edges_; // contains indices into vertices vector
 	std::vector<Translation3D> vertices_; // historically called "boundaries"
 	std::vector<Translation2D> proj_vertices_; // last vertex is same as first vertex, i.e. "closed loop"
+	
 
 	float min_proj_x_;
 	float max_proj_x_;

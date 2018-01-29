@@ -3,7 +3,7 @@
 
 
 
-float SurfaceContactPointGrid::getScore(GridPositions2D position, ContactType type, Translation3D contact_direction)
+float SurfaceContactPointGrid::getScore(GridPositions2D position, ContactType contact_type, Translation3D contact_direction, std::string feature_type)
 {
     if(position[0] >= max_x_ || position[0] < min_x_ || position[1] >= max_y_ || position[1] < min_y_)
     {
@@ -42,12 +42,31 @@ float SurfaceContactPointGrid::getScore(GridPositions2D position, ContactType ty
     ContactPoint pt3 = contact_point_list_[indices[0]][indices[1]+neighbor[1]];
     ContactPoint pt4 = contact_point_list_[indices[0]+neighbor[0]][indices[1]+neighbor[1]];
 
+    float pt1_score, pt2_score, pt3_score, pt4_score;
+
     if(pt1.feasible_ && pt2.feasible_ && pt3.feasible_ && pt4.feasible_)
     {
-        float pt1_score = pt1.getTotalScore(type,contact_direction);
-        float pt2_score = pt2.getTotalScore(type,contact_direction);
-        float pt3_score = pt3.getTotalScore(type,contact_direction);
-        float pt4_score = pt4.getTotalScore(type,contact_direction);
+        if(strcmp(feature_type.c_str(),"clearance"))
+        {
+            pt1_score = pt1.getClearanceScore(contact_type);
+            pt2_score = pt2.getClearanceScore(contact_type);
+            pt3_score = pt3.getClearanceScore(contact_type);
+            pt4_score = pt4.getClearanceScore(contact_type);
+        }
+        else if(strcmp(feature_type.c_str(),"orientation"))
+        {
+            pt1_score = pt1.getOrientationScore(contact_direction);
+            pt2_score = pt2.getOrientationScore(contact_direction);
+            pt3_score = pt3.getOrientationScore(contact_direction);
+            pt4_score = pt4.getOrientationScore(contact_direction);
+        }
+        else if(strcmp(feature_type.c_str(),"total"))
+        {
+            pt1_score = pt1.getTotalScore(contact_type,contact_direction);
+            pt2_score = pt2.getTotalScore(contact_type,contact_direction);
+            pt3_score = pt3.getTotalScore(contact_type,contact_direction);
+            pt4_score = pt4.getTotalScore(contact_type,contact_direction);
+        }
 
         Eigen::Matrix2f score_matrix;
         score_matrix(0,0) = pt1_score;
