@@ -20,6 +20,9 @@ void  PointGrid::initializeParameters(float _min_x, float _max_x, float _min_y, 
 
     center_x_ = min_x_ + int(dim_x_/2.0) * _resolution + _resolution/2.0;
     center_y_ = min_y_ + int(dim_y_/2.0) * _resolution + _resolution/2.0;
+
+    // dim_x_ = int(round((max_x_ - min_x_)/_resolution));
+    // dim_y_ = int(round((max_y_ - min_y_)/_resolution));
 }
 
 GridIndices2D PointGrid::positionsToIndices(GridPositions2D position)
@@ -48,7 +51,7 @@ GridPositions2D PointGrid::indicesToPositions(GridIndices2D indices)
 
     if(index_x >= dim_x_ || index_x < 0 || index_y >= dim_y_ ||  index_y < 0)
     {
-        RAVELOG_ERROR("Error: Input index (%d,%d) out of bound.\n",index_x,index_y);
+        RAVELOG_ERROR("Error: Input index (%d,%d) out of bound: Dim: (%d,%d).\n",index_x,index_y,dim_x_,dim_y_);
     }
 
     return {position_x,position_y};

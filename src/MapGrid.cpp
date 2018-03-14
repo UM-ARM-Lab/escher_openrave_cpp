@@ -114,7 +114,7 @@ GridPositions2D MapGrid::indicesToPositionsXY(GridIndices2D xy_indices)
 
     if(index_x >= dim_x_ || index_x < 0 || index_y >= dim_y_ ||  index_y < 0)
     {
-        RAVELOG_ERROR("Error: Input index (%d,%d) out of bound.\n",index_x,index_y);
+        RAVELOG_ERROR("Error: Input index (%d,%d) out of bound: Dim=(%d,%d).\n",index_x,index_y,dim_x_,dim_y_);
     }
 
     return {position_x,position_y};

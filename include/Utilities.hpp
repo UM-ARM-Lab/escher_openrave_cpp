@@ -53,7 +53,7 @@ const float HAND_WIDTH = 0.14;
 const float HAND_RADIUS = hypot(HAND_HEIGHT/2.0,HAND_WIDTH/2.0);
 
 const float MIN_ARM_LENGTH = 0.3;
-const float MAX_ARM_LENGTH = 0.7;
+const float MAX_ARM_LENGTH = 0.65; // to make it more conservative
 
 const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
