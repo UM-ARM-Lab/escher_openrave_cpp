@@ -68,12 +68,15 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
 
+const int NUM_STANCE_IN_STATE = 1;
+
 enum ContactManipulator
 {
     L_LEG,
     R_LEG,
     L_ARM,
-    R_ARM
+    R_ARM,
+	MANIP_NUM
 };
 
 enum ContactType

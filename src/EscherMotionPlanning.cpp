@@ -9,6 +9,9 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
     RegisterCommand("StartPlanning",boost::bind(&EscherMotionPlanning::Planning,this,_1,_2),
                     "Start the planning process.");
 
+    RegisterCommand("StartPlanningFromScratch",boost::bind(&EscherMotionPlanning::startPlanningFromScratch,this,_1,_2),
+                    "Start the A* planning process.");
+
     RegisterCommand("StartCalculatingTraversability",boost::bind(&EscherMotionPlanning::CalculatingTraversability,this,_1,_2),
                     "Start calculating traversability.");
 
@@ -52,7 +55,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("Input %d structures:",structures_num);
+                RAVELOG_INFO("Input %d structures:\n",structures_num);
             }
 
             for(int i = 0; i < structures_num; i++)
@@ -135,7 +138,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
                     if(printing_)
                     {
-                        RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s",
+                        RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s \n",
                                      new_surface->getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface->getKinbody()->GetName().c_str());
                     }
 
@@ -286,7 +289,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("Input %d footstep transitions for legs only case:",footstep_transition_num);
+                RAVELOG_INFO("Input %d footstep transitions for legs only case:\n",footstep_transition_num);
             }
 
             for(int i = 0; i < footstep_transition_num; i++)
@@ -301,7 +304,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
                 if(printing_)
                 {
-                    RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
+                    RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.\n",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
                 }
 
                 std::vector< std::array<std::array<int,2>,3> > footstep_window_cell_tuples(footstep_transition_cell_tuple_num);
@@ -330,7 +333,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("Input %d footstep transitions:",footstep_transition_num);
+                RAVELOG_INFO("Input %d footstep transitions:\n",footstep_transition_num);
             }
 
             for(int i = 0; i < footstep_transition_num; i++)
@@ -345,7 +348,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
                 if(printing_)
                 {
-                    RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
+                    RAVELOG_INFO("Torso Transition:(%d,%d,%d): %d footstep tuples.\n",torso_transition[0],torso_transition[1],torso_transition[2],footstep_transition_cell_tuple_num);
                 }
 
                 std::vector< std::array<std::array<int,2>,3> > footstep_window_cell_tuples(footstep_transition_cell_tuple_num);
@@ -374,7 +377,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("%d torso transitions queried.",torso_transition_num);
+                RAVELOG_INFO("%d torso transitions queried.\n",torso_transition_num);
             }
 
             for(int i = 0; i < torso_transition_num; i++)
@@ -397,7 +400,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("Footstep window grid resolution=%5.3f.",ground_grid_resolution);
+                RAVELOG_INFO("Footstep window grid resolution=%5.3f.\n",ground_grid_resolution);
             }
         }
 
@@ -410,7 +413,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
             if(printing_)
             {
-                RAVELOG_INFO("Load %d hand transition models",hand_transition_num);
+                RAVELOG_INFO("Load %d hand transition models.\n",hand_transition_num);
             }
 
             float hand_pitch, hand_yaw;
@@ -432,7 +435,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                 is_parallel_ = false;
                 if(printing_)
                 {
-                    RAVELOG_INFO("Don't do parallelization.");
+                    RAVELOG_INFO("Don't do parallelization.\n");
                 }
             }
             else
@@ -440,7 +443,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
                 is_parallel_ = true;
                 if(printing_)
                 {
-                    RAVELOG_INFO("Do parallelization.");
+                    RAVELOG_INFO("Do parallelization.\n");
                 }
             }
         }
@@ -459,13 +462,13 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
     if(printing_)
     {
-        RAVELOG_INFO("Command parsed; now start calculating traversability...");
+        RAVELOG_INFO("Command parsed; now start calculating traversability...\n");
     }
 
     // calculate the clearance on each surface
     if(printing_)
     {
-        RAVELOG_INFO("Now construct the contact point grid on each surface...");
+        RAVELOG_INFO("Now construct the contact point grid on each surface...\n");
     }
     constructContactPointGrid();
 
@@ -474,7 +477,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     // project the ground surface contact points onto the 2D grid
     if(printing_)
     {
-        RAVELOG_INFO("Now construct the contact point grid on the 2D ground surface...");
+        RAVELOG_INFO("Now construct the contact point grid on the 2D ground surface...\n");
     }
     constructGroundContactPointGrid();
 
@@ -483,7 +486,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     // batch calculation of every transition traversability of footsteps
     if(printing_)
     {
-        RAVELOG_INFO("Now calculate the footstep contact transition traversability...");
+        RAVELOG_INFO("Now calculate the footstep contact transition traversability...\n");
     }
     std::map<std::array<int,5>,std::array<float,3> > footstep_traversability;
     footstep_traversability = calculateFootstepTransitionTraversability(torso_transitions,"others");
@@ -496,7 +499,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
     // batch calculation of every transition traversability of hands
     if(printing_)
     {
-        RAVELOG_INFO("Now construct the hand contact transition traversability...");
+        RAVELOG_INFO("Now construct the hand contact transition traversability...\n");
     }
     std::map< std::array<int,3>, std::array<std::array<float,4>,3> > hand_traversability;
     
@@ -1251,7 +1254,7 @@ std::map<std::array<int,5>,std::array<float,3> > EscherMotionPlanning::calculate
 		window_theta = (theta1+360) % 90;
 		window_dix = 0;
 		window_diy = 0;
-				
+		
 		if(theta1 >= 0 && theta1 < 90)
 		{
 			window_dix = ix2-ix1;
@@ -1282,7 +1285,7 @@ std::map<std::array<int,5>,std::array<float,3> > EscherMotionPlanning::calculate
 		// torso_ix = int((x1-footstep_window_grid_min_x)/FOOTSTEP_WINDOW_GRID_RESOLUTION);
         // torso_iy = int((y1-footstep_window_grid_min_y)/FOOTSTEP_WINDOW_GRID_RESOLUTION);
 
-		// printf("Window dixy:(%d,%d), correspondence = [%d,%d,%d,%d].\n",window_dix,window_diy,correspondence[0],correspondence[1],correspondence[2],correspondence[3]);
+		// printf("Window key:(%d,%d,%d), correspondence = [%d,%d,%d,%d].\n",window_dix,window_diy,window_theta,correspondence[0],correspondence[1],correspondence[2],correspondence[3]);
 		// printf("footstep_window_grid_min_xy:(%5.3f,%5.3f).\n",footstep_window_grid_min_x,footstep_window_grid_min_y);
 		// printf("Torso:(%d,%d)\n",torso_ix,torso_iy);
 
@@ -1657,6 +1660,57 @@ bool EscherMotionPlanning::Planning(std::ostream& sout, std::istream& sinput)
     return true;
 }
 
+bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)
+{
+    std::string robot_name;
+    std::string param;
+
+    RAVELOG_INFO("Parse commands and initialize variables...\n");
+
+    while(!sinput.eof())
+    {
+        sinput >> param;
+        if(!sinput)
+        {
+            break;
+        }
+
+        if(strcmp(param.c_str(), "robotname") == 0)
+        {
+            sinput >> robot_name;
+        }
+
+        if(strcmp(param.c_str(), "goal") == 0)
+        {
+            goal_.resize(3);
+            for(int i = 0; i < 3; i++)
+            {
+                sinput >> goal_[i];
+            }
+            std::cout<<"The goal is: (x,y,theta) = ("<<goal_[0]<<","<<goal_[1]<<","<<goal_[2]<<")"<<std::endl;
+        }
+
+        if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                is_parallel_ = false;
+                std::cout<<"Don't do parallelization."<<std::endl;
+            }
+            else
+            {
+                is_parallel_ = true;
+                std::cout<<"Do parallelization."<<std::endl;
+            }
+        }
+    }
+
+    RAVELOG_INFO("Done. \n");
+
+    RAVELOG_INFO("Start ANA* Planning \n");
+
+}
 
 void EscherMotionPlanning::SetActiveRobots(std::string robot_name, const std::vector<OpenRAVE::RobotBasePtr>& robots)
 {
