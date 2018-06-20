@@ -25,10 +25,9 @@ class Stance
 class ContactState
 {
     public:
-        ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root, float edge_cost, float heuristics_cost);
+        ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root);
 
-        float getEdgeCost(ContactManipulator _move_manip, RPYTF _new_pose);
-        float getHeusitics();
+        void UpdateCostsAndCoM(float edge_cost, float heuristics, std::array<float,3> com, std::array<float,3> com_dot);
 
         // foot orientation projected to flat gruond
         float getLeftHorizontalYaw();

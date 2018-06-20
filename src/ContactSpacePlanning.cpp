@@ -15,6 +15,17 @@ heuristics_type_(_heuristics_type),
 structures_(_structures),
 structures_dict_(_structures_dict)
 {
+    for(auto & structure : structures_)
+    {
+        if(structure->getType() == TrimeshType::GROUND)
+        {
+            foot_structures_.push_back(structure);
+        }
+        else if(structure->getType() == TrimeshType::OTHERS)
+        {
+            hand_structures_.push_back(structure);
+        }
+    }
 }
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal, float goal_radius, float time_limit)
@@ -161,17 +172,114 @@ float ContactSpacePlanning::getDynamicScore()
 
 void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state)
 {
+    // branching foot contacts
+
+    // branching hand contacts
 
 }
 
-void ContactSpacePlanning::footProjection()
+void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
+{
+    std::array<float,6> l_foot_xyzrpy, r_foot_xyzrpy;
+    float l_foot_x, l_foot_y, l_foot_z, l_foot_roll, l_foot_pitch, l_foot_yaw;
+    float r_foot_x, r_foot_y, r_foot_z, r_foot_roll, r_foot_pitch, r_foot_yaw;
+
+    float l_leg_horizontal_yaw = current_state->getLeftHorizontalYaw();
+    float r_leg_horizontal_yaw = current_state->getRightHorizontalYaw();
+
+    std::vector< std::tuple<RPYTF, RPYTF, ContactManipulator> > branching_feet_combination;
+
+    std::shared_ptr<Stance> current_stance = current_state->stances_array_[0];
+
+    // get all the possible branches of feet combinations
+    for(auto & manip : branching_manips)
+    {
+        if(manip == ContactManipulator::L_LEG || manip == ContactManipulator::R_LEG)
+        {            
+            for(auto & step : foot_transition_model_)
+            {
+                l_foot_xyzrpy = current_stance->left_foot_pose_.getXYZRPY();
+                r_foot_xyzrpy = current_stance->right_foot_pose_.getXYZRPY();
+                
+                if(manip == ContactManipulator::L_LEG)
+                {
+                    l_foot_xyzrpy[0] = r_foot_xyzrpy[0] + std::cos(r_leg_horizontal_yaw*DEG2RAD) * step[0] - std::sin(r_leg_horizontal_yaw*DEG2RAD) * step[1]; // x
+                    l_foot_xyzrpy[1] = r_foot_xyzrpy[1] + std::sin(r_leg_horizontal_yaw*DEG2RAD) * step[0] + std::cos(r_leg_horizontal_yaw*DEG2RAD) * step[1]; // y
+                    l_foot_xyzrpy[2] = 99.0; // z
+                    l_foot_xyzrpy[3] = 0; // roll
+                    l_foot_xyzrpy[4] = 0; // pitch
+                    l_foot_xyzrpy[5] = r_leg_horizontal_yaw + step[2]; // yaw
+                }
+                else if(manip == ContactManipulator::R_LEG)
+                {
+                    r_foot_xyzrpy[0] = l_foot_xyzrpy[0] + std::cos(l_leg_horizontal_yaw*DEG2RAD) * step[0] - std::sin(l_leg_horizontal_yaw*DEG2RAD) * (-step[1]); // x
+                    r_foot_xyzrpy[1] = l_foot_xyzrpy[1] + std::sin(l_leg_horizontal_yaw*DEG2RAD) * step[0] + std::cos(l_leg_horizontal_yaw*DEG2RAD) * (-step[1]); // y
+                    r_foot_xyzrpy[2] = 99.0; // z
+                    r_foot_xyzrpy[3] = 0; // roll
+                    r_foot_xyzrpy[4] = 0; // pitch
+                    r_foot_xyzrpy[5] = l_leg_horizontal_yaw - step[2]; // yaw
+                }
+
+                branching_feet_combination.push_back(std::make_tuple(RPYTF(l_foot_xyzrpy), RPYTF(r_foot_xyzrpy), manip));
+            }
+        }
+    }
+
+    // given all the branching feet combinations create states
+    // we can add OpenMP here
+    RPYTF new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose;
+    ContactManipulator move_manip;
+    for(auto & step_combination : branching_feet_combination)
+    {
+        new_left_foot_pose = std::get<0>(step_combination);
+        new_right_foot_pose = std::get<1>(step_combination);
+        new_left_hand_pose = current_stance->left_hand_pose_;
+        new_right_hand_pose = current_stance->right_hand_pose_;
+
+        move_manip = std::get<2>(step_combination);
+        
+        // do projection to find the projected feet poses
+
+        // construct the new state
+        std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, current_stance->ee_contact_status_));
+        
+        ContactState new_contact_state(new_stance, current_state, move_manip, false);
+
+
+        //// the following can be one function
+
+        // filter out states whose contact is outside map grid
+
+        // verify the state kinematic feasibility
+
+        // verify the state dynamic feasbility and the dynamic edge cost
+
+        // calculate the edge cost
+
+        // calculate the heuristics
+
+        // update the state cost and CoM
+
+        // add the state to the state vector and/or the open heap
+
+    }
+
+
+}
+
+void ContactSpacePlanning::branchingHandContacts()
 {
 
 }
 
-void ContactSpacePlanning::handProjection()
+bool ContactSpacePlanning::footProjection()
 {
 
+}
+
+bool ContactSpacePlanning::handProjection()
+{
+    
 }
 
 float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_state)

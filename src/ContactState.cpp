@@ -46,7 +46,7 @@ bool Stance::operator!=(const Stance& other) const
 }
 
 
-ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root, float edge_cost, float heuristics_cost):
+ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root):
                            parent_(_parent),
                            prev_move_manip_(_move_manip),
                            is_root_(_is_root)
@@ -68,10 +68,18 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     explore_state_ = ExploreState::OPEN;
 
     // update the g
-    this->g_ = _parent->g_ + edge_cost;
+    this->g_ = _parent->g_;
 
     // update the h
-    this->h_ = heuristics_cost;
+    this->h_ = 0.0;
+}
+
+void ContactState::UpdateCostsAndCoM(float edge_cost, float heuristics, std::array<float,3> com, std::array<float,3> com_dot)
+{
+    this->g_ += edge_cost;
+    this->h_ = heuristics;
+    this->com_ = com;
+    this->com_dot_ = com_dot;
 }
 
 bool ContactState::operator==(const ContactState& other) const

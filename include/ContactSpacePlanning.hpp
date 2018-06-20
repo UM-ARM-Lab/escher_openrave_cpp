@@ -39,6 +39,8 @@ class ContactSpacePlanning
 
         // the environment structures
         const std::vector< std::shared_ptr<TrimeshSurface> > structures_;
+        std::vector< std::shared_ptr<TrimeshSurface> > hand_structures_;
+        std::vector< std::shared_ptr<TrimeshSurface> > foot_structures_;
         const std::map<int, std::shared_ptr<TrimeshSurface> > structures_dict_;
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal, float goal_radius, float time_limit);
@@ -47,8 +49,10 @@ class ContactSpacePlanning
         float getDynamicScore();
 
         void branchingSearchTree(std::shared_ptr<ContactState> current_state);
-        void footProjection();
-        void handProjection();
+        void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
+        void branchingHandContacts();
+        bool footProjection();
+        bool handProjection();
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state);
