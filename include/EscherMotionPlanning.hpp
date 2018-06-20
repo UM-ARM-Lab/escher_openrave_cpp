@@ -14,12 +14,13 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, std::istream& ss);
         virtual ~EscherMotionPlanning() {}
 
-        bool CalculatingTraversability(std::ostream& sout, std::istream& sinput);
-        
+        bool CalculatingTraversability(std::ostream& sout, std::istream& sinput);        
 
         bool Planning(std::ostream& sout, std::istream& sinput);
 
         bool constructContactRegions(std::ostream& sout, std::istream& sinput);
+
+        bool startPlanningFromScratch(std::ostream& sout, std::istream& sinput);
 
     private:
         void constructContactPointGrid();

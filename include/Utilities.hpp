@@ -97,6 +97,7 @@ const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_
 class RPYTF
 {
 public:
+	RPYTF(){};
 	RPYTF(std::array<float,6> xyzrpy)
 	{
 		x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
@@ -155,6 +156,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 
 
 #include "Drawing.hpp"
+#include "RobotProperties.hpp"
 #include "Structure.hpp"
 #include "ContactPoint.hpp"
 #include "ContactRegion.hpp"

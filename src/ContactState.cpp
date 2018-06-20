@@ -1,6 +1,19 @@
 #include "Utilities.hpp"
 
-bool Stance::operator==(const ContactState& other) const
+Stance::Stance(RPYTF _left_foot_pose, RPYTF _right_foot_pose, RPYTF _left_hand_pose, RPYTF _right_hand_pose, std::array<bool,ContactManipulator::MANIP_NUM> _ee_contact_status):
+               left_foot_pose_(_left_foot_pose),
+               right_foot_pose_(_right_foot_pose),
+               left_hand_pose_(_left_hand_pose),
+               right_hand_pose_(_right_hand_pose),
+               ee_contact_status_(_ee_contact_status)
+{
+    this->ee_contact_poses_[ContactManipulator::L_LEG] = left_foot_pose_;
+    this->ee_contact_poses_[ContactManipulator::R_LEG] = right_foot_pose_;
+    this->ee_contact_poses_[ContactManipulator::L_ARM] = left_hand_pose_;
+    this->ee_contact_poses_[ContactManipulator::R_ARM] = right_hand_pose_;
+}
+
+bool Stance::operator==(const Stance& other) const
 {
     // if there is any difference in ee contact status, return false
     for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
@@ -27,26 +40,35 @@ bool Stance::operator==(const ContactState& other) const
     return true;
 }
 
-bool Stance::operator!=(const ContactState& other) const 
+bool Stance::operator!=(const Stance& other) const 
 {
     return !(*this == other);
 }
 
 
-ContactState::ContactState(Stance new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root):
+ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root):
                            parent_(_parent),
                            prev_move_manip_(_move_manip),
                            is_root_(_is_root)
 {
-    // updates the stance_array_
-    this->stance_array_[0] = new_stance;
+    // updates the stances_array_
+    this->stances_array_[0] = new_stance;
     for(int i = 0; i < NUM_STANCE_IN_STATE-1; i++)
     {
-        this->stance_array_[i] = _parent->stances_array_[i+1];
+        this->stances_array_[i] = _parent->stances_array_[i+1];
     }
 
+    // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
+    this->com_ = {0,0,0};
+    this->com_dot_ = {0,0,0};
+
+    // run the dynamics optimization here to get the dynamics edge cost (maybe outside the contact state)
+
+    // initialize the explore states
+    explore_state_ = explore_state::OPEN;
+
     // update the g
-    this->g_ = _parent.g_ + _parent.getEdgeCost(_move_manip, new_stance.ee_contact_poses_[_move_manip]);
+    this->g_ = _parent->g_ + _parent->getEdgeCost(_move_manip, new_stance->ee_contact_poses_[_move_manip]);
 
     // update the h
     this->h_ = this->getHeusitics();
@@ -56,7 +78,7 @@ bool ContactState::operator==(const ContactState& other) const
 {
     for(int i = 0; i < NUM_STANCE_IN_STATE; i++)
     {
-        if(this->stance_array_[i] != other.stance_array_[i])
+        if(*(this->stances_array_[i]) != *(other.stances_array_[i]))
         {
             return false;
         }

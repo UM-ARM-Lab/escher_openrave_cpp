@@ -42,6 +42,8 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/EscherMotionPlanning.cpp
     src/Drawing.cpp
     src/Boundary.cpp
+    src/RobotProperties.cpp
+    src/ContactSpacePlanning.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"
