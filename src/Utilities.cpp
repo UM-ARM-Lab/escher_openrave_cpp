@@ -99,6 +99,45 @@ GridPositions2D translation2DToGridPositions2D(Translation2D positions)
 	return {positions[0],positions[1]};
 }
 
+float getFirstTerminalAngle(float angle)
+{
+	float result_angle = angle;
+    while(result_angle < -180 or result_angle >= 180)
+	{
+		if(result_angle < -180)
+		{
+			result_angle += 360;
+		}
+		else if(result_angle >= 180)
+		{
+			result_angle -= 360;
+		}
+	}
+
+    return result_angle;
+}
+
+float getAngleDifference(float angle1, float angle2)
+{
+	return getFirstTerminalAngle(angle1 - angle2);
+}
+
+float getAngleMean(float angle1, float angle2)
+{
+	// return the closest mean angle in -180 ~ 180
+	float mean1 = (angle1+angle2)/2.0;
+	float mean2 = mean1 + 180;
+
+	if(std::fabs(getAngleDifference(mean1,angle1)) < std::fabs(getAngleDifference(mean2,angle1)))
+	{
+		return mean1;
+	}
+	else
+	{
+		return mean2;
+	}
+}
+
 std::array<float,4> HSVToRGB(std::array<float,4> hsv)
 {
 	std::array<float,4> rgb;

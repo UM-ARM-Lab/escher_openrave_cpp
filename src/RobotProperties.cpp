@@ -1,7 +1,7 @@
 #include "Utilities.hpp"
 
 RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<OpenRAVE::dReal> _IK_init_DOF_Values, std::vector<OpenRAVE::dReal> _default_DOF_Values, 
-                                 float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z, float _shoulder_z, float _shoulder_w):
+                                 float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z, float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length):
     name_(_robot->GetName()),
     default_DOF_Values_(_default_DOF_Values),
     IK_init_DOF_Values_(_IK_init_DOF_Values),
@@ -14,7 +14,9 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     robot_z_(_robot_z),
     top_z_(_top_z),
     shoulder_z_(_shoulder_z),
-    shoulder_w_(_shoulder_w)
+    shoulder_w_(_shoulder_w),
+    max_arm_length_(_max_arm_length),
+    min_arm_length_(_min_arm_length)
 {
     for(auto &joint : _robot->GetJoints())
     {

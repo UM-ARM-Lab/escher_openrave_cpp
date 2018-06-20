@@ -36,6 +36,8 @@ typedef Eigen::Matrix4f TransformationMatrix;
 typedef Eigen::Matrix3f RotationMatrix;
 typedef Eigen::Vector2f Translation2D;
 typedef Eigen::Vector3f Translation3D;
+typedef Eigen::Vector2f Vector2D;
+typedef Eigen::Vector3f Vector3D;
 
 typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
@@ -91,6 +93,20 @@ enum TrimeshType
     OTHERS
 };
 
+enum PlanningHeuristicsType
+{
+	EUCLIDEAN,
+	DIJKSTRA
+};
+
+enum ExploreState
+{
+	OPEN,
+	EXPLORED,
+	CLOSED,
+	REOPEN
+};
+
 const std::vector<ContactManipulator> ARM_MANIPULATORS = {ContactManipulator::L_ARM,ContactManipulator::R_ARM};
 const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_LEG,ContactManipulator::R_LEG};
 
@@ -123,7 +139,8 @@ public:
     inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
                                                         (this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
     
-	inline std::array<float,6> getXYZRPY() {return std::array<float,6>({x_,y_,z_,roll_,pitch_,yaw_});}
+	inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
+	inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
 	
 	float x_; // meters
     float y_; // meters
@@ -142,6 +159,11 @@ TransformationMatrix constructTransformationMatrix(float m00, float m01, float m
 TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
+
+// Manipulate the angle differences
+float getFirstTerminalAngle(float angle);
+float getAngleDifference(float angle1, float angle2);
+float getAngleMean(float angle1, float angle2);
 
 // Data structure translation
 Translation2D gridPositions2DToTranslation2D(GridPositions2D positions);
