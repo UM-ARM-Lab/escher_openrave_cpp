@@ -18,6 +18,8 @@
 #include <set>
 #include <unistd.h>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Eigen
@@ -69,8 +71,6 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
-
-const int NUM_STANCE_IN_STATE = 1;
 
 enum ContactManipulator
 {
@@ -159,6 +159,7 @@ TransformationMatrix constructTransformationMatrix(float m00, float m01, float m
 TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
+RPYTF SE3ToXYZRPY(const TransformationMatrix& T);
 
 // Manipulate the angle differences
 float getFirstTerminalAngle(float angle);

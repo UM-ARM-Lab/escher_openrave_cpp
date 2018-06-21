@@ -89,6 +89,18 @@ TransformationMatrix XYZRPYToSE3(const RPYTF& e)
 
 }
 
+RPYTF SE3ToXYZRPY(const TransformationMatrix& T)
+{
+	RotationMatrix R = T.block(0,0,3,3);
+	Vector3D rpy = R.eulerAngles(2, 1, 0);
+
+	float roll = getFirstTerminalAngle(rpy(0) * RAD2DEG);
+	float pitch = getFirstTerminalAngle(rpy(1) * RAD2DEG);
+	float yaw = getFirstTerminalAngle(rpy(2) * RAD2DEG);
+
+	return RPYTF(T(0,3), T(1,3), T(2,3), roll, pitch, yaw);
+}
+
 Translation2D gridPositions2DToTranslation2D(GridPositions2D positions)
 {
 	return Translation2D(positions[0],positions[1]);

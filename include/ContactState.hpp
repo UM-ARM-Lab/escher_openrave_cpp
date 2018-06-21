@@ -25,9 +25,8 @@ class Stance
 class ContactState
 {
     public:
-        ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, bool _is_root);
-
-        void UpdateCostsAndCoM(float edge_cost, float heuristics, std::array<float,3> com, std::array<float,3> com_dot);
+        ContactState(std::shared_ptr<Stance> _initial_stance, std::array<float,3> _initial_com, std::array<float,3> _initial_com_dot, int _num_stance_in_state);
+        ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state);
 
         // foot orientation projected to flat gruond
         float getLeftHorizontalYaw();
@@ -35,13 +34,15 @@ class ContactState
         float getFeetMeanHorizontalYaw();
         TransformationMatrix getFeetMeanTransform();
 
-        std::array<std::shared_ptr<Stance>,NUM_STANCE_IN_STATE> stances_array_;
+        const int num_stance_in_state_;
+
+        std::vector<std::shared_ptr<Stance> > stances_vector_;
         std::array<float,3> com_;
         std::array<float,3> com_dot_;
 
         const bool is_root_;
 
-        const ContactManipulator prev_move_manip_;
+        ContactManipulator prev_move_manip_;
         float g_;
         float h_;
         float priority_value_;
@@ -62,11 +63,44 @@ class ContactState
             }
         };
 
-        inline std::shared_ptr<ContactState> getParent() {return parent_;}
+        std::shared_ptr<ContactState> parent_;
+
+        // inline std::shared_ptr<ContactState> getParent() {return parent_;}
         inline const float getF() const {return (g_ + h_);}
 
     private:
-        std::shared_ptr<ContactState> parent_;
+        
 };
+
+
+namespace std
+{
+    template <>
+    class hash<ContactState>{
+        public:
+            size_t operator()(const ContactState &contact_state) const
+            {
+                size_t hash_number;
+                for(auto & stance : contact_state.stances_vector_)
+                {
+                    for(auto & status : stance->ee_contact_status_)
+                    {
+                        hash_number = hash_number ^ hash<bool>()(status);
+                    }
+
+                    for(auto & pose : stance->ee_contact_poses_)
+                    {
+                        hash_number = hash_number ^ hash<float>()(pose.x_) ^ hash<float>()(pose.y_) ^ hash<float>()(pose.z_)
+                                                ^ hash<float>()(pose.roll_) ^ hash<float>()(pose.pitch_) ^ hash<float>()(pose.yaw_);
+                    }
+                }
+
+                hash_number = hash_number ^ hash<float>()(contact_state.com_[0]) ^ hash<float>()(contact_state.com_[1]) ^ hash<float>()(contact_state.com_[2])
+                                        ^ hash<float>()(contact_state.com_dot_[0]) ^ hash<float>()(contact_state.com_dot_[1]) ^ hash<float>()(contact_state.com_dot_[2]);
+
+                return hash_number;
+            }
+    };
+}
 
 #endif

@@ -19,6 +19,325 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
                     "Start constructing contact regions.");
 }
 
+void EscherMotionPlanning::parseStructuresCommand(std::istream& sinput)
+{
+    int structures_num;
+
+    structures_.clear();
+    structures_dict_.clear();
+
+    sinput >> structures_num;
+
+    if(printing_)
+    {
+        RAVELOG_INFO("Input %d structures:\n",structures_num);
+    }
+
+    for(int i = 0; i < structures_num; i++)
+    {
+        std::string geometry;
+        sinput >> geometry;
+
+        // get the kinbody name
+        std::string kinbody_name;
+        sinput >> kinbody_name;
+
+        int id;
+        sinput >> id;
+
+        if(strcmp(geometry.c_str(), "trimesh") == 0)
+        {
+            Eigen::Vector4f plane_parameters;
+            
+            // get the plane parameters
+            for(int j = 0; j < 4; j++)
+            {
+                sinput >> plane_parameters[j];
+            }
+
+            // get the vertices
+            int vertices_num;
+            sinput >> vertices_num;
+
+            Translation3D vertex;
+            std::vector<Translation3D> vertices(vertices_num);
+
+            for(int j = 0; j < vertices_num; j++)
+            {
+                for(int k = 0; k < 3; k++)
+                {
+                    sinput >> vertex[k];
+                }
+
+                vertices[j] = vertex;
+            }
+
+            // get the edges
+            int edges_num;
+            sinput >> edges_num;
+
+            std::vector<std::pair<int, int> > edges(edges_num);
+            std::pair<int, int> edge;
+            for(int j = 0; j < edges_num; j++)
+            {
+                sinput >> edge.first;
+                sinput >> edge.second;
+                edges[j] = edge;
+            }
+
+            TrimeshType type;
+            
+            std::string tmp_type;
+            sinput >> tmp_type;
+            
+            if(strcmp(tmp_type.c_str(), "ground") == 0)
+            {
+                type = TrimeshType::GROUND;
+            }
+            else
+            {
+                type = TrimeshType::OTHERS;
+            }
+
+            // std::cout<< kinbody_name << std::endl;
+            // std::vector< OpenRAVE::KinBodyPtr > bodies;
+            // penv_->GetBodies(bodies);
+            // std::cout << bodies.size() << std::endl;
+            // std::cout << penv_->GetKinBody(kinbody_name)->GetName() << std::endl;
+            // std::cout << penv_->GetKinBody(kinbody_name)->GetName().c_str() << std::endl;
+            std::shared_ptr<TrimeshSurface> new_surface = std::make_shared<TrimeshSurface>(penv_, kinbody_name, plane_parameters, edges, vertices, type, id);
+            structures_.push_back(new_surface);
+            structures_dict_.insert(std::make_pair(new_surface->getId(), structures_[structures_.size()-1]));
+            Translation3D surface_center = new_surface->getCenter();
+            Translation3D surface_normal = new_surface->getNormal();
+
+            if(printing_)
+            {
+                RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s \n",
+                                new_surface->getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface->getKinbody()->GetName().c_str());
+            }
+
+        }
+        else if(strcmp(geometry.c_str(), "box") == 0)
+        {
+            RAVELOG_WARN("WARNING: Box is not implemented yet.\n");
+        }
+    }
+}
+
+void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
+{
+    int foot_transition_num;
+    sinput >> foot_transition_num;
+
+    foot_transition_model_.resize(foot_transition_num);
+
+    if(printing_)
+    {
+        RAVELOG_INFO("Load %d foot transitions.\n", foot_transition_num);
+    }
+
+    float dx, dy, dtheta;
+
+    for(int i = 0; i < foot_transition_num; i++)
+    {
+        sinput >> dx;
+        sinput >> dy;
+        sinput >> dtheta;
+
+        foot_transition_model_[i] = {dx, dy, dtheta};
+    }
+}
+
+void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
+{
+    int hand_transition_num;
+    sinput >> hand_transition_num;
+
+    hand_transition_model_.resize(hand_transition_num);
+
+    if(printing_)
+    {
+        RAVELOG_INFO("Load %d hand transitions.\n",hand_transition_num);
+    }
+
+    float hand_pitch, hand_yaw;
+
+    for(int i = 0; i < hand_transition_num; i++)
+    {
+        sinput >> hand_pitch;
+        sinput >> hand_yaw;
+
+        hand_transition_model_[i] = {hand_pitch,hand_yaw};
+    }
+}
+
+void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
+{
+    float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
+    float map_grid_xy_resolution;
+
+    sinput >> map_grid_min_x;
+    sinput >> map_grid_max_x;
+    sinput >> map_grid_min_y;
+    sinput >> map_grid_max_y;
+    sinput >> map_grid_xy_resolution;
+
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+
+    for(int i = 0; i < map_grid_->dim_x_; i++)
+    {
+        for(int j = 0; j < map_grid_->dim_y_; j++)
+        {
+            sinput >> map_grid_->cell_2D_list_[i][j].height_;
+
+            int foot_ground_projection_surface_id;
+            int safe_projection;
+            sinput >> safe_projection;
+            sinput >> foot_ground_projection_surface_id;
+
+            if(foot_ground_projection_surface_id == -99)
+            {
+                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
+                std::make_pair(safe_projection != 0, nullptr);
+            }
+            else
+            {
+                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
+                std::make_pair(safe_projection != 0, structures_dict_[foot_ground_projection_surface_id]);
+            }
+
+            int cell_ground_surfaces_num, cell_ground_surface_id;
+            sinput >> cell_ground_surfaces_num;
+
+            for(int n = 0; n < cell_ground_surfaces_num; n++)
+            {
+                sinput >> cell_ground_surface_id;
+                map_grid_->cell_2D_list_[i][j].all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
+            }                    
+            
+            for(int k = 0; k < map_grid_->dim_theta_; k++)
+            {
+                std::array<int,3> parent_indices;
+                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[0];
+                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[1];
+                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[2];                        
+
+                sinput >> map_grid_->cell_3D_list_[i][j][k].g_;
+                sinput >> map_grid_->cell_3D_list_[i][j][k].h_;
+
+                int left_hand_checking_surfaces_num, right_hand_checking_surfaces_num;
+                int surface_id;
+
+                sinput >> left_hand_checking_surfaces_num;
+                for(int n = 0; n < left_hand_checking_surfaces_num; n++)
+                {
+                    sinput >> surface_id;
+                    map_grid_->cell_3D_list_[i][j][k].left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
+                }
+
+                sinput >> right_hand_checking_surfaces_num;
+                for(int n = 0; n < right_hand_checking_surfaces_num; n++)
+                {
+                    sinput >> surface_id;
+                    map_grid_->cell_3D_list_[i][j][k].right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
+                }
+            }
+        }
+    }
+
+
+    // the neighbor windows
+    for(int i = 0; i < map_grid_->dim_theta_; i++)
+    {
+        int cell_num;
+        sinput >> cell_num;
+
+        int ix, iy;
+        std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+        for(int j = 0; j < cell_num; j++)
+        {
+            sinput >> ix;
+            sinput >> iy;
+            neighbor_window_vector[j] = GridIndices2D({ix,iy});
+        }
+
+        map_grid_->left_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+    }
+
+    for(int i = 0; i < map_grid_->dim_theta_; i++)
+    {
+        int cell_num;
+        sinput >> cell_num;
+
+        int ix, iy;
+        std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+        for(int j = 0; j < cell_num; j++)
+        {
+            sinput >> ix;
+            sinput >> iy;
+            neighbor_window_vector[j] = GridIndices2D({ix,iy});
+        }
+
+        map_grid_->right_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+    }
+
+    for(int i = 0; i < map_grid_->dim_theta_; i++)
+    {
+        int cell_num;
+        sinput >> cell_num;
+
+        int ix, iy;
+        std::vector< GridIndices2D > neighbor_window_vector(cell_num);
+
+        for(int j = 0; j < cell_num; j++)
+        {
+            sinput >> ix;
+            sinput >> iy;
+            neighbor_window_vector[j] = GridIndices2D({ix,iy});
+        }
+
+        map_grid_->torso_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
+    }
+}
+
+void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
+{
+    int dof_num = probot_->GetDOF();
+    std::vector<OpenRAVE::dReal> IK_init_DOF_Values(dof_num);
+    std::vector<OpenRAVE::dReal> default_DOF_Values(dof_num);
+
+    float foot_h, foot_w, hand_h, hand_w, robot_z, top_z, shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride;
+    
+    for(int i = 0; i < dof_num; i++)
+    {
+        sinput >> IK_init_DOF_Values[i];
+    }
+
+    for(int i = 0; i < dof_num; i++)
+    {
+        sinput >> default_DOF_Values[i];
+    }
+
+    sinput >> foot_h;
+    sinput >> foot_w;
+    sinput >> hand_h;
+    sinput >> hand_w;
+    sinput >> robot_z;
+    sinput >> top_z;
+    sinput >> shoulder_z;
+    sinput >> shoulder_w;
+    sinput >> max_arm_length;
+    sinput >> min_arm_length;
+    sinput >> max_stride;
+
+    robot_properties_ = std::make_shared<RobotProperties>(RobotProperties(probot_, IK_init_DOF_Values, default_DOF_Values, 
+                                                                          foot_h, foot_w, hand_h, hand_w, robot_z, top_z, 
+                                                                          shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride));
+}
+
 bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::istream& sinput)
 {
     penv_ = GetEnv();
@@ -49,237 +368,12 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
         if(strcmp(param.c_str(), "structures") == 0)
         {
-            int structures_num;
-
-            sinput >> structures_num;
-
-            if(printing_)
-            {
-                RAVELOG_INFO("Input %d structures:\n",structures_num);
-            }
-
-            for(int i = 0; i < structures_num; i++)
-            {
-                std::string geometry;
-                sinput >> geometry;
-
-                // get the kinbody name
-                std::string kinbody_name;
-                sinput >> kinbody_name;
-
-                int id;
-                sinput >> id;
-
-                if(strcmp(geometry.c_str(), "trimesh") == 0)
-                {
-                    Eigen::Vector4f plane_parameters;
-                    
-                    // get the plane parameters
-                    for(int j = 0; j < 4; j++)
-                    {
-                        sinput >> plane_parameters[j];
-                    }
-
-                    // get the vertices
-                    int vertices_num;
-                    sinput >> vertices_num;
-
-                    Translation3D vertex;
-                    std::vector<Translation3D> vertices(vertices_num);
-
-                    for(int j = 0; j < vertices_num; j++)
-                    {
-                        for(int k = 0; k < 3; k++)
-                        {
-                            sinput >> vertex[k];
-                        }
-
-                        vertices[j] = vertex;
-                    }
-
-                    // get the edges
-                    int edges_num;
-                    sinput >> edges_num;
-
-                    std::vector<std::pair<int, int> > edges(edges_num);
-                    std::pair<int, int> edge;
-                    for(int j = 0; j < edges_num; j++)
-                    {
-                        sinput >> edge.first;
-                        sinput >> edge.second;
-                        edges[j] = edge;
-                    }
-
-                    TrimeshType type;
-                    
-                    std::string tmp_type;
-                    sinput >> tmp_type;
-                    
-                    if(strcmp(tmp_type.c_str(), "ground") == 0)
-                    {
-                        type = TrimeshType::GROUND;
-                    }
-                    else
-                    {
-                        type = TrimeshType::OTHERS;
-                    }
-
-                    // std::cout<< kinbody_name << std::endl;
-                    // std::vector< OpenRAVE::KinBodyPtr > bodies;
-                    // penv_->GetBodies(bodies);
-                    // std::cout << bodies.size() << std::endl;
-                    // std::cout << penv_->GetKinBody(kinbody_name)->GetName() << std::endl;
-                    // std::cout << penv_->GetKinBody(kinbody_name)->GetName().c_str() << std::endl;
-                    std::shared_ptr<TrimeshSurface> new_surface = std::make_shared<TrimeshSurface>(penv_, kinbody_name, plane_parameters, edges, vertices, type, id);
-                    structures_.push_back(new_surface);
-                    structures_dict_.insert(std::make_pair(new_surface->getId(), structures_[structures_.size()-1]));
-                    Translation3D surface_center = new_surface->getCenter();
-                    Translation3D surface_normal = new_surface->getNormal();
-
-                    if(printing_)
-                    {
-                        RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s \n",
-                                     new_surface->getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface->getKinbody()->GetName().c_str());
-                    }
-
-                }
-                else if(strcmp(geometry.c_str(), "box") == 0)
-                {
-                    RAVELOG_WARN("WARNING: Box is not implemented yet.\n");
-                }
-            }   
+            parseStructuresCommand(sinput);
         }
 
         if(strcmp(param.c_str(), "map_grid") == 0)
         {
-            float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
-            float map_grid_xy_resolution;
-
-            sinput >> map_grid_min_x;
-            sinput >> map_grid_max_x;
-            sinput >> map_grid_min_y;
-            sinput >> map_grid_max_y;
-            sinput >> map_grid_xy_resolution;
-
-            map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
-
-            for(int i = 0; i < map_grid_->dim_x_; i++)
-            {
-                for(int j = 0; j < map_grid_->dim_y_; j++)
-                {
-                    sinput >> map_grid_->cell_2D_list_[i][j].height_;
-
-                    int foot_ground_projection_surface_id;
-                    int safe_projection;
-                    sinput >> safe_projection;
-                    sinput >> foot_ground_projection_surface_id;
-
-                    if(foot_ground_projection_surface_id == -99)
-                    {
-                        map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
-                        std::make_pair(safe_projection != 0, nullptr);
-                    }
-                    else
-                    {
-                        map_grid_->cell_2D_list_[i][j].foot_ground_projection_ = 
-                        std::make_pair(safe_projection != 0, structures_dict_[foot_ground_projection_surface_id]);
-                    }
-
-                    int cell_ground_surfaces_num, cell_ground_surface_id;
-                    sinput >> cell_ground_surfaces_num;
-
-                    for(int n = 0; n < cell_ground_surfaces_num; n++)
-                    {
-                        sinput >> cell_ground_surface_id;
-                        map_grid_->cell_2D_list_[i][j].all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
-                    }                    
-                    
-                    for(int k = 0; k < map_grid_->dim_theta_; k++)
-                    {
-                        std::array<int,3> parent_indices;
-                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[0];
-                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[1];
-                        sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[2];                        
-
-                        sinput >> map_grid_->cell_3D_list_[i][j][k].g_;
-                        sinput >> map_grid_->cell_3D_list_[i][j][k].h_;
-
-                        int left_hand_checking_surfaces_num, right_hand_checking_surfaces_num;
-                        int surface_id;
-
-                        sinput >> left_hand_checking_surfaces_num;
-                        for(int n = 0; n < left_hand_checking_surfaces_num; n++)
-                        {
-                            sinput >> surface_id;
-                            map_grid_->cell_3D_list_[i][j][k].left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
-                        }
-
-                        sinput >> right_hand_checking_surfaces_num;
-                        for(int n = 0; n < right_hand_checking_surfaces_num; n++)
-                        {
-                            sinput >> surface_id;
-                            map_grid_->cell_3D_list_[i][j][k].right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);                           
-                        }
-                    }
-                }
-            }
-
-
-            // the neighbor windows
-            for(int i = 0; i < map_grid_->dim_theta_; i++)
-            {
-                int cell_num;
-                sinput >> cell_num;
-
-                int ix, iy;
-                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
-
-                for(int j = 0; j < cell_num; j++)
-                {
-                    sinput >> ix;
-                    sinput >> iy;
-                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
-                }
-
-                map_grid_->left_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
-            }
-
-            for(int i = 0; i < map_grid_->dim_theta_; i++)
-            {
-                int cell_num;
-                sinput >> cell_num;
-
-                int ix, iy;
-                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
-
-                for(int j = 0; j < cell_num; j++)
-                {
-                    sinput >> ix;
-                    sinput >> iy;
-                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
-                }
-
-                map_grid_->right_foot_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
-            }
-
-            for(int i = 0; i < map_grid_->dim_theta_; i++)
-            {
-                int cell_num;
-                sinput >> cell_num;
-
-                int ix, iy;
-                std::vector< GridIndices2D > neighbor_window_vector(cell_num);
-
-                for(int j = 0; j < cell_num; j++)
-                {
-                    sinput >> ix;
-                    sinput >> iy;
-                    neighbor_window_vector[j] = GridIndices2D({ix,iy});
-                }
-
-                map_grid_->torso_neighbor_window_.insert(std::make_pair(i,neighbor_window_vector));
-            }
-
+            parseMapGridCommand(sinput);            
         }
 
         if(strcmp(param.c_str(), "transition_footstep_window_cells_legs_only") == 0)
@@ -406,25 +500,7 @@ bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::is
 
         if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
-            int hand_transition_num;
-            sinput >> hand_transition_num;
-
-            hand_transition_model_.resize(hand_transition_num);
-
-            if(printing_)
-            {
-                RAVELOG_INFO("Load %d hand transition models.\n",hand_transition_num);
-            }
-
-            float hand_pitch, hand_yaw;
-
-            for(int i = 0; i < hand_transition_num; i++)
-            {
-                sinput >> hand_pitch;
-                sinput >> hand_yaw;
-
-                hand_transition_model_[i] = {hand_pitch,hand_yaw};
-            }
+            parseHandTransitionModelCommand(sinput);
         }
 
         if(strcmp(param.c_str(), "parallelization") == 0)
@@ -603,105 +679,7 @@ bool EscherMotionPlanning::constructContactRegions(std::ostream& sout, std::istr
                 continue;
             }
 
-            int structures_num;
-
-            sinput >> structures_num;
-
-            if(printing_)
-            {
-                RAVELOG_INFO("Input %d structures:",structures_num);
-            }
-
-            for(int i = 0; i < structures_num; i++)
-            {
-                std::string geometry;
-                sinput >> geometry;
-
-                // get the kinbody name
-                std::string kinbody_name;
-                sinput >> kinbody_name;
-
-                int id;
-                sinput >> id;
-
-                if(strcmp(geometry.c_str(), "trimesh") == 0)
-                {
-                    Eigen::Vector4f plane_parameters;
-                    
-                    // get the plane parameters
-                    for(int j = 0; j < 4; j++)
-                    {
-                        sinput >> plane_parameters[j];
-                    }
-
-                    // get the vertices
-                    int vertices_num;
-                    sinput >> vertices_num;
-
-                    Translation3D vertex;
-                    std::vector<Translation3D> vertices(vertices_num);
-
-                    for(int j = 0; j < vertices_num; j++)
-                    {
-                        for(int k = 0; k < 3; k++)
-                        {
-                            sinput >> vertex[k];
-                        }
-
-                        vertices[j] = vertex;
-                    }
-
-                    // get the edges
-                    int edges_num;
-                    sinput >> edges_num;
-
-                    std::vector<std::pair<int, int> > edges(edges_num);
-                    std::pair<int, int> edge;
-                    for(int j = 0; j < edges_num; j++)
-                    {
-                        sinput >> edge.first;
-                        sinput >> edge.second;
-                        edges[j] = edge;
-                    }
-
-                    TrimeshType type;
-                    
-                    std::string tmp_type;
-                    sinput >> tmp_type;
-                    
-                    if(strcmp(tmp_type.c_str(), "ground") == 0)
-                    {
-                        type = TrimeshType::GROUND;
-                    }
-                    else
-                    {
-                        type = TrimeshType::OTHERS;
-                    }
-
-                    // std::cout<< kinbody_name << std::endl;
-                    // std::vector< OpenRAVE::KinBodyPtr > bodies;
-                    // penv_->GetBodies(bodies);
-                    // std::cout << bodies.size() << std::endl;
-                    // std::cout << penv_->GetKinBody(kinbody_name)->GetName() << std::endl;
-                    // std::cout << penv_->GetKinBody(kinbody_name)->GetName().c_str() << std::endl;
-                    std::shared_ptr<TrimeshSurface> new_surface = std::make_shared<TrimeshSurface>(penv_, kinbody_name, plane_parameters, edges, vertices, type, id);
-                    structures_.push_back(new_surface);
-                    structures_dict_.insert(std::make_pair(new_surface->getId(), structures_[structures_.size()-1]));
-                    Translation3D surface_center = new_surface->getCenter();
-                    Translation3D surface_normal = new_surface->getNormal();
-
-                    if(printing_)
-                    {
-                        RAVELOG_INFO("Structure #%d: Trimesh: Center:(%3.2f,%3.2f,%3.2f), Normal:(%3.2f,%3.2f,%3.2f), KinBody Name: %s",
-                                     new_surface->getId(),surface_center[0],surface_center[1],surface_center[2],surface_normal[0],surface_normal[1],surface_normal[2],new_surface->getKinbody()->GetName().c_str());
-                    }
-
-                }
-                else if(strcmp(geometry.c_str(), "box") == 0)
-                {
-                    RAVELOG_WARN("WARNING: Box is not implemented yet.\n");
-                }
-            }   
+            parseStructuresCommand(sinput);
         }
 
         if(strcmp(param.c_str(), "structures_id") == 0)
@@ -1567,99 +1545,6 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
 
 }
 
-bool EscherMotionPlanning::Planning(std::ostream& sout, std::istream& sinput)
-{
-    std::string robot_name;
-
-    std::string param;
-
-    while(!sinput.eof())
-    {
-        sinput >> param;
-        if(!sinput)
-        {
-            break;
-        }
-
-        if(strcmp(param.c_str(), "robotname") == 0)
-        {
-            sinput >> robot_name;
-        }
-
-        if(strcmp(param.c_str(), "goal") == 0)
-        {
-            goal_.resize(3);
-            for(int i = 0; i < 3; i++)
-            {
-                sinput >> goal_[i];
-            }
-            std::cout<<"The goal is: (x,y,z) = ("<<goal_[0]<<","<<goal_[1]<<","<<goal_[2]<<")"<<std::endl;
-        }
-
-        if(strcmp(param.c_str(), "parallelization") == 0)
-        {
-            sinput >> param;
-            if(strcmp(param.c_str(), "0") == 0)
-            {
-                is_parallel_ = false;
-                std::cout<<"Don't do parallelization."<<std::endl;
-            }
-            else
-            {
-                is_parallel_ = true;
-                std::cout<<"Do parallelization."<<std::endl;
-            }
-        }
-
-    }
-
-    // vector<RobotBasePtr> robots;
-
-    // penv_ = GetEnv();
-
-    // GetEnv()->GetRobots(robots);
-    // SetActiveRobots(robot_name,robots);
-    // try
-    // {
-    //     // Construct the environment objects. (See KinBody in OpenRAVE API, and env_handler.py) 
-    //     Environment_handler env_handler{GetEnv()};
-    //     // sout << "Nearest boundary: " << env_handler.dist_to_boundary(0, 0, 0) << "\n";
-    //     // ****************************************************************************//
-    //     // Something about constructing environment objects. (walls, ground, and etc.)//
-    //     // ****************************************************************************//
-
-    //     // After loading all the parameters, environment object and robot objects, you can execute the main planning function.
-
-    //     // **************************//
-    //     // **************************//
-    //     // Something about planning //
-
-    //     Motion_plan_library mpl;
-    //     Drawing_handler dh{GetEnv()};
-
-    //     std::chrono::time_point<std::chrono::system_clock> start, end;
-    //     const vector<Contact_region> &cr = env_handler.get_contact_regions();
-    //     start = std::chrono::system_clock::now();
-
-    //     mpl.query(dh, cr,{0,0,0, .5},{goal_[0], goal_[1], goal_[2], 0.5});
-
-    //     end = std::chrono::system_clock::now();
-    //     std::chrono::duration<double> elapsed_seconds = end-start;
-    //     cout << elapsed_seconds.count() << " seconds!" << endl;
-        
-    //     int a;
-    //     std::cout << "enter any input to exit" << std::endl; 
-    //     std::cin>>a; // block
-    // }
-    // catch(std::exception & e)
-    // {
-    //     sout << "Exception caught: " << e.what() << "\n";
-    // }
-
-    //return the result
-    return true;
-}
-
 bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)
 {
     std::string robot_name;
@@ -1667,6 +1552,14 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Parse commands and initialize variables...\n");
 
+    float goal_radius;
+    float time_limit;
+    bool output_first_solution;
+    bool goal_as_exact_poses;
+    PlanningHeuristicsType heuristics_type;
+
+    std::shared_ptr<ContactState> initial_state;
+
     while(!sinput.eof())
     {
         sinput >> param;
@@ -1675,9 +1568,20 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             break;
         }
 
+        if(strcmp(param.c_str(), "structures") == 0)
+        {
+            parseStructuresCommand(sinput);
+        }
+
         if(strcmp(param.c_str(), "robotname") == 0)
         {
             sinput >> robot_name;
+            SetActiveRobot(robot_name);
+        }
+
+        if(strcmp(param.c_str(), "robot_properties") == 0)
+        {
+            parseRobotPropertiesCommand(sinput);
         }
 
         if(strcmp(param.c_str(), "goal") == 0)
@@ -1687,7 +1591,60 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             {
                 sinput >> goal_[i];
             }
-            std::cout<<"The goal is: (x,y,theta) = ("<<goal_[0]<<","<<goal_[1]<<","<<goal_[2]<<")"<<std::endl;
+            std::cout << "The goal is: (x,y,theta) = (" << goal_[0] << "," << goal_[1] << "," << goal_[2] << ")" << std::endl;
+        }
+
+        if(strcmp(param.c_str(), "foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput);
+        }
+
+        if(strcmp(param.c_str(), "hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput);
+        }
+
+        if(strcmp(param.c_str(), "planning_parameters") == 0)
+        {
+            sinput >> goal_radius;
+            sinput >> time_limit;
+
+            sinput >> param;
+            if(strcmp(param.c_str(), "euclidean") == 0)
+            {
+                heuristics_type = PlanningHeuristicsType::EUCLIDEAN;
+                std::cout<<"Use Euclidean heuristics."<<std::endl;
+            }
+            else if(strcmp(param.c_str(), "dijkstra") == 0)
+            {
+                heuristics_type = PlanningHeuristicsType::DIJKSTRA;
+                std::cout<<"Use Dijkstra heuristics."<<std::endl;
+                RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
+            }
+
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                output_first_solution = false;
+                std::cout<<"Will improve the solution after the first one is found."<<std::endl;
+            }
+            else
+            {
+                output_first_solution = true;
+                std::cout<<"Will terminate the planning with the first solution."<<std::endl;
+            }
+
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                goal_as_exact_poses = false;
+                std::cout<<"Will improve the solution after the first one is found."<<std::endl;
+            }
+            else
+            {
+                goal_as_exact_poses = true;
+                std::cout<<"Will terminate the planning with the first solution."<<std::endl;
+            }
         }
 
         if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
@@ -1708,12 +1665,20 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Done. \n");
 
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1);
+
     RAVELOG_INFO("Start ANA* Planning \n");
+
+    std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type, 
+                                                                                                            time_limit, output_first_solution, goal_as_exact_poses);
 
 }
 
-void EscherMotionPlanning::SetActiveRobots(std::string robot_name, const std::vector<OpenRAVE::RobotBasePtr>& robots)
+void EscherMotionPlanning::SetActiveRobot(std::string robot_name)
 {
+    std::vector<OpenRAVE::RobotBasePtr> robots;
+    penv_->GetRobots(robots);
+
     if( robots.size() == 0 )
     {
         RAVELOG_WARNA("No robots to plan for\n");
