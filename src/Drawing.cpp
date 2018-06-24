@@ -56,12 +56,10 @@ void DrawingHandler::DrawGridPath() // Draw the Dijkstra grid path, postpone imp
 void DrawingHandler::DrawContactPath(std::shared_ptr<ContactState> current_state) // Draw the contact path given the final state(DrawStances)
 {
     std::shared_ptr<ContactState> c = current_state;
-    
+
 	while(true)
     {
     	DrawContacts(c);
-
-    	// std::cout << "orientation: " << c->stances_vector_[0]->left_foot_pose_.roll_ << " " << c->stances_vector_[0]->left_foot_pose_.pitch_ << " " << c->stances_vector_[0]->left_foot_pose_.yaw_ << std::endl;
 
 		if(c->is_root_)
 		{
@@ -78,11 +76,11 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
 	std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
 
 	// draw left foot pose
-	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_rpy(current_stance->left_foot_pose_.roll_ * DEG2RAD, 
+	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_rpy(current_stance->left_foot_pose_.roll_ * DEG2RAD,
 	                                                    current_stance->left_foot_pose_.pitch_ * DEG2RAD,
 									                    current_stance->left_foot_pose_.yaw_ * DEG2RAD);
 	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_translation(current_stance->left_foot_pose_.x_, current_stance->left_foot_pose_.y_, current_stance->left_foot_pose_.z_);
-    
+
 	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_foot_rpy);
 	left_foot_transform.trans = left_foot_translation;
 
@@ -102,11 +100,11 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
 
 
     // draw right foot pose
-	OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_rpy(current_stance->right_foot_pose_.roll_ * DEG2RAD, 
+	OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_rpy(current_stance->right_foot_pose_.roll_ * DEG2RAD,
 	                                                    current_stance->right_foot_pose_.pitch_ * DEG2RAD,
 									                    current_stance->right_foot_pose_.yaw_ * DEG2RAD);
 	OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_translation(current_stance->right_foot_pose_.x_, current_stance->right_foot_pose_.y_, current_stance->right_foot_pose_.z_);
-    
+
 	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(right_foot_rpy);
 	right_foot_transform.trans = right_foot_translation;
 
@@ -123,11 +121,11 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     // draw left hand pose
 	if(current_stance->ee_contact_status_[ContactManipulator::L_ARM])
 	{
-		OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_rpy(current_stance->left_hand_pose_.roll_ * DEG2RAD, 
+		OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_rpy(current_stance->left_hand_pose_.roll_ * DEG2RAD,
 															current_stance->left_hand_pose_.pitch_ * DEG2RAD,
 															current_stance->left_hand_pose_.yaw_ * DEG2RAD);
 		OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_translation(current_stance->left_hand_pose_.x_, current_stance->left_hand_pose_.y_, current_stance->left_hand_pose_.z_);
-		
+
 		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_hand_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_hand_rpy);
 		left_hand_transform.trans = left_hand_translation;
 
@@ -145,11 +143,11 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     // draw right hand pose
 	if(current_stance->ee_contact_status_[ContactManipulator::R_ARM])
 	{
-		OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_rpy(current_stance->right_hand_pose_.roll_ * DEG2RAD, 
+		OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_rpy(current_stance->right_hand_pose_.roll_ * DEG2RAD,
 															current_stance->right_hand_pose_.pitch_ * DEG2RAD,
 															current_stance->right_hand_pose_.yaw_ * DEG2RAD);
 		OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_translation(current_stance->right_hand_pose_.x_, current_stance->right_hand_pose_.y_, current_stance->right_hand_pose_.z_);
-		
+
 		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_hand_transform = OpenRAVE::geometry::matrixFromAxisAngle(right_hand_rpy);
 		right_hand_transform.trans = right_hand_translation;
 

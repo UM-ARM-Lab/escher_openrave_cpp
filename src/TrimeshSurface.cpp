@@ -586,16 +586,15 @@ bool TrimeshSurface::insidePolygonPlaneFrame(const Translation2D& projected_poin
 
 // polygon must be convex. contacts are rectangles.
 // TODO: split this fn up instead of switching on type
-bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type) const
+bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type, std::shared_ptr<RobotProperties> robot_properties) const
 {
-    float h;
-    float w;
+    float h, w;
     std::vector<Translation3D> contact_vertices(4);
 
     if(contact_type == ContactType::FOOT)
     {
-        h = FOOT_HEIGHT / 2;
-        w = FOOT_WIDTH / 2;
+        h = robot_properties->foot_h_ / 2;
+        w = robot_properties->foot_w_ / 2;
         contact_vertices[0] = Translation3D(h, w, 0);
         contact_vertices[1] = Translation3D(h, -w, 0);
         contact_vertices[2] = Translation3D(-h, w, 0);
@@ -603,8 +602,8 @@ bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform,
     }
     else if(contact_type == ContactType::HAND)
     {
-        h = HAND_HEIGHT / 2;
-        w = HAND_WIDTH / 2;
+        h = robot_properties->hand_h_ / 2;
+        w = robot_properties->hand_w_ / 2;
         contact_vertices[0] = Translation3D(0, h, w);
         contact_vertices[1] = Translation3D(0, h, -w);
         contact_vertices[2] = Translation3D(0, -h, w);
@@ -630,7 +629,7 @@ bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform,
 }
 
 // roll is the rotation of the contact about ray
-TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, const Translation3D& ray, float roll, const ContactType& end_effector_type, bool& valid_contact) const
+TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, const Translation3D& ray, float roll, const ContactType& end_effector_type, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const
 {
     Translation3D translation = projectionGlobalFrame(origin, ray);
 
@@ -652,7 +651,7 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
 
     if(!valid_contact)
     {
-        valid_contact = contactInsidePolygon(ret_transform, end_effector_type); 
+        valid_contact = contactInsidePolygon(ret_transform, end_effector_type, robot_properties); 
     }
     
     return ret_transform;

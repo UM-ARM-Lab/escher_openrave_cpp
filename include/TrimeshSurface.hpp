@@ -46,12 +46,11 @@ public:
 	bool insidePolygonPlaneFrame(const Translation2D& projected_point) const;
 
 	// polygon must be convex. contacts are rectangles.
-	// TODO: split this fn up instead of switching on type
-	bool contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type) const;
+	bool contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type, std::shared_ptr<RobotProperties> robot_properties) const;
 
 	// roll is the rotation of the contact about ray
 	TransformationMatrix projection(const Translation3D& origin, const Translation3D& ray, float roll,
-								    const ContactType& end_effector_type, bool& valid_contact) const;
+								    const ContactType& end_effector_type, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const;
 
 	// extract binary checking into another fn
 	float distToBoundary(Translation3D point, float search_radius = 999/*, bool binary_checking = false*/) const;
