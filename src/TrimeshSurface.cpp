@@ -639,9 +639,9 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
     if(end_effector_type == ContactType::FOOT)
     {
         cz = getNormal();
-        cx = Translation3D(cos(roll * DEG2RAD), sin(roll * DEG2RAD), 0);
+        cx = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
         cy = cz.cross(cx).normalized();
-        cx = cy.cross(cy);
+        cx = cy.cross(cz);
     }
 
     TransformationMatrix ret_transform;

@@ -92,11 +92,41 @@ TransformationMatrix XYZRPYToSE3(const RPYTF& e)
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T)
 {
 	RotationMatrix R = T.block(0,0,3,3);
-	Vector3D rpy = R.eulerAngles(2, 1, 0);
+	Vector3D rpy = R.eulerAngles(0, 1, 2);
+	Vector3D rpy_deg = rpy * RAD2DEG;
 
-	float roll = getFirstTerminalAngle(rpy(0) * RAD2DEG);
-	float pitch = getFirstTerminalAngle(rpy(1) * RAD2DEG);
-	float yaw = getFirstTerminalAngle(rpy(2) * RAD2DEG);
+	float tmp_norm;
+	float tmp_roll, tmp_pitch, tmp_yaw;
+	float roll, pitch, yaw;
+
+	roll = getFirstTerminalAngle(rpy_deg(0));
+	pitch = getFirstTerminalAngle(rpy_deg(1));
+	yaw = getFirstTerminalAngle(rpy_deg(2));
+	
+	float min_norm = fabs(roll) + fabs(pitch) + fabs(yaw);
+
+	for(float ar = -180.0; ar <= 180.0; ar += 360.0)
+	{
+		for(float ap = -180.0; ap <= 180.0; ap += 360.0)
+		{
+			for(float ay = -180.0; ay <= 180.0; ay += 360.0)
+			{
+				tmp_roll = getFirstTerminalAngle(rpy_deg(0) + ar);
+				tmp_pitch = getFirstTerminalAngle(rpy_deg(1) + ap);
+				tmp_yaw = getFirstTerminalAngle(rpy_deg(2) + ay);
+
+				tmp_norm = fabs(tmp_roll) + fabs(tmp_pitch) + fabs(tmp_yaw);
+
+				if(tmp_norm < min_norm)
+				{
+					roll = tmp_roll;
+					pitch = tmp_pitch;
+					yaw = tmp_yaw;
+					min_norm = tmp_norm;
+				}
+			}
+		}
+	}
 
 	return RPYTF(T(0,3), T(1,3), T(2,3), roll, pitch, yaw);
 }

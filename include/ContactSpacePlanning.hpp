@@ -10,7 +10,8 @@ class ContactSpacePlanning
                              std::vector< std::array<float,2> > _hand_transition_model,
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                              std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
-                             int _num_stance_in_state);
+                             int _num_stance_in_state,
+                             std::shared_ptr< DrawingHandler > _drawing_handler);
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal, 
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,  
@@ -49,6 +50,9 @@ class ContactSpacePlanning
         std::vector< std::shared_ptr<TrimeshSurface> > hand_structures_;
         std::vector< std::shared_ptr<TrimeshSurface> > foot_structures_;
         const std::map<int, std::shared_ptr<TrimeshSurface> > structures_dict_;
+
+        // the drawing handler
+        std::shared_ptr< DrawingHandler > drawing_handler_;
 
         bool kinematicFeasibilityCheck(std::shared_ptr<ContactState> current_state);
         bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamic_cost);

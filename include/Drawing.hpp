@@ -4,19 +4,23 @@
 // #include <openrave/plugin.h>
 // #include <boost/bind.hpp>
 
+class ContactState;
+class RobotProperties;
+
 class DrawingHandler{
 	std::vector< OpenRAVE::GraphHandlePtr > graphptrs;
 	std::vector< std::vector<OpenRAVE::RaveVector<float > >* > region_boundary_pointers;
 	OpenRAVE::EnvironmentBasePtr penv;
-	std::vector< OpenRAVE::RaveVector<OpenRAVE::dReal> > foot_corners;
-	std::vector< OpenRAVE::RaveVector<OpenRAVE::dReal> > hand_corners;
+	std::vector< OpenRAVE::RaveVector<float> > foot_corners;
+	std::vector< OpenRAVE::RaveVector<float> > hand_corners;
 public:
 	DrawingHandler(OpenRAVE::EnvironmentBasePtr _penv);
+	DrawingHandler(OpenRAVE::EnvironmentBasePtr _penv, std::shared_ptr<RobotProperties> _robot_properties);
 	void ClearHandler();
 	// void DrawBodyPath(Node* current); // Draw the upperbody path in thr door planning, postpone this implementation.(DrawPaths)
 	void DrawGridPath(); // Draw the Dijkstra grid path, postpone implementation.
-	// void DrawContactPath(Node* current); // Draw the contact path given the final state(DrawStances)
-	// void DrawContacts(Node* node); // Draw the contacts of one node(DrawStance)
+	void DrawContactPath(std::shared_ptr<ContactState> current_state); // Draw the contact path given the final state(DrawStances)
+	void DrawContacts(std::shared_ptr<ContactState> current_state); // Draw the contacts of one node(DrawStance)
 	// void DrawContact(enum contact_type,contact_transform); // Draw one contact.(DrawContact)
 	void DrawLocation(OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform, OpenRAVE::RaveVector<float> color); // Draw a point at the location(DrawLocation)
 	void DrawLocation(OpenRAVE::RaveVector<OpenRAVE::dReal> location, OpenRAVE::RaveVector<float> color); // Draw a point at the location(DrawLocation)

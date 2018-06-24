@@ -48,11 +48,14 @@ bool Stance::operator!=(const Stance& other) const
 // Constructor for the initial state
 ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, std::array<float,3> _initial_com, std::array<float,3> _initial_com_dot, int _num_stance_in_state):
                            is_root_(true),
+                           com_(_initial_com),
+                           com_dot_(_initial_com_dot),
                            num_stance_in_state_(_num_stance_in_state)
 {
+    this->stances_vector_.resize(num_stance_in_state_);
     this->stances_vector_[0] = _initial_stance;
-    this->com_ = _initial_com;
-    this->com_dot_ = _initial_com_dot;
+    // this->com_ = _initial_com;
+    // this->com_dot_ = _initial_com_dot;
 
     // initialize the explore states
     explore_state_ = ExploreState::OPEN;
@@ -74,6 +77,7 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
                            num_stance_in_state_(_num_stance_in_state)
 {
     // updates the stances_vector_
+    this->stances_vector_.resize(num_stance_in_state_);
     this->stances_vector_[0] = new_stance;
     for(int i = 0; i < num_stance_in_state_-1; i++)
     {

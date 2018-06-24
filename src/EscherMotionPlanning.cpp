@@ -6,13 +6,10 @@
 
 EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, std::istream& ss) : OpenRAVE::ModuleBase(penv)
 {
-    RegisterCommand("StartPlanning",boost::bind(&EscherMotionPlanning::Planning,this,_1,_2),
-                    "Start the planning process.");
-
     RegisterCommand("StartPlanningFromScratch",boost::bind(&EscherMotionPlanning::startPlanningFromScratch,this,_1,_2),
                     "Start the A* planning process.");
 
-    RegisterCommand("StartCalculatingTraversability",boost::bind(&EscherMotionPlanning::CalculatingTraversability,this,_1,_2),
+    RegisterCommand("StartCalculatingTraversability",boost::bind(&EscherMotionPlanning::calculateTraversability,this,_1,_2),
                     "Start calculating traversability.");
 
     RegisterCommand("StartConstructingContactRegions",boost::bind(&EscherMotionPlanning::constructContactRegions,this,_1,_2),
@@ -305,6 +302,11 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 
 void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
 {
+    if(printing_)
+    {
+        RAVELOG_INFO("Load robot properties.\n");
+    }
+
     int dof_num = probot_->GetDOF();
     std::vector<OpenRAVE::dReal> IK_init_DOF_Values(dof_num);
     std::vector<OpenRAVE::dReal> default_DOF_Values(dof_num);
@@ -336,9 +338,11 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     robot_properties_ = std::make_shared<RobotProperties>(RobotProperties(probot_, IK_init_DOF_Values, default_DOF_Values, 
                                                                           foot_h, foot_w, hand_h, hand_w, robot_z, top_z, 
                                                                           shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride));
+
+    RAVELOG_INFO("adfshgfdsfghj\n");
 }
 
-bool EscherMotionPlanning::CalculatingTraversability(std::ostream& sout, std::istream& sinput)
+bool EscherMotionPlanning::calculateTraversability(std::ostream& sout, std::istream& sinput)
 {
     penv_ = GetEnv();
     drawing_handler_ = std::make_shared<DrawingHandler>(penv_);
@@ -1547,6 +1551,8 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
 
 bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)
 {
+    penv_ = GetEnv();
+
     std::string robot_name;
     std::string param;
 
@@ -1573,18 +1579,70 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             parseStructuresCommand(sinput);
         }
 
-        if(strcmp(param.c_str(), "robotname") == 0)
+        else if(strcmp(param.c_str(), "robot_name") == 0)
         {
             sinput >> robot_name;
             SetActiveRobot(robot_name);
         }
 
-        if(strcmp(param.c_str(), "robot_properties") == 0)
+        else if(strcmp(param.c_str(), "robot_properties") == 0)
         {
             parseRobotPropertiesCommand(sinput);
         }
 
-        if(strcmp(param.c_str(), "goal") == 0)
+        else if(strcmp(param.c_str(), "initial_state") == 0)
+        {
+            std::vector<RPYTF> initial_ee_poses(ContactManipulator::MANIP_NUM);
+            std::array<bool,ContactManipulator::MANIP_NUM> initial_ee_contact_status;
+
+            std::array<float,3> initial_com;
+            std::array<float,3> initial_com_dot;
+
+            for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+            {
+                float x, y, z, roll, pitch, yaw;
+                sinput >> x;
+                sinput >> y;
+                sinput >> z;
+                sinput >> roll;
+                sinput >> pitch;
+                sinput >> yaw;
+
+                initial_ee_poses[i] = RPYTF(x, y, z, roll, pitch, yaw);
+            }
+
+            for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+            {
+                sinput >> param;
+                if(strcmp(param.c_str(), "0") == 0)
+                {
+                    initial_ee_contact_status[i] = false;
+                }
+                else
+                {
+                    initial_ee_contact_status[i] = true;
+                }
+            }
+
+            for(int i = 0; i < 3; i++)
+            {
+                sinput >> initial_com[i];
+            }
+
+            for(int i = 0; i < 3; i++)
+            {
+                sinput >> initial_com_dot[i];
+            }
+
+            std::shared_ptr<Stance> initial_stance(new Stance(initial_ee_poses[0], initial_ee_poses[1], initial_ee_poses[2], initial_ee_poses[3], initial_ee_contact_status));
+            initial_state = std::make_shared<ContactState>(ContactState(initial_stance, initial_com, initial_com_dot, 1));
+            if(printing_)
+            {
+                RAVELOG_INFO("Initial state is initialized.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "goal") == 0)
         {
             goal_.resize(3);
             for(int i = 0; i < 3; i++)
@@ -1594,17 +1652,17 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             std::cout << "The goal is: (x,y,theta) = (" << goal_[0] << "," << goal_[1] << "," << goal_[2] << ")" << std::endl;
         }
 
-        if(strcmp(param.c_str(), "foot_transition_model") == 0)
+        else if(strcmp(param.c_str(), "foot_transition_model") == 0)
         {
             parseFootTransitionModelCommand(sinput);
         }
 
-        if(strcmp(param.c_str(), "hand_transition_model") == 0)
+        else if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
             parseHandTransitionModelCommand(sinput);
         }
 
-        if(strcmp(param.c_str(), "planning_parameters") == 0)
+        else if(strcmp(param.c_str(), "planning_parameters") == 0)
         {
             sinput >> goal_radius;
             sinput >> time_limit;
@@ -1613,12 +1671,12 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             if(strcmp(param.c_str(), "euclidean") == 0)
             {
                 heuristics_type = PlanningHeuristicsType::EUCLIDEAN;
-                std::cout<<"Use Euclidean heuristics."<<std::endl;
+                RAVELOG_INFO("Use Euclidean heuristics.\n");
             }
             else if(strcmp(param.c_str(), "dijkstra") == 0)
             {
                 heuristics_type = PlanningHeuristicsType::DIJKSTRA;
-                std::cout<<"Use Dijkstra heuristics."<<std::endl;
+                RAVELOG_INFO("Use Dijkstra heuristics.\n");
                 RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
             }
 
@@ -1626,46 +1684,60 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             if(strcmp(param.c_str(), "0") == 0)
             {
                 output_first_solution = false;
-                std::cout<<"Will improve the solution after the first one is found."<<std::endl;
+                RAVELOG_INFO("Will improve the solution after the first one is found.\n");
             }
             else
             {
                 output_first_solution = true;
-                std::cout<<"Will terminate the planning with the first solution."<<std::endl;
+                RAVELOG_INFO("Will terminate the planning with the first solution.\n");
             }
 
             sinput >> param;
             if(strcmp(param.c_str(), "0") == 0)
             {
                 goal_as_exact_poses = false;
-                std::cout<<"Will improve the solution after the first one is found."<<std::endl;
+                RAVELOG_INFO("Will improve the solution after the first one is found.\n");
             }
             else
             {
                 goal_as_exact_poses = true;
-                std::cout<<"Will terminate the planning with the first solution."<<std::endl;
+                RAVELOG_INFO("Will terminate the planning with the first solution.\n");
             }
         }
 
-        if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
+        else if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
         {
             sinput >> param;
             if(strcmp(param.c_str(), "0") == 0)
             {
                 is_parallel_ = false;
-                std::cout<<"Don't do parallelization."<<std::endl;
+                RAVELOG_INFO("Don't do parallelization.\n");
             }
             else
             {
                 is_parallel_ = true;
-                std::cout<<"Do parallelization."<<std::endl;
+                RAVELOG_INFO("Do parallelization.\n");
             }
+        }
+
+        else if(strcmp(param.c_str(), "printing") == 0)
+        {
+            printing_ = true;
+            RAVELOG_INFO("Will print commands.\n");
+        }
+
+        else
+        {
+            RAVELOG_ERROR("Unknown command: %s.\n",param.c_str());
+            return false;
         }
     }
 
+    drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
+
     RAVELOG_INFO("Done. \n");
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1);
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1, drawing_handler_);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
@@ -1696,7 +1768,7 @@ void EscherMotionPlanning::SetActiveRobot(std::string robot_name)
 
     if( probot_ == NULL )
     {
-        RAVELOG_ERRORA("Failed to find %S\n", robot_name.c_str());
+        RAVELOG_ERRORA("Failed to find %s.\n", robot_name.c_str());
         return;
     }
 }
