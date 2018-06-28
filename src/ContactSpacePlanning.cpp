@@ -26,6 +26,8 @@ drawing_handler_(_drawing_handler)
             hand_structures_.push_back(structure);
         }
     }
+
+    std::shared_ptr< DynOptInterface > dynamics_optimizer_interface_(new DynOptInterface(2.0, "escher_motion_planning_data/cfg_kdopt_demo.yaml"));
 }
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
@@ -217,21 +219,31 @@ bool ContactSpacePlanning::kinematicFeasibilityCheck(std::shared_ptr<ContactStat
     return true;
 }
 
-bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamic_cost)
+bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost)
 {
-    current_state->com_[0] = (current_state->stances_vector_[0]->left_foot_pose_.x_ + current_state->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    current_state->com_[1] = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    current_state->com_[2] = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
+    current_state->com_(0) = (current_state->stances_vector_[0]->left_foot_pose_.x_ + current_state->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
+    current_state->com_(1) = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
+    current_state->com_(2) = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
 
-    dynamic_cost = 0.0;
+    dynamics_cost = 0.0;
     // update the state cost and CoM
-    return true;
+    std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
+    dynamics_optimizer_interface_->updateContactSequence(contact_state_sequence);
+    bool dynamically_feasible = dynamics_optimizer_interface_->dynamicsOptimization(dynamics_cost);
+
+    if(dynamically_feasible)
+    {
+        // update com, com_dot of the current_state
+        dynamics_optimizer_interface_->updateStateCoM(current_state);
+    }
+
+    return dynamically_feasible;
 }
 
-bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamic_cost)
+bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost)
 {
     // verify the state kinematic and dynamic feasibility
-    return (kinematicFeasibilityCheck(current_state) && dynamicFeasibilityCheck(current_state, dynamic_cost));
+    return (kinematicFeasibilityCheck(current_state) && dynamicFeasibilityCheck(current_state, dynamics_cost));
 }
 
 void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state)
@@ -340,14 +352,14 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
 
         // RAVELOG_INFO("state feasibility check.\n");
 
-        float dynamic_cost = 0.0;
-        if(stateFeasibilityCheck(new_contact_state, dynamic_cost))
+        float dynamics_cost = 0.0;
+        if(stateFeasibilityCheck(new_contact_state, dynamics_cost))
         {
-            state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamic_cost);
+            state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
         }
         else
         {
-            state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamic_cost);
+            state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
         }
     }
 
@@ -357,11 +369,11 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
     {
         bool pass_state_feasibility_check = std::get<0>(check_result);
         std::shared_ptr<ContactState> new_contact_state = std::get<1>(check_result);
-        float dynamic_cost = std::get<2>(check_result);
+        float dynamics_cost = std::get<2>(check_result);
 
         if(pass_state_feasibility_check)
         {
-            insertState(new_contact_state, dynamic_cost);
+            insertState(new_contact_state, dynamics_cost);
         }
 
     }
@@ -420,11 +432,11 @@ bool ContactSpacePlanning::handProjection()
 
 }
 
-void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamic_cost)
+void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost)
 {
     std::shared_ptr<ContactState> prev_state = current_state->parent_;
     // calculate the edge cost and the cost to come
-    current_state->g_ += getEdgeCost(prev_state, current_state, dynamic_cost);
+    current_state->g_ += getEdgeCost(prev_state, current_state, dynamics_cost);
 
     // calculate the heuristics (cost to go)
     current_state->h_ = getHeuristics(current_state);
@@ -489,19 +501,19 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
 
 float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_state)
 {
-    float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->com_[0] - goal_[0],2) + std::pow(current_state->com_[1] - goal_[1],2));
+    float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->com_(0) - goal_[0],2) + std::pow(current_state->com_(1) - goal_[1],2));
     float step_cost_to_goal = euclidean_distance_to_goal / robot_properties_->max_stride_;
 
     return (euclidean_distance_to_goal + step_cost_to_goal);
 }
 
-float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamic_cost)
+float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost)
 {
-    float traveling_distance_cost = std::sqrt(std::pow(current_state->com_[0] - prev_state->com_[0],2) + std::pow(current_state->com_[1] - prev_state->com_[1],2));
+    float traveling_distance_cost = std::sqrt(std::pow(current_state->com_(0) - prev_state->com_(0), 2) + std::pow(current_state->com_(1) - prev_state->com_(1), 2));
     float orientation_cost = 0.1 * fabs(current_state->getFeetMeanHorizontalYaw() - prev_state->getFeetMeanHorizontalYaw());
     float step_cost = step_cost_weight_;
 
-    return (traveling_distance_cost + orientation_cost + step_cost + dynamic_cost);
+    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
 }
 
 void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
@@ -543,5 +555,5 @@ void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
 
 bool ContactSpacePlanning::isReachedGoal(std::shared_ptr<ContactState> current_state)
 {
-    return std::sqrt(std::pow(goal_[0]-current_state->com_[0],2) + std::pow(goal_[1]-current_state->com_[1],2)) <= goal_radius_;
+    return std::sqrt(std::pow(goal_[0]-current_state->com_(0), 2) + std::pow(goal_[1]-current_state->com_(1), 2)) <= goal_radius_;
 }

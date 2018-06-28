@@ -28,7 +28,7 @@ public:
 	void DrawManipulatorPoses(OpenRAVE::RobotBasePtr robot); // Draw the manipulator poses given robot object(DrawManipulatorPoses)
 	void DrawGoalRegion(OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform, double radius); // Draw the region with given transform and radius.(DrawRegion)
 	void DrawRegion(OpenRAVE::RaveVector<OpenRAVE::dReal> center, OpenRAVE::RaveVector<OpenRAVE::dReal> normal, double radius, float line_width); // Draw the region with given center, normal and radius.(DrawContactRegion)
-	
+
 	void DrawLineSegment(Translation3D from_vec, Translation3D to_vec, std::array<float,4> color = {0,0,0,1}); // Draw a line segment given two ends(DrawLineStrips)
 	void DrawLineSegment(OpenRAVE::RaveVector<OpenRAVE::dReal> from_vec, OpenRAVE::RaveVector<OpenRAVE::dReal> to_vec, OpenRAVE::RaveVector<float> color = OpenRAVE::RaveVector<float>(0,0,0,1)); // Draw a line segment given two ends(DrawLineStrips)
 	// void DrawSurface(Tri_mesh trimesh); // Draw the trimesh surface.(DrawSurface)

@@ -1,4 +1,3 @@
-
 #ifndef CONTACTSPACEPLANNING_HPP
 #define CONTACTSPACEPLANNING_HPP
 
@@ -6,15 +5,15 @@ class ContactSpacePlanning
 {
     public:
         ContactSpacePlanning(std::shared_ptr<RobotProperties> _robot_properties,
-                             std::vector< std::array<float,3> > _foot_transition_model, 
+                             std::vector< std::array<float,3> > _foot_transition_model,
                              std::vector< std::array<float,2> > _hand_transition_model,
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                              std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                              int _num_stance_in_state,
-                             std::shared_ptr< DrawingHandler > _drawing_handler);
+                             std::shared_ptr<DrawingHandler> _drawing_handler);
 
-        std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal, 
-                                                                     float goal_radius, PlanningHeuristicsType heuristics_type,  
+        std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
+                                                                     float goal_radius, PlanningHeuristicsType heuristics_type,
                                                                      float time_limit, bool output_first_solution, bool goal_as_exact_poses);
 
     private:
@@ -54,12 +53,15 @@ class ContactSpacePlanning
         // the drawing handler
         std::shared_ptr< DrawingHandler > drawing_handler_;
 
+        // the dynamics optimizer interface
+        std::shared_ptr< DynOptInterface > dynamics_optimizer_interface_;
+
         bool kinematicFeasibilityCheck(std::shared_ptr<ContactState> current_state);
-        bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamic_cost);
-        bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamic_cost);
+        bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
+        bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
-        float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamic_cost);
+        float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost);
 
         void branchingSearchTree(std::shared_ptr<ContactState> current_state);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
@@ -67,7 +69,7 @@ class ContactSpacePlanning
         bool footProjection(RPYTF& projection_pose);
         bool handProjection();
 
-        void insertState(std::shared_ptr<ContactState> current_state, float dynamic_cost);
+        void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost);
 
         void updateExploreStatesAndOpenHeap();
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);

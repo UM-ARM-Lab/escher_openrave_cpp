@@ -3,7 +3,7 @@ project(escher_openrave_cpp)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED roslib urdf srdfdom openrave_catkin)
+find_package(catkin REQUIRED COMPONENTS Eigen roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(OpenRAVE REQUIRED)
@@ -16,10 +16,12 @@ if(OPENMP_FOUND)
 endif()
 
 catkin_package()
+
 catkin_python_setup()
 
 include_directories(
     include
+    ${Eigen_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
     ${OpenRAVE_INCLUDE_DIRS}
@@ -32,7 +34,7 @@ link_directories(
 
 openrave_plugin("${PROJECT_NAME}_plugin"
     src/Utilities.cpp
-    src/TrimeshSurface.cpp    
+    src/TrimeshSurface.cpp
     src/PointGrid.cpp
     src/ContactPoint.cpp
     src/ContactRegion.cpp
@@ -44,6 +46,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/Boundary.cpp
     src/RobotProperties.cpp
     src/ContactSpacePlanning.cpp
+    src/DynOptInterface.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"

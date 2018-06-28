@@ -40,13 +40,13 @@ bool Stance::operator==(const Stance& other) const
     return true;
 }
 
-bool Stance::operator!=(const Stance& other) const 
+bool Stance::operator!=(const Stance& other) const
 {
     return !(*this == other);
 }
 
 // Constructor for the initial state
-ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, std::array<float,3> _initial_com, std::array<float,3> _initial_com_dot, int _num_stance_in_state):
+ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state):
                            is_root_(true),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
@@ -54,8 +54,6 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, std::array<f
 {
     this->stances_vector_.resize(num_stance_in_state_);
     this->stances_vector_[0] = _initial_stance;
-    // this->com_ = _initial_com;
-    // this->com_dot_ = _initial_com_dot;
 
     // initialize the explore states
     explore_state_ = ExploreState::OPEN;
@@ -85,8 +83,8 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     }
 
     // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
-    this->com_ = {0,0,0};
-    this->com_dot_ = {0,0,0};
+    this->com_ = Translation3D(0, 0, 0);
+    this->com_dot_ = Vector3D(0, 0, 0);
 
     // initialize the explore states
     explore_state_ = ExploreState::OPEN;
@@ -149,6 +147,6 @@ TransformationMatrix ContactState::getFeetMeanTransform()
     float feet_mean_roll = 0;
     float feet_mean_pitch = 0;
     float feet_mean_yaw = this->getFeetMeanHorizontalYaw();
-    
+
     return XYZRPYToSE3(RPYTF(feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw));
 }

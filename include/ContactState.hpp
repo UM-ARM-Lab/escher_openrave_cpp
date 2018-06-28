@@ -25,7 +25,7 @@ class Stance
 class ContactState
 {
     public:
-        ContactState(std::shared_ptr<Stance> _initial_stance, std::array<float,3> _initial_com, std::array<float,3> _initial_com_dot, int _num_stance_in_state);
+        ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state);
         ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state);
 
         // foot orientation projected to flat gruond
@@ -37,8 +37,8 @@ class ContactState
         const int num_stance_in_state_;
 
         std::vector<std::shared_ptr<Stance> > stances_vector_;
-        std::array<float,3> com_;
-        std::array<float,3> com_dot_;
+        Translation3D com_;
+        Vector3D com_dot_;
 
         const bool is_root_;
 
@@ -57,7 +57,7 @@ class ContactState
         struct pointer_less
         {
             template <typename T>
-            bool operator()(const T& lhs, const T& rhs) const 
+            bool operator()(const T& lhs, const T& rhs) const
             {
                 return *lhs < *rhs;
             }
@@ -69,7 +69,7 @@ class ContactState
         inline const float getF() const {return (g_ + h_);}
 
     private:
-        
+
 };
 
 
@@ -95,8 +95,8 @@ namespace std
                     }
                 }
 
-                hash_number = hash_number ^ hash<float>()(contact_state.com_[0]) ^ hash<float>()(contact_state.com_[1]) ^ hash<float>()(contact_state.com_[2])
-                                        ^ hash<float>()(contact_state.com_dot_[0]) ^ hash<float>()(contact_state.com_dot_[1]) ^ hash<float>()(contact_state.com_dot_[2]);
+                hash_number = hash_number ^ hash<float>()(contact_state.com_(0)) ^ hash<float>()(contact_state.com_(1)) ^ hash<float>()(contact_state.com_(2))
+                                        ^ hash<float>()(contact_state.com_dot_(0)) ^ hash<float>()(contact_state.com_dot_(1)) ^ hash<float>()(contact_state.com_dot_(2));
 
                 return hash_number;
             }
