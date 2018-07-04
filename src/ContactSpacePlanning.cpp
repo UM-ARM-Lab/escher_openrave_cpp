@@ -1,4 +1,5 @@
 #include "Utilities.hpp"
+#include <omp.h>
 
 ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _robot_properties,
                                            std::vector< std::array<float,3> > _foot_transition_model,
@@ -27,7 +28,14 @@ drawing_handler_(_drawing_handler)
         }
     }
 
-    std::shared_ptr< DynOptInterface > dynamics_optimizer_interface_(new DynOptInterface(2.0, "escher_motion_planning_data/cfg_kdopt_demo.yaml"));
+    dynamics_optimizer_interface_vector_.resize(OPENMP_THREAD_NUM);
+
+    for(int i = 0; i < OPENMP_THREAD_NUM; i++)
+    {
+        dynamics_optimizer_interface_vector_[i].reset(new DynOptInterface(2.0, "SL_optim_config_template/cfg_kdopt_demo.yaml"));
+    }
+
+    dynamics_optimizer_interface_.reset(new DynOptInterface(2.0, "SL_optim_config_template/cfg_kdopt_demo.yaml"));
 }
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
@@ -160,7 +168,6 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
     RAVELOG_INFO("The time limit (%5.2f seconds) has been reached. Output the current best solution. Press ENTER to proceed.\n",time_limit);
 
-    getchar();
 
     return contact_state_path;
 }
@@ -219,31 +226,57 @@ bool ContactSpacePlanning::kinematicFeasibilityCheck(std::shared_ptr<ContactStat
     return true;
 }
 
-bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost)
+bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
 {
     current_state->com_(0) = (current_state->stances_vector_[0]->left_foot_pose_.x_ + current_state->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
     current_state->com_(1) = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
     current_state->com_(2) = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
 
-    dynamics_cost = 0.0;
-    // update the state cost and CoM
-    std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
-    dynamics_optimizer_interface_->updateContactSequence(contact_state_sequence);
-    bool dynamically_feasible = dynamics_optimizer_interface_->dynamicsOptimization(dynamics_cost);
+    // return true;
 
-    if(dynamically_feasible)
+    if(!current_state->is_root_)
     {
-        // update com, com_dot of the current_state
-        dynamics_optimizer_interface_->updateStateCoM(current_state);
-    }
+        dynamics_cost = 0.0;
+        // update the state cost and CoM
+        std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
 
-    return dynamically_feasible;
+        dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
+        // dynamics_optimizer_interface_->updateContactSequence(contact_state_sequence);
+
+        bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+
+        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+        // bool dynamically_feasible = dynamics_optimizer_interface_->dynamicsOptimization(dynamics_cost);
+
+        if(!simplified_dynamically_feasible && dynamically_feasible)
+        {
+            std::cout << "weird thing happens." << std::endl;
+            getchar();
+        }
+
+        std::cout << "===============================================================" << std::endl;
+
+        if(dynamically_feasible)
+        {
+            // update com, com_dot of the current_state
+            dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
+            // dynamics_optimizer_interface_->updateStateCoM(current_state);
+        }
+
+        // std::cout << "Dynamically feasible: " << dynamically_feasible << std::endl;
+
+        return dynamically_feasible;
+    }
+    else
+    {
+        return true;
+    }
 }
 
-bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost)
+bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
 {
     // verify the state kinematic and dynamic feasibility
-    return (kinematicFeasibilityCheck(current_state) && dynamicFeasibilityCheck(current_state, dynamics_cost));
+    return (kinematicFeasibilityCheck(current_state) && dynamicFeasibilityCheck(current_state, dynamics_cost, index));
 }
 
 void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state)
@@ -307,59 +340,65 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
         }
     }
 
-    // given all the branching feet combinations create states
-    std::vector<std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_feet_combination.size());
-    // we can add OpenMP here
-    for(int i = 0; i < branching_feet_combination.size(); i++)
+    std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_feet_combination.size());
+    RPYTF new_left_hand_pose = current_stance->left_hand_pose_;
+    RPYTF new_right_hand_pose = current_stance->right_hand_pose_;
+    const std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_stance->ee_contact_status_;
+
+    // RAVELOG_INFO("Total thread number: %d.\n",OPENMP_THREAD_NUM);
+
+    #pragma omp parallel num_threads(OPENMP_THREAD_NUM) shared (branching_feet_combination, state_feasibility_check_result)
     {
-        RPYTF new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose;
-        ContactManipulator move_manip;
-
-        auto step_combination = branching_feet_combination[i];
-
-        new_left_foot_pose = std::get<0>(step_combination);
-        new_right_foot_pose = std::get<1>(step_combination);
-        new_left_hand_pose = current_stance->left_hand_pose_;
-        new_right_hand_pose = current_stance->right_hand_pose_;
-
-        move_manip = std::get<2>(step_combination);
-
-        bool projection_is_successful;
-
-        // RAVELOG_INFO("foot projection.\n");
-
-        // do projection to find the projected feet poses
-        if(move_manip == ContactManipulator::L_LEG)
+        #pragma omp for schedule(static)
+        for(int i = 0; i < branching_feet_combination.size(); i++)
         {
-            projection_is_successful = footProjection(new_left_foot_pose);
-        }
-        else if(move_manip == ContactManipulator::R_LEG)
-        {
-            projection_is_successful = footProjection(new_right_foot_pose);
-        }
+            RPYTF new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose;
+            ContactManipulator move_manip;
 
-        if(!projection_is_successful)
-        {
-            continue;
-        }
+            auto step_combination = branching_feet_combination[i];
 
-        // RAVELOG_INFO("construct state.\n");
+            new_left_foot_pose = std::get<0>(step_combination);
+            new_right_foot_pose = std::get<1>(step_combination);
 
-        // construct the new state
-        std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, current_stance->ee_contact_status_));
+            move_manip = std::get<2>(step_combination);
 
-        std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1));
+            bool projection_is_successful;
 
-        // RAVELOG_INFO("state feasibility check.\n");
+            // RAVELOG_INFO("foot projection.\n");
 
-        float dynamics_cost = 0.0;
-        if(stateFeasibilityCheck(new_contact_state, dynamics_cost))
-        {
-            state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
-        }
-        else
-        {
-            state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
+            // do projection to find the projected feet poses
+            if(move_manip == ContactManipulator::L_LEG)
+            {
+                projection_is_successful = footProjection(new_left_foot_pose);
+            }
+            else if(move_manip == ContactManipulator::R_LEG)
+            {
+                projection_is_successful = footProjection(new_right_foot_pose);
+            }
+
+            if(!projection_is_successful)
+            {
+                continue;
+            }
+
+            // RAVELOG_INFO("construct state.\n");
+
+            // construct the new state
+            std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status));
+
+            std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1));
+
+            // RAVELOG_INFO("state feasibility check.\n");
+
+            float dynamics_cost = 0.0;
+            if(stateFeasibilityCheck(new_contact_state, dynamics_cost, i%OPENMP_THREAD_NUM))
+            {
+                state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
+            }
+            else
+            {
+                state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
+            }
         }
     }
 
@@ -512,6 +551,7 @@ float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state
     float traveling_distance_cost = std::sqrt(std::pow(current_state->com_(0) - prev_state->com_(0), 2) + std::pow(current_state->com_(1) - prev_state->com_(1), 2));
     float orientation_cost = 0.1 * fabs(current_state->getFeetMeanHorizontalYaw() - prev_state->getFeetMeanHorizontalYaw());
     float step_cost = step_cost_weight_;
+    dynamics_cost = dynamics_cost_weight_ * dynamics_cost;
 
     return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
 }

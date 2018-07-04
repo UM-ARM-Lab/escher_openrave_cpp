@@ -1609,6 +1609,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                 sinput >> yaw;
 
                 initial_ee_poses[i] = RPYTF(x, y, z, roll, pitch, yaw);
+                std::cout << initial_ee_poses[i].x_ << " " << initial_ee_poses[i].y_ << " " << initial_ee_poses[i].z_ << " " << initial_ee_poses[i].roll_ << " " << initial_ee_poses[i].pitch_ << " " << initial_ee_poses[i].yaw_ << " " << std::endl;
             }
 
             for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
@@ -1622,7 +1623,9 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                 {
                     initial_ee_contact_status[i] = true;
                 }
+                std::cout << initial_ee_contact_status[i] << " ";
             }
+            std::cout << std::endl;
 
             for(int i = 0; i < 3; i++)
             {
@@ -1696,12 +1699,12 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             if(strcmp(param.c_str(), "0") == 0)
             {
                 goal_as_exact_poses = false;
-                RAVELOG_INFO("Will improve the solution after the first one is found.\n");
+                RAVELOG_INFO("The goal is expressed as a radius.\n");
             }
             else
             {
                 goal_as_exact_poses = true;
-                RAVELOG_INFO("Will terminate the planning with the first solution.\n");
+                RAVELOG_INFO("The goal is set as a set of exact poses.\n");
             }
         }
 

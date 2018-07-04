@@ -43,6 +43,7 @@ class ContactSpacePlanning
 
         // cost parameters
         const float step_cost_weight_ = 3.0;
+        const float dynamics_cost_weight_ = 0.001;
 
         // the environment structures
         const std::vector< std::shared_ptr<TrimeshSurface> > structures_;
@@ -54,11 +55,12 @@ class ContactSpacePlanning
         std::shared_ptr< DrawingHandler > drawing_handler_;
 
         // the dynamics optimizer interface
+        std::vector< std::shared_ptr< DynOptInterface > > dynamics_optimizer_interface_vector_;
         std::shared_ptr< DynOptInterface > dynamics_optimizer_interface_;
 
         bool kinematicFeasibilityCheck(std::shared_ptr<ContactState> current_state);
-        bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
-        bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
+        bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
+        bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost);

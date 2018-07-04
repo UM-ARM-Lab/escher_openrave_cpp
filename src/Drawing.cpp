@@ -76,12 +76,15 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
 	std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
 
 	// draw left foot pose
-	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_rpy(current_stance->left_foot_pose_.roll_ * DEG2RAD,
-	                                                    current_stance->left_foot_pose_.pitch_ * DEG2RAD,
-									                    current_stance->left_foot_pose_.yaw_ * DEG2RAD);
+	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_roll(current_stance->left_foot_pose_.roll_ * DEG2RAD, 0, 0);
+	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_pitch(0, current_stance->left_foot_pose_.pitch_ * DEG2RAD, 0);
+	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_yaw(0, 0, current_stance->left_foot_pose_.yaw_ * DEG2RAD);
+
 	OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_translation(current_stance->left_foot_pose_.x_, current_stance->left_foot_pose_.y_, current_stance->left_foot_pose_.z_);
 
-	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_foot_rpy);
+	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_foot_roll) *
+	                                                                     OpenRAVE::geometry::matrixFromAxisAngle(left_foot_pitch) *
+																		 OpenRAVE::geometry::matrixFromAxisAngle(left_foot_yaw);
 	left_foot_transform.trans = left_foot_translation;
 
 	// std::cout << left_foot_transform.m[0] << " " << left_foot_transform.m[1] << " " << left_foot_transform.m[2] << " " << left_foot_transform.trans[0] << std::endl;

@@ -72,6 +72,8 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
 
+const int OPENMP_THREAD_NUM = 1;
+
 enum ContactManipulator
 {
     L_LEG,
@@ -161,6 +163,7 @@ TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T);
+RPYTF SO3ToRPY(const RotationMatrix& R);
 
 // Manipulate the angle differences
 float getFirstTerminalAngle(float angle);
@@ -174,6 +177,13 @@ GridPositions2D translation2DToGridPositions2D(Translation2D positions);
 // Validate data integrity
 bool isValidPosition(Translation3D p);
 bool isValidPosition(Translation2D p);
+
+// Transform pose and position from OpenRAVE to SL
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e);
+Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t);
+Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t);
+Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
+Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
 
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);

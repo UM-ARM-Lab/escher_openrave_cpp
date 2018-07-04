@@ -55,7 +55,9 @@ class DynOptInterface
 {
     public:
         DynOptInterface(float _step_transition_time, std::string cfg_file):
-        step_transition_time_(_step_transition_time) {loadDynamicsOptimizerSetting(cfg_file);}
+        step_transition_time_(_step_transition_time),
+        dynopt_result_digest_("dynopt_result_digest.txt",std::ofstream::app),
+        simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}
 
         void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence);
         void loadDynamicsOptimizerSetting(std::string cfg_file);
@@ -63,8 +65,10 @@ class DynOptInterface
         void initializeDynamicsOptimizer();
         void fillInitialRobotState();
         void fillContactSequence();
-        bool dynamicsOptimization(float& dynamic_cost);
+        bool simplifiedDynamicsOptimization(float& dynamics_cost);
+        bool dynamicsOptimization(float& dynamics_cost);
         void updateStateCoM(std::shared_ptr<ContactState> contact_state);
+        void storeResultDigest(solver::ExitCode solver_exitcode, std::ofstream& file_stream);
 
     private:
         ContactPlanFromContactSequence contact_sequence_interpreter_;
@@ -76,6 +80,9 @@ class DynOptInterface
 
         const float step_transition_time_;
         std::vector< std::shared_ptr<ContactState> > contact_state_sequence_;
+
+        std::ofstream dynopt_result_digest_;
+        std::ofstream simplified_dynopt_result_digest_;
 
 };
 

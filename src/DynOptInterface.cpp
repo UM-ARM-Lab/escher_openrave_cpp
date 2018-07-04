@@ -34,6 +34,11 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
 {
     this->contactSequence().numContacts() = 0;
     this->timer_ = 0.0;
+    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    {
+        this->contactSequence().endeffectorContacts(eff_id).clear();
+        this->contacts_per_endeff_[eff_id] = 0;
+    }
 
     int state_counter = 0;
     int eff_id, cnt_id;
@@ -50,11 +55,13 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
                 {
                     eff_id = contact_manipulator_id_map_.find(manip)->second;
-                    eff_pose = stance->ee_contact_poses_[manip];
+                    eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip]);
 
                     this->addContact(eff_id, eff_pose);
                 }
             }
+
+            // this->timer_ += 0.2;
         }
         else
         {
@@ -65,7 +72,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             if(stance->ee_contact_status_[moving_manip]) // if the robot makes new contact, add it
             {
                 eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
-                eff_pose = stance->ee_contact_poses_[moving_manip];
+                eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[moving_manip]);
 
                 this->addContact(eff_id, eff_pose);
             }
@@ -85,11 +92,11 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
     }
 
     // update the planning variable time horizon, and active ee number
-
 }
 
 void DynOptInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)
 {
+    this->contact_state_sequence_.resize(new_contact_state_sequence.size());
     this->contact_state_sequence_ = new_contact_state_sequence;
     this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_, this->step_transition_time_);
     this->updateContactSequenceRelatedDynamicsOptimizerSetting();
@@ -116,7 +123,7 @@ void DynOptInterface::updateContactSequenceRelatedDynamicsOptimizerSetting()
             {
                 if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
                 {
-                    active_eff_set.insert(int(contact_state->prev_move_manip_));
+                    active_eff_set.insert(int(manip));
                 }
             }
         }
@@ -130,6 +137,14 @@ void DynOptInterface::updateContactSequenceRelatedDynamicsOptimizerSetting()
     }
     dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = (std::floor(total_time / time_step) + 1) * time_step;
+    dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step)) + 1;
+    Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->com_ - this->contact_state_sequence_[0]->com_;
+    dynamics_optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
+
+    reference_dynamics_sequence_.clean();
+    reference_dynamics_sequence_.resize(dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
+
+    // std::cout << "CoM Motion: " << dynamics_optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion).transpose() << std::endl;
 }
 
 void DynOptInterface::initializeDynamicsOptimizer()
@@ -143,10 +158,15 @@ void DynOptInterface::fillInitialRobotState()
     std::shared_ptr<Stance> stance = initial_contact_state->stances_vector_[0];
     double robot_mass = dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_RobotMass);
 
+    // reset the initial state
+    initial_state_ = momentumopt::DynamicsState();
+
     // CoM and momenta
-    initial_state_.centerOfMass() = Eigen::Vector3d(initial_contact_state->com_[0], initial_contact_state->com_[1], initial_contact_state->com_[2]);
-    initial_state_.linearMomentum() = Eigen::Vector3d(robot_mass*initial_contact_state->com_dot_[0], robot_mass*initial_contact_state->com_dot_[1], robot_mass*initial_contact_state->com_dot_[2]);
+    initial_state_.centerOfMass() = transformPositionFromOpenraveToSL(initial_contact_state->com_);
+    initial_state_.linearMomentum() = robot_mass * rotateVectorFromOpenraveToSL(initial_contact_state->com_dot_);
     initial_state_.angularMomentum() = Eigen::Vector3d(0, 0, 0);
+
+    // std::cout << "Initial CoM: " << initial_state_.centerOfMass().transpose() << std::endl;
 
     // Contact poses, and forces
     int eff_id;
@@ -154,16 +174,18 @@ void DynOptInterface::fillInitialRobotState()
     for(auto & manip : ALL_MANIPULATORS)
     {
         eff_id = contact_manipulator_id_map_.find(manip)->second;
-        eff_pose = stance->ee_contact_poses_[manip];
+        eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip]);
 
         if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
         {
             initial_state_.endeffectorActivation(eff_id) = 1;
             initial_state_.endeffectorPosition(eff_id) = Eigen::Vector3d(eff_pose.x_, eff_pose.y_, eff_pose.z_);
             initial_state_.endeffectorOrientation(eff_id) = Eigen::Quaternion<double>(Eigen::AngleAxisf(eff_pose.roll_ * DEG2RAD, Eigen::Vector3f::UnitX()) *
-                                                                             Eigen::AngleAxisf(eff_pose.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
-                                                                             Eigen::AngleAxisf(eff_pose.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
+                                                                                      Eigen::AngleAxisf(eff_pose.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
+                                                                                      Eigen::AngleAxisf(eff_pose.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
             initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 0.5);
+
+            // std::cout << "eff_id: " << eff_id << ", pose: " << initial_state_.endeffectorPosition(eff_id).transpose() << " " << std::endl;
         }
         else
         {
@@ -190,16 +212,28 @@ void DynOptInterface::fillContactSequence()
     contact_sequence_interpreter_.optimize(initial_state_, dynamics_optimizer_.dynamicsSequence());
 }
 
-bool DynOptInterface::dynamicsOptimization(float& dynamic_cost)
+bool DynOptInterface::simplifiedDynamicsOptimization(float& dynamics_cost)
 {
     this->initializeDynamicsOptimizer();
     this->fillInitialRobotState();
     this->fillContactSequence();
 
+    // std::cout << "TimeHorizon: " << dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) << std::endl;
+    // std::cout << "TimeStep: " << dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep) << std::endl;
+    // std::cout << "NumTimeSteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
+
     // optimize a motion
-    reference_dynamics_sequence_.resize(dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
-    contact_sequence_interpreter_.optimize(initial_state_, dynamics_optimizer_.dynamicsSequence());
-    solver::ExitCode solver_exitcode = dynamics_optimizer_.optimize(initial_state_, reference_dynamics_sequence_);
+    solver::ExitCode solver_exitcode = dynamics_optimizer_.simplifiedOptimize(initial_state_, reference_dynamics_sequence_);
+
+    dynamics_cost = dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_PrimalCost);
+
+    int final_time_id = dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
+    // std::cout << "Total Timesteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
+    // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
+
+    storeResultDigest(solver_exitcode, simplified_dynopt_result_digest_);
+
+    // getchar();
 
     if(int(solver_exitcode) <= 1)
     {
@@ -209,7 +243,39 @@ bool DynOptInterface::dynamicsOptimization(float& dynamic_cost)
     {
         return false;
     }
+}
 
+bool DynOptInterface::dynamicsOptimization(float& dynamics_cost)
+{
+    this->initializeDynamicsOptimizer();
+    this->fillInitialRobotState();
+    this->fillContactSequence();
+
+    // std::cout << "TimeHorizon: " << dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) << std::endl;
+    // std::cout << "TimeStep: " << dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep) << std::endl;
+    // std::cout << "NumTimeSteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
+
+    // optimize a motion
+    solver::ExitCode solver_exitcode = dynamics_optimizer_.optimize(initial_state_, reference_dynamics_sequence_);
+
+    dynamics_cost = dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_PrimalCost);
+
+    int final_time_id = dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
+    // std::cout << "Total Timesteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
+    // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
+
+    storeResultDigest(solver_exitcode, dynopt_result_digest_);
+
+    // getchar();
+
+    if(int(solver_exitcode) <= 1)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void DynOptInterface::updateStateCoM(std::shared_ptr<ContactState> contact_state)
@@ -217,9 +283,81 @@ void DynOptInterface::updateStateCoM(std::shared_ptr<ContactState> contact_state
     int final_time_id = dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
     double robot_mass = dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_RobotMass);
 
-    Eigen::Vector3d goal_com = dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).centerOfMass();
-    Eigen::Vector3d goal_lmom = dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).linearMomentum();
+    contact_state->com_ = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).centerOfMass());
+    contact_state->com_dot_ = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).linearMomentum()) / robot_mass;
 
-    contact_state->com_ = goal_com.cast<float>();
-    contact_state->com_dot_ = goal_lmom.cast<float>() / robot_mass;
+    // contact_state->com_ = goal_com.cast<float>();
+    // contact_state->com_dot_ = goal_lmom.cast<float>() / robot_mass;
+}
+
+void DynOptInterface::storeResultDigest(solver::ExitCode solver_exitcode, std::ofstream& file_stream)
+{
+    // exit_code, Initial CoM, Goal CoM, Final CoM, contact num, pose, moving_eff_id, new_pose
+
+    int final_time_id = dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
+    double time_step = dynamics_optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep);
+
+    Eigen::Vector3d initial_com_SL = initial_state_.centerOfMass();
+    Translation3D initial_com_Openrave = transformPositionFromSLToOpenrave(initial_com_SL);
+    Eigen::Vector3d com_motion_SL = dynamics_optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion);
+    Vector3D com_motion_Openrave = rotateVectorFromSLToOpenrave(com_motion_SL);
+    Translation3D goal_com = initial_com_Openrave.cast<float>() + com_motion_Openrave;
+    Translation3D final_com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).centerOfMass());
+    Eigen::Vector3d initial_lmon = initial_state_.linearMomentum();
+
+    std::cout << "Initial CoM: " << initial_com_Openrave.transpose() << std::endl;
+    std::cout << "CoM Motion: " << com_motion_Openrave.transpose() << std::endl;
+    std::cout << "Goal CoM: " << goal_com.transpose() << std::endl;
+    std::cout << "Final CoM: " << final_com.transpose() << std::endl;
+
+    file_stream << int(solver_exitcode) << ", "
+                << step_transition_time_ << ", " << time_step << ", "
+                << initial_com_Openrave(0) << ", " << initial_com_Openrave(1) << ", " << initial_com_Openrave(2) << ", "
+                << goal_com(0) << ", " << goal_com(1) << ", " << goal_com(2) << ", "
+                << final_com(0) << ", " << final_com(1) << ", " << final_com(2) << ", "
+                << initial_lmon(0) << ", " << initial_lmon(1) << ", " << initial_lmon(2) << ", "
+                << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", "
+                << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << ", ";
+
+    int eff_id, cnt_id;
+    RPYTF eff_pose;
+    int state_counter = 0;
+    for(auto & contact_state : contact_state_sequence_)
+    {
+        std::shared_ptr<Stance> stance = contact_state->stances_vector_[0];
+
+        if(state_counter == 0) // the initial state
+        {
+            for(auto & manip : ALL_MANIPULATORS)
+            {
+                if(stance->ee_contact_status_[manip])
+                {
+                    eff_id = contact_manipulator_id_map_.find(manip)->second;
+                    eff_pose = stance->ee_contact_poses_[manip];
+
+                    file_stream << eff_pose.x_ << ", " << eff_pose.y_ << ", " << eff_pose.z_ << ", " << eff_pose.roll_ << ", " << eff_pose.pitch_ << ", " << eff_pose.yaw_ << ", ";
+                    std::cout << "MANIP: " << manip << ", Initial Pose: " << eff_pose.x_ << " " << eff_pose.y_ << " " << eff_pose.z_ << " " << eff_pose.roll_ << " " << eff_pose.pitch_ << " " << eff_pose.yaw_ << std::endl;
+                }
+            }
+        }
+        else
+        {
+            ContactManipulator moving_manip = contact_state->prev_move_manip_;
+
+            if(stance->ee_contact_status_[moving_manip])
+            {
+                eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
+                eff_pose = stance->ee_contact_poses_[moving_manip];
+
+                file_stream << eff_pose.x_ << ", " << eff_pose.y_ << ", " << eff_pose.z_ << ", " << eff_pose.roll_ << ", " << eff_pose.pitch_ << ", " << eff_pose.yaw_  << ", ";
+                std::cout << "MANIP: " << moving_manip << ", New Pose: " << eff_pose.x_ << " " << eff_pose.y_ << " " << eff_pose.z_ << " " << eff_pose.roll_ << " " << eff_pose.pitch_ << " " << eff_pose.yaw_ << std::endl;
+            }
+
+            file_stream << int(moving_manip);
+        }
+
+        state_counter++;
+    }
+
+    file_stream << std::endl;
 }
