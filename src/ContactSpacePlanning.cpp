@@ -171,10 +171,6 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         if(output_first_solution || over_time_limit)
         {
-            if(over_time_limit)
-            {
-                RAVELOG_INFO("The time limit (%5.2f seconds) has been reached. Output the current best solution. Press ENTER to proceed.\n",time_limit);
-            }
             break;
         }
 
@@ -202,9 +198,13 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         std::reverse(contact_state_path.begin(), contact_state_path.end());
     }
-    else
+    else if(!over_time_limit)
     {
         RAVELOG_WARN("Exhausted the search tree. No solution found.\n",time_limit);
+    }
+    else
+    {
+        RAVELOG_INFO("The time limit (%5.2f seconds) has been reached. Output the current best solution. Press ENTER to proceed.\n",time_limit);
     }
 
 
@@ -271,7 +271,7 @@ bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState>
     current_state->com_(1) = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
     current_state->com_(2) = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
 
-    return true;
+    // return true;
 
     if(!current_state->is_root_)
     {
@@ -603,8 +603,6 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
 
 float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_state)
 {
-    return 0;
-
     float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->com_(0) - goal_[0],2) + std::pow(current_state->com_(1) - goal_[1],2));
     float step_cost_to_goal = euclidean_distance_to_goal / robot_properties_->max_stride_;
 
@@ -618,8 +616,7 @@ float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state
     float step_cost = step_cost_weight_;
     dynamics_cost = dynamics_cost_weight_ * dynamics_cost;
 
-    return (traveling_distance_cost + orientation_cost + step_cost);
-    // return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
+    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
 }
 
 void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
