@@ -62,7 +62,7 @@ class escher_openrave_cpp_wrapper(object):
 
         for i in range(dh_grid.dim_x):
             for j in range(dh_grid.dim_y):
-                
+
                 cmd.append(dh_grid.cell_2D_list[i][j].height)
 
                 if(dh_grid.cell_2D_list[i][j].foot_ground_projection[0]):
@@ -96,7 +96,7 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append(len(window))
             for cell in window:
                 cmd.extend(cell)
-        
+
         for key,window in dh_grid.right_foot_neighbor_window.iteritems():
             cmd.append(len(window))
             for cell in window:
@@ -140,10 +140,10 @@ class escher_openrave_cpp_wrapper(object):
         cmd.append(escher.min_arm_length)
         cmd.append(escher.max_stride)
 
-    def SendStartCalculatingTraversabilityCommand(self,structures=None,footstep_windows_legs_only=None,footstep_windows=None,torso_transitions=None,footstep_window_grid_resolution=None, 
+    def SendStartCalculatingTraversabilityCommand(self,structures=None,footstep_windows_legs_only=None,footstep_windows=None,torso_transitions=None,footstep_window_grid_resolution=None,
                                                   dh_grid=None,hand_transition_model=None,parallelization=None,printing=False):
         start = time.time()
-        
+
         cmd = ['StartCalculatingTraversability']
 
         if(printing):
@@ -252,11 +252,11 @@ class escher_openrave_cpp_wrapper(object):
 
         return (footstep_transition_traversability_legs_only, footstep_transition_traversability, hand_transition_traversability)
 
-    
+
     def SendStartConstructingContactRegions(self,structures=None,printing=False,structures_id=None):
-        
+
         start = time.time()
-        
+
         cmd = ['StartConstructingContactRegions']
 
         if(printing):
@@ -326,7 +326,7 @@ class escher_openrave_cpp_wrapper(object):
         for i in range(contact_regions_num):
             contact_regions_values[i] = result[counter:counter+7]
             counter += 7
-        
+
 
         # print("Output message received in Python:")
         # print(result_str)
@@ -342,10 +342,10 @@ class escher_openrave_cpp_wrapper(object):
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',output_first_solution=False,
-                                     goal_as_exact_poses=False,parallelization=False,printing=None):
+                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,printing=None):
 
         start = time.time()
-        
+
         cmd = ['StartPlanningFromScratch']
 
         if printing:
@@ -357,7 +357,7 @@ class escher_openrave_cpp_wrapper(object):
         else:
             print('robot name is required for planning. Abort.')
             return
-        
+
         if (initial_state is not None) and (escher is not None):
             cmd.append('initial_state')
 
@@ -418,7 +418,7 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append('planning_parameters')
             cmd.append(goal_radius)
             cmd.append(time_limit)
-            
+
             if planning_heuristics == 'euclidean' or planning_heuristics == 'dijkstra':
                 cmd.append(planning_heuristics)
             else:
@@ -438,13 +438,13 @@ class escher_openrave_cpp_wrapper(object):
             print('goal radius and time limit are required for planning. Abort.')
             return
 
-        if parallelization is not None:
-            cmd.append('parallelization')
+        if thread_num is not None:
+            cmd.append('thread_num')
+            cmd.append(thread_num)
 
-            if parallelization:
-                cmd.append(1)
-            else:
-                cmd.append(0)
+        if branching_method is not None:
+            cmd.append('branching_method')
+            cmd.append(branching_method)
 
         cmd_str = " ".join(str(item) for item in cmd)
 

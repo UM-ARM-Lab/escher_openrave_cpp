@@ -143,13 +143,11 @@ void DynOptInterface::updateContactSequenceRelatedDynamicsOptimizerSetting()
 
     reference_dynamics_sequence_.clean();
     reference_dynamics_sequence_.resize(dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
-
-    // std::cout << "CoM Motion: " << dynamics_optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion).transpose() << std::endl;
 }
 
 void DynOptInterface::initializeDynamicsOptimizer()
 {
-    dynamics_optimizer_.initialize(dynamics_optimizer_setting_, &kinematics_interface_);
+    dynamics_optimizer_.initialize(dynamics_optimizer_setting_, &kinematics_interface_, &contact_sequence_interpreter_);
 }
 
 void DynOptInterface::fillInitialRobotState()
@@ -165,8 +163,6 @@ void DynOptInterface::fillInitialRobotState()
     initial_state_.centerOfMass() = transformPositionFromOpenraveToSL(initial_contact_state->com_);
     initial_state_.linearMomentum() = robot_mass * rotateVectorFromOpenraveToSL(initial_contact_state->com_dot_);
     initial_state_.angularMomentum() = Eigen::Vector3d(0, 0, 0);
-
-    // std::cout << "Initial CoM: " << initial_state_.centerOfMass().transpose() << std::endl;
 
     // Contact poses, and forces
     int eff_id;
@@ -184,8 +180,6 @@ void DynOptInterface::fillInitialRobotState()
                                                                                       Eigen::AngleAxisf(eff_pose.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
                                                                                       Eigen::AngleAxisf(eff_pose.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
             initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 0.5);
-
-            // std::cout << "eff_id: " << eff_id << ", pose: " << initial_state_.endeffectorPosition(eff_id).transpose() << " " << std::endl;
         }
         else
         {
@@ -231,7 +225,7 @@ bool DynOptInterface::simplifiedDynamicsOptimization(float& dynamics_cost)
     // std::cout << "Total Timesteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
     // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
 
-    storeResultDigest(solver_exitcode, simplified_dynopt_result_digest_);
+    // storeResultDigest(solver_exitcode, simplified_dynopt_result_digest_);
 
     // getchar();
 
@@ -264,7 +258,7 @@ bool DynOptInterface::dynamicsOptimization(float& dynamics_cost)
     // std::cout << "Total Timesteps: " << dynamics_optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
     // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
 
-    storeResultDigest(solver_exitcode, dynopt_result_digest_);
+    // storeResultDigest(solver_exitcode, dynopt_result_digest_);
 
     // getchar();
 

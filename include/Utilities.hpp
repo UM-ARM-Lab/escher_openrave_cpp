@@ -72,8 +72,6 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
 
-const int OPENMP_THREAD_NUM = 1;
-
 enum ContactManipulator
 {
     L_LEG,
@@ -109,48 +107,56 @@ enum ExploreState
 	REOPEN
 };
 
+enum BranchingMethod
+{
+	CONTACT_PROJECTION,
+	CONTACT_OPTIMIZATION
+};
+
 const std::vector<ContactManipulator> ALL_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG, ContactManipulator::L_ARM, ContactManipulator::R_ARM};
 const std::vector<ContactManipulator> ARM_MANIPULATORS = {ContactManipulator::L_ARM, ContactManipulator::R_ARM};
 const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG};
 
 class RPYTF
 {
-public:
-	RPYTF(){};
-	RPYTF(std::array<float,6> xyzrpy)
-	{
-		x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
-		y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
-		z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
-		roll_ = round(xyzrpy[3] * 10.0) / 10.0;
-		pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
-		yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
-	}
+	public:
+		RPYTF(){};
+		RPYTF(std::array<float,6> xyzrpy)
+		{
+			x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
+			y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
+			z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
+			roll_ = round(xyzrpy[3] * 10.0) / 10.0;
+			pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
+			yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
+		}
 
-	RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
-	{
-		x_ = round(_x * 1000.0) / 1000.0;
-		y_ = round(_y * 1000.0) / 1000.0;
-		z_ = round(_z * 1000.0) / 1000.0;
-		roll_ = round(_roll * 10.0) / 10.0;
-		pitch_ = round(_pitch * 10.0) / 10.0;
-		yaw_ = round(_yaw * 10.0) / 10.0;
-	}
+		RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
+		{
+			x_ = round(_x * 1000.0) / 1000.0;
+			y_ = round(_y * 1000.0) / 1000.0;
+			z_ = round(_z * 1000.0) / 1000.0;
+			roll_ = round(_roll * 10.0) / 10.0;
+			pitch_ = round(_pitch * 10.0) / 10.0;
+			yaw_ = round(_yaw * 10.0) / 10.0;
+		}
 
-    inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
-                                                        (this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
-    inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
-                                                        (this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
+		inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
+															(this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
+		inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
+															(this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
 
-	inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
-	inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+		inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
+		inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
 
-	float x_; // meters
-    float y_; // meters
-    float z_; // meters
-    float roll_; // degrees
-    float pitch_; // degrees
-    float yaw_; // degrees
+		inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
+
+		float x_; // meters
+		float y_; // meters
+		float z_; // meters
+		float roll_; // degrees
+		float pitch_; // degrees
+		float yaw_; // degrees
 };
 
 // Distance

@@ -82,23 +82,31 @@ namespace std
         public:
             size_t operator()(const ContactState &contact_state) const
             {
-                size_t hash_number;
+                size_t hash_number = 0;
                 for(auto & stance : contact_state.stances_vector_)
                 {
                     for(auto & status : stance->ee_contact_status_)
                     {
-                        hash_number = hash_number ^ hash<bool>()(status);
+                        hash_number ^= hash<bool>()(status) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
                     }
 
                     for(auto & pose : stance->ee_contact_poses_)
                     {
-                        hash_number = hash_number ^ hash<float>()(pose.x_) ^ hash<float>()(pose.y_) ^ hash<float>()(pose.z_)
-                                                ^ hash<float>()(pose.roll_) ^ hash<float>()(pose.pitch_) ^ hash<float>()(pose.yaw_);
+                        hash_number ^= hash<float>()(pose.x_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                        hash_number ^= hash<float>()(pose.y_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                        hash_number ^= hash<float>()(pose.z_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                        hash_number ^= hash<float>()(pose.roll_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                        hash_number ^= hash<float>()(pose.pitch_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                        hash_number ^= hash<float>()(pose.yaw_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
                     }
                 }
 
-                hash_number = hash_number ^ hash<float>()(contact_state.com_(0)) ^ hash<float>()(contact_state.com_(1)) ^ hash<float>()(contact_state.com_(2))
-                                        ^ hash<float>()(contact_state.com_dot_(0)) ^ hash<float>()(contact_state.com_dot_(1)) ^ hash<float>()(contact_state.com_dot_(2));
+                hash_number ^= hash<float>()(contact_state.com_(0)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.com_(1)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.com_(2)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.com_dot_(0)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.com_dot_(1)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.com_dot_(2)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
 
                 return hash_number;
             }

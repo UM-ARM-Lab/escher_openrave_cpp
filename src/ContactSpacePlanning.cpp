@@ -7,6 +7,7 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                                            std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                                            int _num_stance_in_state,
+                                           int _thread_num,
                                            std::shared_ptr< DrawingHandler > _drawing_handler):
 robot_properties_(_robot_properties),
 foot_transition_model_(_foot_transition_model),
@@ -14,6 +15,7 @@ hand_transition_model_(_hand_transition_model),
 structures_(_structures),
 structures_dict_(_structures_dict),
 num_stance_in_state_(_num_stance_in_state),
+thread_num_(_thread_num),
 drawing_handler_(_drawing_handler)
 {
     for(auto & structure : structures_)
@@ -28,9 +30,9 @@ drawing_handler_(_drawing_handler)
         }
     }
 
-    dynamics_optimizer_interface_vector_.resize(OPENMP_THREAD_NUM);
+    dynamics_optimizer_interface_vector_.resize(thread_num_);
 
-    for(int i = 0; i < OPENMP_THREAD_NUM; i++)
+    for(int i = 0; i < thread_num_; i++)
     {
         dynamics_optimizer_interface_vector_[i].reset(new DynOptInterface(2.0, "SL_optim_config_template/cfg_kdopt_demo.yaml"));
     }
@@ -40,6 +42,7 @@ drawing_handler_(_drawing_handler)
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                                    float goal_radius, PlanningHeuristicsType heuristics_type,
+                                                                                   BranchingMethod branching_method,
                                                                                    float time_limit, bool output_first_solution, bool goal_as_exact_poses)
 {
     // initialize parameters
@@ -57,7 +60,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     contact_states_map_.clear();
 
     open_heap_.push(initial_state);
-    contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*initial_state), *initial_state));
+    contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*initial_state), initial_state));
 
     auto time_before_ANA_start_planning = std::chrono::high_resolution_clock::now();
 
@@ -73,7 +76,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         while(!open_heap_.empty())
         {
             auto current_time = std::chrono::high_resolution_clock::now();
-            if(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() /1000.0 > time_limit)
+            if(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() / 1000.0 > time_limit)
             {
                 RAVELOG_INFO("Over time limit.\n");
                 over_time_limit = true;
@@ -95,6 +98,37 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 // }
 
                 current_state->explore_state_ = ExploreState::EXPLORED;
+
+                // std::cout << current_state->explore_state_ << std::endl;
+                // std::size_t current_state_hash = std::hash<ContactState>()(*current_state);
+                // std::unordered_map<std::size_t, std::shared_ptr<ContactState> >::iterator contact_state_iterator = contact_states_map_.find(current_state_hash);
+                // current_state->stances_vector_[0]->left_foot_pose_.printPose();
+                // current_state->stances_vector_[0]->right_foot_pose_.printPose();
+                // current_state->stances_vector_[0]->left_hand_pose_.printPose();
+                // current_state->stances_vector_[0]->right_hand_pose_.printPose();
+                // std::cout << current_state->stances_vector_[0]->ee_contact_status_[0] << " "
+                //           << current_state->stances_vector_[0]->ee_contact_status_[1] << " "
+                //           << current_state->stances_vector_[0]->ee_contact_status_[2] << " "
+                //           << current_state->stances_vector_[0]->ee_contact_status_[3] << std::endl;
+                // std::cout << "hash: " << current_state_hash << std::endl;
+                // std::cout << "hash: " << std::hash<ContactState>()(*current_state) << std::endl;
+                // std::cout << current_state->stances_vector_.size() << std::endl;
+
+                // if (contact_state_iterator == contact_states_map_.end()) // the state is not in the set
+                // {
+                //     std::cout << "wait, what?" << std::endl;
+                // }
+
+                // std::cout << "===============" << std::endl;
+
+                // contact_state_iterator->second->stances_vector_[0]->left_foot_pose_.printPose();
+                // contact_state_iterator->second->stances_vector_[0]->right_foot_pose_.printPose();
+                // contact_state_iterator->second->stances_vector_[0]->left_hand_pose_.printPose();
+                // contact_state_iterator->second->stances_vector_[0]->right_hand_pose_.printPose();
+
+                // std::cout << contact_state_iterator->second->explore_state_ << std::endl;
+                // getchar();
+
 
                 // update E_
                 if(current_state->h_ != 0 && (G_-current_state->g_)/current_state->h_ < E_)
@@ -131,14 +165,16 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 }
 
                 // branch
-                // RAVELOG_INFO("Branch the search tree.\n");
-                branchingSearchTree(current_state);
-                // RAVELOG_INFO("Finish one iteration.\n");
+                branchingSearchTree(current_state, branching_method);
             }
         }
 
         if(output_first_solution || over_time_limit)
         {
+            if(over_time_limit)
+            {
+                RAVELOG_INFO("The time limit (%5.2f seconds) has been reached. Output the current best solution. Press ENTER to proceed.\n",time_limit);
+            }
             break;
         }
 
@@ -163,10 +199,13 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
             final_path_state = final_path_state->parent_;
         }
-    }
-    std::reverse(contact_state_path.begin(), contact_state_path.end());
 
-    RAVELOG_INFO("The time limit (%5.2f seconds) has been reached. Output the current best solution. Press ENTER to proceed.\n",time_limit);
+        std::reverse(contact_state_path.begin(), contact_state_path.end());
+    }
+    else
+    {
+        RAVELOG_WARN("Exhausted the search tree. No solution found.\n",time_limit);
+    }
 
 
     return contact_state_path;
@@ -232,7 +271,7 @@ bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState>
     current_state->com_(1) = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
     current_state->com_(2) = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
 
-    // return true;
+    return true;
 
     if(!current_state->is_root_)
     {
@@ -243,18 +282,18 @@ bool ContactSpacePlanning::dynamicFeasibilityCheck(std::shared_ptr<ContactState>
         dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
         // dynamics_optimizer_interface_->updateContactSequence(contact_state_sequence);
 
-        bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
 
-        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+        // bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
         // bool dynamically_feasible = dynamics_optimizer_interface_->dynamicsOptimization(dynamics_cost);
-
-        if(!simplified_dynamically_feasible && dynamically_feasible)
-        {
-            std::cout << "weird thing happens." << std::endl;
-            getchar();
-        }
-
-        std::cout << "===============================================================" << std::endl;
+        // if(!simplified_dynamically_feasible && dynamically_feasible)
+        // {
+        //     std::cout << "weird thing happens." << std::endl;
+        //     getchar();
+        // }
+        // std::cout << "===============================================================" << std::endl;
 
         if(dynamically_feasible)
         {
@@ -279,16 +318,22 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
     return (kinematicFeasibilityCheck(current_state) && dynamicFeasibilityCheck(current_state, dynamics_cost, index));
 }
 
-void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state)
+void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method)
 {
     std::vector<ContactManipulator> branching_manips{ContactManipulator::L_LEG, ContactManipulator::R_LEG};
 
-    // branching foot contacts
-    branchingFootContacts(current_state, branching_manips);
+    if(branching_method == BranchingMethod::CONTACT_PROJECTION)
+    {
+        // branching foot contacts
+        branchingFootContacts(current_state, branching_manips);
 
-    // branching hand contacts
-    branchingHandContacts(current_state, branching_manips);
+        // branching hand contacts
+        branchingHandContacts(current_state, branching_manips);
+    }
+    else if(branching_method == BranchingMethod::CONTACT_OPTIMIZATION)
+    {
 
+    }
 }
 
 void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
@@ -345,14 +390,14 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
     RPYTF new_right_hand_pose = current_stance->right_hand_pose_;
     const std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_stance->ee_contact_status_;
 
-    // RAVELOG_INFO("Total thread number: %d.\n",OPENMP_THREAD_NUM);
+    // RAVELOG_INFO("Total thread number: %d.\n",thread_num_);
 
-    #pragma omp parallel num_threads(OPENMP_THREAD_NUM) shared (branching_feet_combination, state_feasibility_check_result)
+    #pragma omp parallel num_threads(thread_num_) shared (branching_feet_combination, state_feasibility_check_result)
     {
         #pragma omp for schedule(static)
         for(int i = 0; i < branching_feet_combination.size(); i++)
         {
-            RPYTF new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose;
+            RPYTF new_left_foot_pose, new_right_foot_pose;
             ContactManipulator move_manip;
 
             auto step_combination = branching_feet_combination[i];
@@ -376,28 +421,30 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
                 projection_is_successful = footProjection(new_right_foot_pose);
             }
 
-            if(!projection_is_successful)
+            if(projection_is_successful)
             {
-                continue;
-            }
+                // RAVELOG_INFO("construct state.\n");
 
-            // RAVELOG_INFO("construct state.\n");
+                // construct the new state
+                std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status));
 
-            // construct the new state
-            std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status));
+                std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1));
 
-            std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1));
+                // RAVELOG_INFO("state feasibility check.\n");
 
-            // RAVELOG_INFO("state feasibility check.\n");
-
-            float dynamics_cost = 0.0;
-            if(stateFeasibilityCheck(new_contact_state, dynamics_cost, i%OPENMP_THREAD_NUM))
-            {
-                state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
+                float dynamics_cost = 0.0;
+                if(stateFeasibilityCheck(new_contact_state, dynamics_cost, i%thread_num_))
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
+                }
+                else
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
+                }
             }
             else
             {
-                state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
+                state_feasibility_check_result[i] = std::make_tuple(false, current_state, 0.0);
             }
         }
     }
@@ -482,7 +529,7 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
 
     // find if there already exists this state
     std::size_t current_state_hash = std::hash<ContactState>()(*current_state);
-    std::unordered_map<std::size_t, ContactState>::iterator contact_state_iterator = contact_states_map_.find(current_state_hash);
+    std::unordered_map<std::size_t, std::shared_ptr<ContactState> >::iterator contact_state_iterator = contact_states_map_.find(current_state_hash);
 
     // add the state to the state vector and/or the open heap
     if (contact_state_iterator == contact_states_map_.end()) // the state is not in the set
@@ -499,39 +546,55 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
                 current_state->priority_value_ = (G_ - current_state->g_) / 0.00001;
             }
 
-            auto current_state_iterator_insert_sucess_pair = contact_states_map_.insert(std::make_pair(current_state_hash, *current_state));
-            auto current_state_ptr_to_the_map = std::make_shared<ContactState>(current_state_iterator_insert_sucess_pair.first->second);
-            open_heap_.push(current_state_ptr_to_the_map);
+            // std::cout << "======new branch======" << std::endl;
+            // current_state->stances_vector_[0]->left_foot_pose_.printPose();
+            // current_state->stances_vector_[0]->right_foot_pose_.printPose();
+            // current_state->stances_vector_[0]->left_hand_pose_.printPose();
+            // current_state->stances_vector_[0]->right_hand_pose_.printPose();
+            // std::cout << current_state->stances_vector_[0]->ee_contact_status_[0] << " "
+            //               << current_state->stances_vector_[0]->ee_contact_status_[1] << " "
+            //               << current_state->stances_vector_[0]->ee_contact_status_[2] << " "
+            //               << current_state->stances_vector_[0]->ee_contact_status_[3] << std::endl;
+            // std::cout << current_state->stances_vector_.size() << std::endl;
+            // std::cout << "hash: " << current_state_hash << std::endl;
+            // getchar();
+
+            contact_states_map_.insert(std::make_pair(current_state_hash, current_state));
+            open_heap_.push(current_state);
         }
 
     }
     else
     {
-        ContactState existing_state = contact_state_iterator->second;
+        std::shared_ptr<ContactState> existing_state = contact_state_iterator->second;
 
-        if(existing_state.explore_state_ != ExploreState::CLOSED && current_state->getF() < existing_state.getF())
+        // std::cout << "===============================" << std::endl;
+        // std::cout << "existing state: F: " << existing_state->getF() << ", explore state: " << existing_state->explore_state_ << std::endl;
+        // std::cout << "new state: F: " << current_state->getF() << ", explore state: " << current_state->explore_state_ << std::endl;
+        // getchar();
+
+        if(existing_state->explore_state_ != ExploreState::CLOSED && current_state->getF() < existing_state->getF())
         {
-            if(existing_state.explore_state_ == ExploreState::EXPLORED)
+            if(existing_state->explore_state_ == ExploreState::EXPLORED)
             {
-                existing_state.explore_state_ = ExploreState::REOPEN;
+                existing_state->explore_state_ = ExploreState::REOPEN;
             }
 
-            existing_state.g_ = current_state->g_;
-            existing_state.parent_ = current_state->parent_;
-            existing_state.prev_move_manip_ = current_state->prev_move_manip_;
+            existing_state->g_ = current_state->g_;
+            existing_state->parent_ = current_state->parent_;
+            existing_state->prev_move_manip_ = current_state->prev_move_manip_;
 
-            if(existing_state.getF() < G_)
+            if(existing_state->getF() < G_)
             {
-                if(existing_state.h_ != 0)
+                if(existing_state->h_ != 0)
                 {
-                    existing_state.priority_value_ = (G_ - existing_state.g_) / existing_state.h_;
+                    existing_state->priority_value_ = (G_ - existing_state->g_) / existing_state->h_;
                 }
                 else
                 {
-                    existing_state.priority_value_ = (G_ - existing_state.g_) / 0.00001;
+                    existing_state->priority_value_ = (G_ - existing_state->g_) / 0.00001;
                 }
-                auto existing_state_ptr_to_the_set = std::make_shared<ContactState>(existing_state);
-                open_heap_.push(existing_state_ptr_to_the_set);
+                open_heap_.push(existing_state);
             }
         }
     }
@@ -540,6 +603,8 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
 
 float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_state)
 {
+    return 0;
+
     float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->com_(0) - goal_[0],2) + std::pow(current_state->com_(1) - goal_[1],2));
     float step_cost_to_goal = euclidean_distance_to_goal / robot_properties_->max_stride_;
 
@@ -553,7 +618,8 @@ float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state
     float step_cost = step_cost_weight_;
     dynamics_cost = dynamics_cost_weight_ * dynamics_cost;
 
-    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
+    return (traveling_distance_cost + orientation_cost + step_cost);
+    // return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
 }
 
 void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
@@ -565,7 +631,7 @@ void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
 
     for(auto & contact_state_hash_pair : contact_states_map_)
     {
-        std::shared_ptr<ContactState> contact_state = std::make_shared<ContactState>(contact_state_hash_pair.second);
+        std::shared_ptr<ContactState> contact_state = contact_state_hash_pair.second;
 
         if(contact_state->explore_state_ == ExploreState::OPEN || contact_state->explore_state_ == ExploreState::REOPEN || contact_state->explore_state_ == ExploreState::EXPLORED)
         {

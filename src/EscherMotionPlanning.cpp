@@ -1563,6 +1563,9 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     bool output_first_solution;
     bool goal_as_exact_poses;
     PlanningHeuristicsType heuristics_type;
+    BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
+
+    int thread_num = 1;
 
     std::shared_ptr<ContactState> initial_state;
 
@@ -1708,20 +1711,39 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             }
         }
 
-        else if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
+        else if(strcmp(param.c_str(), "thread_num") == 0)
+        {
+            sinput >> thread_num;
+        }
+
+        else if(strcmp(param.c_str(), "branching_method") == 0)
         {
             sinput >> param;
-            if(strcmp(param.c_str(), "0") == 0)
+
+            if(strcmp(param.c_str(), "contact_projection") == 0)
             {
-                is_parallel_ = false;
-                RAVELOG_INFO("Don't do parallelization.\n");
+                branching_method = BranchingMethod::CONTACT_PROJECTION;
             }
-            else
+            else if(strcmp(param.c_str(), "contact_optimization") == 0)
             {
-                is_parallel_ = true;
-                RAVELOG_INFO("Do parallelization.\n");
+                branching_method = BranchingMethod::CONTACT_OPTIMIZATION;
             }
         }
+
+        // else if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
+        // {
+        //     sinput >> param;
+        //     if(strcmp(param.c_str(), "0") == 0)
+        //     {
+        //         is_parallel_ = false;
+        //         RAVELOG_INFO("Don't do parallelization.\n");
+        //     }
+        //     else
+        //     {
+        //         is_parallel_ = true;
+        //         RAVELOG_INFO("Do parallelization.\n");
+        //     }
+        // }
 
         else if(strcmp(param.c_str(), "printing") == 0)
         {
@@ -1736,16 +1758,18 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         }
     }
 
+    RAVELOG_INFO("Thread Number = %d.\n",thread_num);
+
     drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
 
     RAVELOG_INFO("Done. \n");
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1, drawing_handler_);
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1, thread_num, drawing_handler_);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
     std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
-                                                                                                            time_limit, output_first_solution, goal_as_exact_poses);
+                                                                                                            branching_method, time_limit, output_first_solution, goal_as_exact_poses);
 
 }
 

@@ -10,10 +10,12 @@ class ContactSpacePlanning
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                              std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                              int _num_stance_in_state,
+                             int _thread_num,
                              std::shared_ptr<DrawingHandler> _drawing_handler);
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,
+                                                                     BranchingMethod branching_method,
                                                                      float time_limit, bool output_first_solution, bool goal_as_exact_poses);
 
     private:
@@ -21,7 +23,7 @@ class ContactSpacePlanning
         std::priority_queue< std::shared_ptr<ContactState>, std::vector< std::shared_ptr<ContactState> >, ContactState::pointer_less > open_heap_;
 
         // the vector of ContactStates
-        std::unordered_map<std::size_t, ContactState> contact_states_map_;
+        std::unordered_map<std::size_t, std::shared_ptr<ContactState> > contact_states_map_;
 
         // the ANA* parameters
         float G_, E_;
@@ -45,6 +47,9 @@ class ContactSpacePlanning
         const float step_cost_weight_ = 3.0;
         const float dynamics_cost_weight_ = 0.001;
 
+        // thread number for OpenMP
+        const int thread_num_;
+
         // the environment structures
         const std::vector< std::shared_ptr<TrimeshSurface> > structures_;
         std::vector< std::shared_ptr<TrimeshSurface> > hand_structures_;
@@ -65,7 +70,7 @@ class ContactSpacePlanning
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost);
 
-        void branchingSearchTree(std::shared_ptr<ContactState> current_state);
+        void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         bool footProjection(RPYTF& projection_pose);
