@@ -14,7 +14,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, std::istream& ss);
         virtual ~EscherMotionPlanning() {}
 
-        bool calculateTraversability(std::ostream& sout, std::istream& sinput);        
+        bool calculateTraversability(std::ostream& sout, std::istream& sinput);
 
         bool constructContactRegions(std::ostream& sout, std::istream& sinput);
 
@@ -29,6 +29,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         void parseStructuresCommand(std::istream& sinput);
         void parseFootTransitionModelCommand(std::istream& sinput);
         void parseHandTransitionModelCommand(std::istream& sinput);
+        void parseMapGridDimCommand(std::istream& sinput);
         void parseMapGridCommand(std::istream& sinput);
         void parseRobotPropertiesCommand(std::istream& sinput);
 
@@ -40,9 +41,9 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         OpenRAVE::RobotBasePtr probot_; // Robot object using in the plugin
         OpenRAVE::EnvironmentBasePtr penv_; // Environment object using in the plugin
-        
+
         std::vector<double>goal_; // Goal coordinate for the planning. [x,y,theta]
-        
+
         std::vector< std::shared_ptr<TrimeshSurface> > structures_;
         std::map<int, std::shared_ptr<TrimeshSurface> > structures_dict_;
 
@@ -59,7 +60,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         std::shared_ptr< DrawingHandler > drawing_handler_;
 
         std::shared_ptr< RobotProperties > robot_properties_;
-        
+
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
         bool printing_ = false;
 };

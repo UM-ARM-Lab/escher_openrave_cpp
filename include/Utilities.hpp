@@ -13,6 +13,7 @@
 #include <map>
 #include <numeric>
 #include <queue>
+#include <random>
 #include <sstream>
 #include <string>
 #include <set>
@@ -63,6 +64,7 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
+const float STEP_TRANSITION_TIME = 2.0;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
@@ -107,6 +109,12 @@ enum ExploreState
 	REOPEN
 };
 
+enum TerrainType
+{
+	SOLID,
+	GAP,
+	OBSTACLE
+};
 enum BranchingMethod
 {
 	CONTACT_PROJECTION,
@@ -206,7 +214,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "TrimeshSurface.hpp"
 #include "MapGrid.hpp"
 #include "ContactState.hpp"
-#include "DynOptInterface.hpp"
+#include "OptimizationInterface.hpp"
 #include "ContactSpacePlanning.hpp"
 #include "EscherMotionPlanning.hpp"
 #include "Boundary.hpp"

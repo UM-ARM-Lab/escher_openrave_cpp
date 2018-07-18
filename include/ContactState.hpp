@@ -1,6 +1,8 @@
 #ifndef CONTACT_STATE_H
 #define CONTACT_STATE_H
 
+#include <momentumopt/dynopt/DynamicsState.hpp>
+
 class ContactState;
 
 class Stance
@@ -42,14 +44,19 @@ class ContactState
         Translation3D com_;
         Vector3D com_dot_;
 
+        Translation3D mean_feet_position_;
+
         const bool is_root_;
 
         ContactManipulator prev_move_manip_;
         float g_;
         float h_;
         float priority_value_;
+        float accumulated_dynamics_cost_;
 
         ExploreState explore_state_;
+
+        momentumopt::DynamicsSequence parent_edge_dynamics_sequence_;
 
         bool operator==(const ContactState& other) const;
         bool operator!=(const ContactState& other) const;

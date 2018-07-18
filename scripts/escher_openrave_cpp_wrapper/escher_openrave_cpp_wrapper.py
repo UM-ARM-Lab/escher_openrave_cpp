@@ -52,6 +52,14 @@ class escher_openrave_cpp_wrapper(object):
                 print('Warning: Sent box structures, but is ignored.')
                 continue
 
+    def AppendMapGridDimCommand(self,cmd,dh_grid):
+        cmd.append('map_grid')
+        cmd.append(dh_grid.min_x)
+        cmd.append(dh_grid.max_x)
+        cmd.append(dh_grid.min_y)
+        cmd.append(dh_grid.max_y)
+        cmd.append(dh_grid.resolution)
+
     def AppendMapGridCommand(self,cmd,dh_grid):
         cmd.append('map_grid')
         cmd.append(dh_grid.min_x)
@@ -341,8 +349,8 @@ class escher_openrave_cpp_wrapper(object):
 
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
-                                     structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',output_first_solution=False,
-                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,printing=None):
+                                     structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',dh_grid=None,output_first_solution=False,
+                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,planning_id=None,printing=None):
 
         start = time.time()
 
@@ -414,6 +422,9 @@ class escher_openrave_cpp_wrapper(object):
         if hand_transition_model is not None:
             self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
 
+        if dh_grid is not None:
+            self.AppendMapGridDimCommand(cmd, dh_grid);
+
         if (goal_radius is not None) and (time_limit is not None):
             cmd.append('planning_parameters')
             cmd.append(goal_radius)
@@ -445,6 +456,10 @@ class escher_openrave_cpp_wrapper(object):
         if branching_method is not None:
             cmd.append('branching_method')
             cmd.append(branching_method)
+
+        if planning_id is not None:
+            cmd.append('planning_id')
+            cmd.append(planning_id)
 
         cmd_str = " ".join(str(item) for item in cmd)
 

@@ -8,10 +8,12 @@ class ContactSpacePlanning
                              std::vector< std::array<float,3> > _foot_transition_model,
                              std::vector< std::array<float,2> > _hand_transition_model,
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
-                             std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
+                             std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,\
+                             std::shared_ptr<MapGrid> _map_grid,
                              int _num_stance_in_state,
                              int _thread_num,
-                             std::shared_ptr<DrawingHandler> _drawing_handler);
+                             std::shared_ptr<DrawingHandler> _drawing_handler,
+                             int _planning_id);
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,
@@ -44,11 +46,17 @@ class ContactSpacePlanning
         const std::vector< std::array<float,2> > hand_transition_model_;
 
         // cost parameters
-        const float step_cost_weight_ = 3.0;
-        const float dynamics_cost_weight_ = 0.001;
+        const float step_cost_weight_ = 0.0;
+        const float dynamics_cost_weight_ = 3.0;
+
+        // random parameters
+        const float epsilon_ = 0.0;
 
         // thread number for OpenMP
         const int thread_num_;
+
+        // idicate which planning trial it is, for record.
+        const int planning_id_;
 
         // the environment structures
         const std::vector< std::shared_ptr<TrimeshSurface> > structures_;
@@ -56,15 +64,17 @@ class ContactSpacePlanning
         std::vector< std::shared_ptr<TrimeshSurface> > foot_structures_;
         const std::map<int, std::shared_ptr<TrimeshSurface> > structures_dict_;
 
+        // the map grid
+        std::shared_ptr<MapGrid> map_grid_;
+
         // the drawing handler
-        std::shared_ptr< DrawingHandler > drawing_handler_;
+        std::shared_ptr<DrawingHandler> drawing_handler_;
 
         // the dynamics optimizer interface
-        std::vector< std::shared_ptr< DynOptInterface > > dynamics_optimizer_interface_vector_;
-        std::shared_ptr< DynOptInterface > dynamics_optimizer_interface_;
+        std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
 
-        bool kinematicFeasibilityCheck(std::shared_ptr<ContactState> current_state);
-        bool dynamicFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
+        bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state);
+        bool dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
         bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
@@ -81,6 +91,7 @@ class ContactSpacePlanning
         void updateExploreStatesAndOpenHeap();
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);
 
+        void kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path);
 };
 
 #endif

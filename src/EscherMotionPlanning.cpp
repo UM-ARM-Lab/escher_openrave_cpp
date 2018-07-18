@@ -169,6 +169,20 @@ void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
     }
 }
 
+void EscherMotionPlanning::parseMapGridDimCommand(std::istream& sinput)
+{
+    float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
+    float map_grid_xy_resolution;
+
+    sinput >> map_grid_min_x;
+    sinput >> map_grid_max_x;
+    sinput >> map_grid_min_y;
+    sinput >> map_grid_max_y;
+    sinput >> map_grid_xy_resolution;
+
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+}
+
 void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 {
     float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
@@ -335,11 +349,9 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     sinput >> min_arm_length;
     sinput >> max_stride;
 
-    robot_properties_ = std::make_shared<RobotProperties>(RobotProperties(probot_, IK_init_DOF_Values, default_DOF_Values,
-                                                                          foot_h, foot_w, hand_h, hand_w, robot_z, top_z,
-                                                                          shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride));
-
-    RAVELOG_INFO("adfshgfdsfghj\n");
+    robot_properties_ = std::make_shared<RobotProperties>(probot_, IK_init_DOF_Values, default_DOF_Values,
+                                                          foot_h, foot_w, hand_h, hand_w, robot_z, top_z,
+                                                          shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride);
 }
 
 bool EscherMotionPlanning::calculateTraversability(std::ostream& sout, std::istream& sinput)
@@ -1566,6 +1578,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
 
     int thread_num = 1;
+    int planning_id = 0;
 
     std::shared_ptr<ContactState> initial_state;
 
@@ -1640,8 +1653,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                 sinput >> initial_com_dot(i);
             }
 
-            std::shared_ptr<Stance> initial_stance(new Stance(initial_ee_poses[0], initial_ee_poses[1], initial_ee_poses[2], initial_ee_poses[3], initial_ee_contact_status));
-            initial_state = std::make_shared<ContactState>(ContactState(initial_stance, initial_com, initial_com_dot, 1));
+            std::shared_ptr<Stance> initial_stance = std::make_shared<Stance>(initial_ee_poses[0], initial_ee_poses[1], initial_ee_poses[2], initial_ee_poses[3], initial_ee_contact_status);
+            initial_state = std::make_shared<ContactState>(initial_stance, initial_com, initial_com_dot, 1);
             if(printing_)
             {
                 RAVELOG_INFO("Initial state is initialized.\n");
@@ -1683,7 +1696,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             {
                 heuristics_type = PlanningHeuristicsType::DIJKSTRA;
                 RAVELOG_INFO("Use Dijkstra heuristics.\n");
-                RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
+                // RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
             }
 
             sinput >> param;
@@ -1730,6 +1743,11 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             }
         }
 
+        else if(strcmp(param.c_str(), "planning_id") == 0)
+        {
+            sinput >> planning_id;
+        }
+
         // else if(strcmp(param.c_str(), "parallelization") == 0) // maybe used for evaluating the feasibility of the states
         // {
         //     sinput >> param;
@@ -1744,6 +1762,11 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         //         RAVELOG_INFO("Do parallelization.\n");
         //     }
         // }
+
+        else if(strcmp(param.c_str(), "map_grid") == 0)
+        {
+            parseMapGridDimCommand(sinput);
+        }
 
         else if(strcmp(param.c_str(), "printing") == 0)
         {
@@ -1762,9 +1785,13 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
 
-    RAVELOG_INFO("Done. \n");
+    RAVELOG_INFO("Command Parsing Done. \n");
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, 1, thread_num, drawing_handler_);
+    map_grid_->obstacleAndGapMapping(structures_);
+    GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
+    map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
+
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_, 1, thread_num, drawing_handler_, planning_id);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 

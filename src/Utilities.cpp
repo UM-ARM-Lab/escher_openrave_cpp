@@ -251,11 +251,11 @@ float getAngleMean(float angle1, float angle2)
 
 	if(std::fabs(getAngleDifference(mean1,angle1)) < std::fabs(getAngleDifference(mean2,angle1)))
 	{
-		return mean1;
+		return getFirstTerminalAngle(mean1);
 	}
 	else
 	{
-		return mean2;
+		return getFirstTerminalAngle(mean2);
 	}
 }
 
