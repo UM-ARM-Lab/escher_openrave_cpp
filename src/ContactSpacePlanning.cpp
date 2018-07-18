@@ -47,41 +47,6 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                                                                                    BranchingMethod branching_method,
                                                                                    float time_limit, bool output_first_solution, bool goal_as_exact_poses)
 {
-    // // define robot initial state
-	// momentumopt::DynamicsState ini_state;
-	// ini_state.fillInitialRobotState(cfg_file);
-
-	// // create instances of momentum optimizers
-	// momentumopt::PlannerSetting planner_setting;
-	// momentumopt::DynamicsOptimizer dyn_optimizer;
-	// momentumopt::KinematicsOptimizer kin_optimizer;
-	// momentumopt::ContactPlanFromFile cnt_optimizer;
-
-	// // initialize optimizers
-	// planner_setting.initialize(cfg_file);
-	// KinematicsInterfaceSl kin_interface(planner_setting.get(momentumopt::PlannerDoubleParam_Frequency));
-
-	// cnt_optimizer.initialize(planner_setting, &kin_interface);
-	// dyn_optimizer.initialize(planner_setting, &kin_interface);
-	// kin_optimizer.initialize(planner_setting, &kin_interface);
-
-	// // optimize motion
-	// cnt_optimizer.optimize(ini_state, dyn_optimizer.dynamicsSequence());
-	// dyn_optimizer.optimize(ini_state, kin_optimizer.kinematicsSequence(), false);
-	// for (int iter_id=0; iter_id<planner_setting.get(momentumopt::PlannerIntParam_NumKinDynIterations); iter_id++) {
-	//   kin_optimizer.optimize(ini_state, dyn_optimizer.dynamicsSequence(), iter_id>0);
-	//   dyn_optimizer.optimize(ini_state, kin_optimizer.kinematicsSequence(), true);
-	// }
-
-    // Construct a map to map from edge to dynamics sequence
-
-    // query this map to get the set of dynamics sequcne
-
-    // concatenate the dynamics sequence
-
-    // call the kinematics optimizer
-
-
     // initialize parameters
     G_ = 9999.0;
     E_ = G_;
