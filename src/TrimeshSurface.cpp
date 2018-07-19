@@ -40,9 +40,9 @@ void TrimeshSurface::updateProjVertices()
     for(Translation3D const & vertex : vertices_)
     {
         Translation2D proj_vertex = projectionPlaneFrame(vertex);
-        
+
         proj_vertices_.push_back(proj_vertex);
-        
+
         min_proj_x_ = std::min(min_proj_x_, proj_vertex[0]);
         max_proj_x_ = std::max(max_proj_x_, proj_vertex[0]);
 
@@ -54,7 +54,7 @@ void TrimeshSurface::updateProjVertices()
     }
 
     // if(proj_vertices_.size())
-    // { 
+    // {
     // 	proj_vertices_.push_back(proj_vertices_.front()); // "close the loop"
     // }
 }
@@ -125,7 +125,7 @@ void TrimeshSurface::updateApproxBoundary()
     // {
     // 	sort(boundary_pair.second.begin(), boundary_pair.second.end());
     // 	std::cout << boundary_pair.first << ": ";
-        
+
     // 	for(auto & boundary : boundary_pair.second)
     // 	{
     // 		std::cout<<boundary<<" ";
@@ -141,7 +141,7 @@ void TrimeshSurface::updateApproxBoundary()
 void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSurface> > structures)
 {
     // RAVELOG_INFO("A");
-    
+
     proj_boundaries_.clear();
 
     float project_dist = 0.5;
@@ -200,7 +200,7 @@ void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSu
         }
 
         // RAVELOG_INFO("C-3");
-        
+
         for(std::vector< std::pair<int, int> >::iterator edge_it = (*st_it)->edges_.begin(); edge_it != (*st_it)->edges_.end(); edge_it++)
         {
             // RAVELOG_INFO("C-3-1");
@@ -243,7 +243,7 @@ void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSu
                             new_boundary = Boundary(intersection_proj_vertex, proj_vertex2);
                         }
                     }
-                    
+
                     proj_boundaries_.push_back(new_boundary);
                 }
 
@@ -282,12 +282,12 @@ void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSu
 
                 transformed_vertex1 = transformed_vertices_from_other_surface[index1];
                 transformed_vertex2 = transformed_vertices_from_other_surface[index2];
-                
+
                 // check if the two vertices are in different side of the plane
                 if(transformed_vertex1(2)*transformed_vertex2(2) < 0)
                 {
                     intersection_point_2d = projectionPlaneFrame(vertex1, (vertex2-vertex1).normalized());
-                    
+
                     if(insidePolygonPlaneFrame(intersection_point_2d))
                     {
                         intersection_points.push_back(intersection_point_2d);
@@ -314,12 +314,12 @@ void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSu
 
                 transformed_vertex1 = transformed_subject_vertices_to_other_surfaces[index1];
                 transformed_vertex2 = transformed_subject_vertices_to_other_surfaces[index2];
-                
+
                 // check if the two vertices are in different side of the plane
                 if(transformed_vertex1(2)*transformed_vertex2(2) < 0)
                 {
                     intersection_point_3d = (*st_it)->projectionGlobalFrame(vertex1, (vertex2-vertex1).normalized());
-                    
+
                     if((*st_it)->insidePolygon(intersection_point_3d))
                     {
                         intersection_point_2d = projectionPlaneFrame(intersection_point_3d);
@@ -333,76 +333,20 @@ void TrimeshSurface::updateProjBoundaries(std::vector< std::shared_ptr<TrimeshSu
                 Boundary new_boundary(intersection_points[0], intersection_points[1]);
                 proj_boundaries_.push_back(new_boundary);
             }
-            
+
         }
 
         // RAVELOG_INFO("C-5");
 
     }
-    
+
 }
 
 /*** PUBLIC MEM FNS ***/
 TrimeshSurface::TrimeshSurface(OpenRAVE::KinBodyPtr _kinbody, Eigen::Vector4f _plane_parameters,
                                 std::vector< std::pair<int, int> > _edges, std::vector<Translation3D> _vertices, TrimeshType _type, int _id):
-                                Structure(_kinbody,_id), 
-                                edges_(_edges), 
-                                vertices_(_vertices),
-                                contact_point_grid_(std::make_shared<SurfaceContactPointGrid>(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION)),
-                                type_(_type)								
-{
-
-    // _plane_parameters.normalize();
-    nx_ = _plane_parameters[0];
-    ny_ = _plane_parameters[1];
-    nz_ = _plane_parameters[2];
-    c_ = _plane_parameters[3];
-
-    updateCenter();
-
-    assert(vertices_.size() != 0);
-
-    float max_edge_length = 0;
-    Translation3D edge_vector(0,0,0);
-    for(std::vector< std::pair<int, int> >::iterator e_it = edges_.begin(); e_it != edges_.end(); e_it++)
-    {
-        Translation3D vertex_a = vertices_[e_it->first];
-        Translation3D vertex_b = vertices_[e_it->second];
-
-        float tmp_edge_length = (vertex_a-vertex_b).norm();
-
-        if(tmp_edge_length > max_edge_length)
-        {
-            max_edge_length = tmp_edge_length;
-            edge_vector = vertex_b - vertex_a;
-        }
-    }
-
-    // see: http://fastgraph.com/makegames/3drotation/
-    Translation3D vx = edge_vector.normalized(); // line of sight is from a vertex to center
-    Translation3D vz = getNormal();
-    Translation3D vy = vz.cross(vx);
-    Translation3D center = getCenter();
-    
-    transformation_matrix_ = constructTransformationMatrix(vx[0], vy[0], vz[0], center[0], 
-                                                           vx[1], vy[1], vz[1], center[1], 
-                                                           vx[2], vy[2], vz[2], center[2]);	
-    
-    inverse_transformation_matrix_ = inverseTransformationMatrix(transformation_matrix_);
-
-    // std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
-    // std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
-    
-    updateProjVertices();
-    updateApproxBoundary();
-
-    contact_point_grid_->initializeParameters(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION);
-}
-
-TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _kinbody_name, Eigen::Vector4f _plane_parameters,
-                                std::vector< std::pair<int, int> > _edges, std::vector<Translation3D> _vertices, TrimeshType _type, int _id):
-                                Structure(_env->GetKinBody(_kinbody_name),_id), 
-                                edges_(_edges), 
+                                Structure(_kinbody,_id),
+                                edges_(_edges),
                                 vertices_(_vertices),
                                 contact_point_grid_(std::make_shared<SurfaceContactPointGrid>(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION)),
                                 type_(_type)
@@ -440,10 +384,66 @@ TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _k
     Translation3D vy = vz.cross(vx);
     Translation3D center = getCenter();
 
-    transformation_matrix_ = constructTransformationMatrix(vx[0], vy[0], vz[0], center[0], 
-                                                           vx[1], vy[1], vz[1], center[1], 
+    transformation_matrix_ = constructTransformationMatrix(vx[0], vy[0], vz[0], center[0],
+                                                           vx[1], vy[1], vz[1], center[1],
                                                            vx[2], vy[2], vz[2], center[2]);
-        
+
+    inverse_transformation_matrix_ = inverseTransformationMatrix(transformation_matrix_);
+
+    // std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
+    // std::cout << "Normal: (" << vz[0] << "," << vz[1] << "," << vz[2] << ")" << std::endl;
+
+    updateProjVertices();
+    updateApproxBoundary();
+
+    contact_point_grid_->initializeParameters(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION);
+}
+
+TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _kinbody_name, Eigen::Vector4f _plane_parameters,
+                                std::vector< std::pair<int, int> > _edges, std::vector<Translation3D> _vertices, TrimeshType _type, int _id):
+                                Structure(_env->GetKinBody(_kinbody_name),_id),
+                                edges_(_edges),
+                                vertices_(_vertices),
+                                contact_point_grid_(std::make_shared<SurfaceContactPointGrid>(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION)),
+                                type_(_type)
+{
+
+    // _plane_parameters.normalize();
+    nx_ = _plane_parameters[0];
+    ny_ = _plane_parameters[1];
+    nz_ = _plane_parameters[2];
+    c_ = _plane_parameters[3];
+
+    updateCenter();
+
+    assert(vertices_.size() != 0);
+
+    float max_edge_length = 0;
+    Translation3D edge_vector(0,0,0);
+    for(std::vector< std::pair<int, int> >::iterator e_it = edges_.begin(); e_it != edges_.end(); e_it++)
+    {
+        Translation3D vertex_a = vertices_[e_it->first];
+        Translation3D vertex_b = vertices_[e_it->second];
+
+        float tmp_edge_length = (vertex_a-vertex_b).norm();
+
+        if(tmp_edge_length > max_edge_length)
+        {
+            max_edge_length = tmp_edge_length;
+            edge_vector = vertex_b - vertex_a;
+        }
+    }
+
+    // see: http://fastgraph.com/makegames/3drotation/
+    Translation3D vx = edge_vector.normalized(); // line of sight is from a vertex to center
+    Translation3D vz = getNormal();
+    Translation3D vy = vz.cross(vx);
+    Translation3D center = getCenter();
+
+    transformation_matrix_ = constructTransformationMatrix(vx[0], vy[0], vz[0], center[0],
+                                                           vx[1], vy[1], vz[1], center[1],
+                                                           vx[2], vy[2], vz[2], center[2]);
+
     inverse_transformation_matrix_ = inverseTransformationMatrix(transformation_matrix_);
 
     // std::cout << "Center: (" << center[0] << "," << center[1] << "," << center[2] << ")" << std::endl;
@@ -510,7 +510,7 @@ Translation2D TrimeshSurface::projectionPlaneFrame(const Translation3D& start_po
     {
         return Translation2D(-99.0,-99.0);
     }
-    
+
 }
 
 Translation3D TrimeshSurface::getGlobalPosition(const Translation2D& point) const
@@ -539,7 +539,7 @@ Translation3D TrimeshSurface::projectionGlobalFrame(const Translation3D& start_p
     {
         return Translation3D(-99.0,-99.0,-99.0);
     }
-    
+
 }
 
 bool TrimeshSurface::insidePolygon(const Translation3D& point) const
@@ -562,7 +562,7 @@ bool TrimeshSurface::insidePolygon(const Translation3D& point) const
 
 bool TrimeshSurface::insidePolygonPlaneFrame(const Translation2D& projected_point) const
 {
-    if(projected_point[0] > max_proj_x_ || projected_point[0] < min_proj_x_ || 
+    if(projected_point[0] > max_proj_x_ || projected_point[0] < min_proj_x_ ||
        projected_point[1] > max_proj_y_ || projected_point[1] < min_proj_y_)
     {
         return false;
@@ -644,16 +644,16 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
     }
 
     TransformationMatrix ret_transform;
-    
+
     ret_transform = constructTransformationMatrix(cx[0],cy[0],cz[0],translation[0],
                                                   cx[1],cy[1],cz[1],translation[1],
                                                   cx[2],cy[2],cz[2],translation[2]);
 
     if(!valid_contact)
     {
-        valid_contact = contactInsidePolygon(ret_transform, end_effector_type, robot_properties); 
+        valid_contact = contactInsidePolygon(ret_transform, end_effector_type, robot_properties);
     }
-    
+
     return ret_transform;
 }
 
@@ -663,7 +663,7 @@ float TrimeshSurface::distToBoundary(Translation3D point, float search_radius/*,
     Translation2D projected_point = projectionPlaneFrame(point);
     float dist = search_radius; // assume point is inside boundaries_
 
-    int upper_x = std::min(ceil((projected_point[0] + search_radius - min_proj_x_) / SURFACE_SLICE_RESOLUTION), (double)boundaries_.size());
+    int upper_x = std::min(ceil((projected_point[0] + search_radius - min_proj_x_) / SURFACE_SLICE_RESOLUTION), (float)boundaries_.size());
     int middle_x = (projected_point[0] - min_proj_x_) / SURFACE_SLICE_RESOLUTION;
     int lower_x = std::max((projected_point[0] - search_radius - min_proj_x_) / SURFACE_SLICE_RESOLUTION, (float)0.0);
 

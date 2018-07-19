@@ -61,6 +61,9 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         std::shared_ptr< RobotProperties > robot_properties_;
 
+        // the general_ik interface
+        std::shared_ptr<GeneralIKInterface> general_ik_interface_;
+
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
         bool printing_ = false;
 };

@@ -10,6 +10,7 @@ class ContactSpacePlanning
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                              std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,\
                              std::shared_ptr<MapGrid> _map_grid,
+                             std::shared_ptr<GeneralIKInterface> _general_ik_interface,
                              int _num_stance_in_state,
                              int _thread_num,
                              std::shared_ptr<DrawingHandler> _drawing_handler,
@@ -37,6 +38,7 @@ class ContactSpacePlanning
         std::shared_ptr<RobotProperties> robot_properties_;
 
         // planner options
+        bool use_dynamics_planning_;
         bool goal_as_exact_poses_;
         PlanningHeuristicsType heuristics_type_;
         int num_stance_in_state_;
@@ -72,6 +74,11 @@ class ContactSpacePlanning
 
         // the dynamics optimizer interface
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
+
+        // the general_ik interface
+        std::shared_ptr<GeneralIKInterface> general_ik_interface_;
+
+        void setupStateReachabilityIK(std::shared_ptr<ContactState> current_state);
 
         bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state);
         bool dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);

@@ -1,7 +1,7 @@
 #include "Utilities.hpp"
 
-RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<OpenRAVE::dReal> _IK_init_DOF_Values, std::vector<OpenRAVE::dReal> _default_DOF_Values, 
-                                 float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z, 
+RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<OpenRAVE::dReal> _IK_init_DOF_Values, std::vector<OpenRAVE::dReal> _default_DOF_Values,
+                                 float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z,
                                  float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride):
     name_(_robot->GetName()),
     default_DOF_Values_(_default_DOF_Values),
@@ -33,4 +33,9 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     }
 
     _robot->GetActiveDOFLimits(lower_joint_limits_, higher_joint_limits_);
+
+    manipulator_name_map_.insert(std::make_pair(ContactManipulator::L_LEG, "l_leg"));
+    manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_LEG, "r_leg"));
+    manipulator_name_map_.insert(std::make_pair(ContactManipulator::L_ARM, "l_arm"));
+    manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_ARM, "r_arm"));
 }

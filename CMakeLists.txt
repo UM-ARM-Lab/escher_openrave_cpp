@@ -3,7 +3,7 @@ project(escher_openrave_cpp)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS Eigen roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena)
+find_package(catkin REQUIRED COMPONENTS Eigen roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(OpenRAVE REQUIRED)
@@ -47,6 +47,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/RobotProperties.cpp
     src/ContactSpacePlanning.cpp
     src/OptimizationInterface.cpp
+    src/GeneralIKInterface.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"

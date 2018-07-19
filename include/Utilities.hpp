@@ -34,6 +34,9 @@
 #include <rave/rave.h>
 #include <openrave/planningutils.h>
 
+// NEWMAT
+#include <newmat/newmatap.h>
+#include <newmat/newmatio.h>
 
 typedef Eigen::Matrix4f TransformationMatrix;
 typedef Eigen::Matrix3f RotationMatrix;
@@ -115,6 +118,7 @@ enum TerrainType
 	GAP,
 	OBSTACLE
 };
+
 enum BranchingMethod
 {
 	CONTACT_PROJECTION,
@@ -165,6 +169,40 @@ class RPYTF
 		float roll_; // degrees
 		float pitch_; // degrees
 		float yaw_; // degrees
+
+		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> GetRaveTransformMatrix() const
+		{
+			OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+			OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+			OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+
+    		OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+
+    		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix = OpenRAVE::geometry::matrixFromAxisAngle(x_axis_angle) *
+                                                                              OpenRAVE::geometry::matrixFromAxisAngle(y_axis_angle) *
+                                                                              OpenRAVE::geometry::matrixFromAxisAngle(z_axis_angle);
+			transform_matrix.trans = translation;
+
+			return transform_matrix;
+		}
+
+		OpenRAVE::Transform GetRaveTransform() const
+		{
+			OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+			OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+			OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+
+    		OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+
+    		OpenRAVE::Transform transform = OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(x_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
+                                            OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(y_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
+                                            OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(z_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0));
+			transform.trans = translation;
+
+			return transform;
+		}
+
+
 };
 
 // Distance
@@ -202,7 +240,8 @@ Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 
-
+#include "GIWC.hpp"
+#include "GeneralIKInterface.hpp"
 #include "Drawing.hpp"
 #include "RobotProperties.hpp"
 #include "Structure.hpp"

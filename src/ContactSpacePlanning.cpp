@@ -7,6 +7,7 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                                            std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                                            std::shared_ptr<MapGrid> _map_grid,
+                                           std::shared_ptr<GeneralIKInterface> _general_ik_interface,
                                            int _num_stance_in_state,
                                            int _thread_num,
                                            std::shared_ptr< DrawingHandler > _drawing_handler,
@@ -20,7 +21,9 @@ map_grid_(_map_grid),
 num_stance_in_state_(_num_stance_in_state),
 thread_num_(_thread_num),
 drawing_handler_(_drawing_handler),
-planning_id_(_planning_id)
+planning_id_(_planning_id),
+use_dynamics_planning_(false),
+general_ik_interface_(_general_ik_interface)
 {
     for(auto & structure : structures_)
     {
@@ -116,11 +119,13 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 // Collision Checking if needed
 
                 // Kinematic and dynamic feasibility check
-                // if(!stateFeasibilityCheck(current_state))
-                // {
-                //     current_state->explore_state_ = ExploreState::CLOSED;
-                //     continue;
-                // }
+                float dummy_dynamics_cost = 0;
+                int dummy_index = 0;
+                if(!use_dynamics_planning_ && !stateFeasibilityCheck(current_state, dummy_dynamics_cost, dummy_index))
+                {
+                    current_state->explore_state_ = ExploreState::CLOSED;
+                    continue;
+                }
 
                 current_state->explore_state_ = ExploreState::EXPLORED;
 
@@ -294,18 +299,78 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
         }
     }
 
-    std::cout << "num contacts: (lf,rf) " << num_contacts[0] << " " << num_contacts[1] << std::endl;
+    /*********************************FAILED ATTEMPT TO USE KINEMATICS SOLVER BASED ON SL*********************************/
+    // std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
+    // std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
 
-    std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
-    std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    // kinematics_optimization_interface->updateContactSequence(contact_state_path);
+    // kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
 
-    kinematics_optimization_interface->updateContactSequence(contact_state_path);
-    kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
+    // // kinematics optimization
+    // std::cout << "Start the Kinematics Optimization." << std::endl;
+    // kinematics_optimization_interface->simplifiedKinematicsOptimization();
+    // std::cout << "Finished the Kinematics Optimization." << std::endl;
+    /*********************************FAILED ATTEMPT TO USE KINEMATICS SOLVER BASED ON SL*********************************/
 
-    // kinematics optimization
-    std::cout << "Start the Kinematics Optimization." << std::endl;
-    kinematics_optimization_interface->simplifiedKinematicsOptimization();
-    std::cout << "Finished the Kinematics Optimization." << std::endl;
+    // reachability check
+    general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
+    general_ik_interface_->returnClosest() = true;
+    general_ik_interface_->exactCoM() = true;
+    general_ik_interface_->noRotation() = false;
+    general_ik_interface_->executeMotion() = true;
+    std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
+    for(auto & dynamics_sequence : dynamics_sequence_vector)
+    {
+        for(auto & dynamics_state : dynamics_sequence)
+        {
+            general_ik_interface_->resetContactStateRelatedParameters();
+            // get the poses/CoM and transform it from SL frame to OpenRAVE frame
+
+            ik_result = general_ik_interface_->solve();
+            general_ik_interface_->q0() = ik_result.second;
+        }
+    }
+
+}
+
+void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState> current_state)
+{
+    bool left_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM];
+    bool right_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_ARM];
+
+    general_ik_interface_->resetContactStateRelatedParameters();
+
+    // Contact Manipulator Pose
+    general_ik_interface_->addNewManipPose("l_leg", current_state->stances_vector_[0]->left_foot_pose_.GetRaveTransform());
+    general_ik_interface_->addNewManipPose("r_leg", current_state->stances_vector_[0]->right_foot_pose_.GetRaveTransform());
+    if(left_hand_in_contact)
+    {
+        general_ik_interface_->addNewManipPose("l_arm", current_state->stances_vector_[0]->left_hand_pose_.GetRaveTransform());
+    }
+    if(right_hand_in_contact)
+    {
+        general_ik_interface_->addNewManipPose("r_arm", current_state->stances_vector_[0]->right_hand_pose_.GetRaveTransform());
+    }
+
+    // Center of Mass
+    std::array<OpenRAVE::dReal,3> com;
+    general_ik_interface_->CenterOfMass()[0] = current_state->mean_feet_position_[0];
+    general_ik_interface_->CenterOfMass()[1] = current_state->mean_feet_position_[1];
+    general_ik_interface_->CenterOfMass()[2] = current_state->mean_feet_position_[2] + robot_properties_->robot_z_;
+
+    // Initial Configuration
+    std::vector<OpenRAVE::dReal> q0 = robot_properties_->IK_init_DOF_Values_;
+    q0[robot_properties_->ActiveDOFName_index_map_["x_prismatic_joint"]] = current_state->mean_feet_position_[0];
+    q0[robot_properties_->ActiveDOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
+    // q0[robot_properties_->ActiveDOFName_index_map_["z_prismatix_joint"]] = current_state->mean_feet_position_[2];
+    q0[robot_properties_->ActiveDOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw();
+    general_ik_interface_->q0() = q0;
+
+    general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
+    general_ik_interface_->returnClosest() = false;
+    general_ik_interface_->exactCoM() = false;
+    general_ik_interface_->noRotation() = false;
+    general_ik_interface_->executeMotion() = false;
 }
 
 bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state)
@@ -354,9 +419,59 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
     // IK solver check
     // call generalIK
-    if(!current_state->is_root_)
+    if(!use_dynamics_planning_ && !current_state->is_root_)
     {
+        // reachability check
+        setupStateReachabilityIK(current_state);
+
+        std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
+
+        if(!ik_result.first)
+        {
+            return false;
+        }
+
+        // end-points IK
+        std::vector<OpenRAVE::dReal> q0 = ik_result.second;
+        ContactManipulator moving_manipulator = current_state->prev_move_manip_;
+
+        // touching down
+        general_ik_interface_->q0() = q0;
+        general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        for(auto & manip : ALL_MANIPULATORS)
+        {
+            if(manip != moving_manipulator && current_state->stances_vector_[0]->ee_contact_status_[manip])
+            {
+                general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+            }
+        }
+
+        ik_result = general_ik_interface_->solve();
+
+        if(!ik_result.first)
+        {
+            return false;
+        }
+
+        // taking off
         std::shared_ptr<ContactState> prev_state = current_state->parent_;
+        setupStateReachabilityIK(prev_state);
+        general_ik_interface_->q0() = q0;
+        general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        for(auto & manip : ALL_MANIPULATORS)
+        {
+            if(manip != moving_manipulator && prev_state->stances_vector_[0]->ee_contact_status_[manip])
+            {
+                general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+            }
+        }
+
+        ik_result = general_ik_interface_->solve();
+
+        if(!ik_result.first)
+        {
+            return false;
+        }
     }
 
     return true;
@@ -364,12 +479,6 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
 bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
 {
-    current_state->com_(0) = (current_state->stances_vector_[0]->left_foot_pose_.x_ + current_state->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    current_state->com_(1) = (current_state->stances_vector_[0]->left_foot_pose_.y_ + current_state->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    current_state->com_(2) = (current_state->stances_vector_[0]->left_foot_pose_.z_ + current_state->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_properties_->robot_z_;
-
-    // return true;
-
     if(!current_state->is_root_)
     {
         dynamics_cost = 0.0;
@@ -410,7 +519,14 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
 bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
 {
     // verify the state kinematic and dynamic feasibility
-    return (kinematicsFeasibilityCheck(current_state) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index));
+    if(use_dynamics_planning_)
+    {
+        return (kinematicsFeasibilityCheck(current_state) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index));
+    }
+    else
+    {
+        return kinematicsFeasibilityCheck(current_state);
+    }
 }
 
 void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method)
@@ -538,7 +654,7 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
                 // RAVELOG_INFO("state feasibility check.\n");
 
                 float dynamics_cost = 0.0;
-                if(stateFeasibilityCheck(new_contact_state, dynamics_cost, i))
+                if(!use_dynamics_planning_ || stateFeasibilityCheck(new_contact_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
                 {
                     state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
                 }

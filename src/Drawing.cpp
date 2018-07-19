@@ -76,20 +76,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
 
     // draw left foot pose
-    OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_roll(current_stance->left_foot_pose_.roll_ * DEG2RAD, 0, 0);
-    OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_pitch(0, current_stance->left_foot_pose_.pitch_ * DEG2RAD, 0);
-    OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_yaw(0, 0, current_stance->left_foot_pose_.yaw_ * DEG2RAD);
-
-    OpenRAVE::RaveVector<OpenRAVE::dReal> left_foot_translation(current_stance->left_foot_pose_.x_, current_stance->left_foot_pose_.y_, current_stance->left_foot_pose_.z_);
-
-    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_foot_roll) *
-                                                                         OpenRAVE::geometry::matrixFromAxisAngle(left_foot_pitch) *
-                                                                         OpenRAVE::geometry::matrixFromAxisAngle(left_foot_yaw);
-    left_foot_transform.trans = left_foot_translation;
-
-    // std::cout << left_foot_transform.m[0] << " " << left_foot_transform.m[1] << " " << left_foot_transform.m[2] << " " << left_foot_transform.trans[0] << std::endl;
-    // std::cout << left_foot_transform.m[4] << " " << left_foot_transform.m[5] << " " << left_foot_transform.m[6] << " " << left_foot_transform.trans[1] << std::endl;
-    // std::cout << left_foot_transform.m[8] << " " << left_foot_transform.m[9] << " " << left_foot_transform.m[10] << " " << left_foot_transform.trans[2] << std::endl;
+    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = current_stance->left_foot_pose_.GetRaveTransformMatrix();
 
     std::vector< OpenRAVE::RaveVector<float> > transformed_left_foot_corners(5);
 
@@ -103,16 +90,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
 
 
     // draw right foot pose
-    OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_roll(current_stance->right_foot_pose_.roll_ * DEG2RAD, 0, 0);
-    OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_pitch(0, current_stance->right_foot_pose_.pitch_ * DEG2RAD, 0);
-    OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_yaw(0, 0, current_stance->right_foot_pose_.yaw_ * DEG2RAD);
-
-    OpenRAVE::RaveVector<OpenRAVE::dReal> right_foot_translation(current_stance->right_foot_pose_.x_, current_stance->right_foot_pose_.y_, current_stance->right_foot_pose_.z_);
-
-    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_foot_transform = OpenRAVE::geometry::matrixFromAxisAngle(right_foot_roll) *
-                                                                          OpenRAVE::geometry::matrixFromAxisAngle(right_foot_pitch) *
-                                                                          OpenRAVE::geometry::matrixFromAxisAngle(right_foot_yaw);
-    right_foot_transform.trans = right_foot_translation;
+    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_foot_transform = current_stance->right_foot_pose_.GetRaveTransformMatrix();
 
     std::vector< OpenRAVE::RaveVector<float> > transformed_right_foot_corners(5);
 
@@ -127,16 +105,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     // draw left hand pose
     if(current_stance->ee_contact_status_[ContactManipulator::L_ARM])
     {
-        OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_roll(current_stance->left_hand_pose_.roll_ * DEG2RAD, 0, 0);
-        OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_pitch(0, current_stance->left_hand_pose_.pitch_ * DEG2RAD, 0);
-        OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_yaw(0, 0, current_stance->left_hand_pose_.yaw_ * DEG2RAD);
-
-        OpenRAVE::RaveVector<OpenRAVE::dReal> left_hand_translation(current_stance->left_hand_pose_.x_, current_stance->left_hand_pose_.y_, current_stance->left_hand_pose_.z_);
-
-        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_hand_transform = OpenRAVE::geometry::matrixFromAxisAngle(left_hand_roll) *
-                                                                              OpenRAVE::geometry::matrixFromAxisAngle(left_hand_pitch) *
-                                                                             OpenRAVE::geometry::matrixFromAxisAngle(left_hand_yaw);
-        left_hand_transform.trans = left_hand_translation;
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_hand_transform = current_stance->left_hand_pose_.GetRaveTransformMatrix();
 
         std::vector< OpenRAVE::RaveVector<float> > transformed_left_hand_corners(5);
 
@@ -152,16 +121,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     // draw right hand pose
     if(current_stance->ee_contact_status_[ContactManipulator::R_ARM])
     {
-        OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_roll(current_stance->right_hand_pose_.roll_ * DEG2RAD, 0, 0);
-        OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_pitch(0, current_stance->right_hand_pose_.pitch_ * DEG2RAD, 0);
-        OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_yaw(0, 0, current_stance->right_hand_pose_.yaw_ * DEG2RAD);
-
-        OpenRAVE::RaveVector<OpenRAVE::dReal> right_hand_translation(current_stance->right_hand_pose_.x_, current_stance->right_hand_pose_.y_, current_stance->right_hand_pose_.z_);
-
-        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_hand_transform = OpenRAVE::geometry::matrixFromAxisAngle(right_hand_roll) *
-                                                                               OpenRAVE::geometry::matrixFromAxisAngle(right_hand_pitch) *
-                                                                               OpenRAVE::geometry::matrixFromAxisAngle(right_hand_yaw);
-        right_hand_transform.trans = right_hand_translation;
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_hand_transform = current_stance->right_hand_pose_.GetRaveTransformMatrix();
 
         std::vector< OpenRAVE::RaveVector<float> > transformed_right_hand_corners(5);
 

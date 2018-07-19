@@ -1791,7 +1791,9 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
     map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_, 1, thread_num, drawing_handler_, planning_id);
+    general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_, general_ik_interface_, 1, thread_num, drawing_handler_, planning_id);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
