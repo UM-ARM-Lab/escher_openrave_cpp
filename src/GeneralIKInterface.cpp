@@ -83,7 +83,7 @@ std::pair<bool, std::vector<OpenRAVE::dReal> > GeneralIKInterface::solve()
                 support_mus.push_back(support_manip.second);
             }
 
-            GetGIWC(support_manip_names, support_mus, giwc_);
+            GetGIWC(robot_, support_manip_names, support_mus, giwc_);
         }
 
         ik_parameters.insert(ik_parameters.end(), giwc_.begin(), giwc_.end());
@@ -193,7 +193,7 @@ void GeneralIKInterface::preComputeGIWC()
         support_mus.push_back(support_manip.second);
     }
 
-    GetGIWC(support_manip_names, support_mus, giwc_);
+    GetGIWC(robot_, support_manip_names, support_mus, giwc_);
     reuse_giwc_ = true;
 }
 

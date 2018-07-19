@@ -48,9 +48,12 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/ContactSpacePlanning.cpp
     src/OptimizationInterface.cpp
     src/GeneralIKInterface.cpp
+    src/GIWC.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"
+    qhull
+    newmat
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
     ${OpenMP_LIBRARIES}

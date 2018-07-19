@@ -23,8 +23,8 @@ void GetASurf(OpenRAVE::RobotBase::ManipulatorPtr p_manip, OpenRAVE::Transform c
 void GetAStance(OpenRAVE::Transform cone_tf, NEWMAT::Matrix* mat, int offset_r);
 
 /// compute the surface support cone for the given manipulator
-NEWMAT::ReturnMatrix GetSurfaceCone(string& manipname, OpenRAVE::dReal mu);
+NEWMAT::ReturnMatrix GetSurfaceCone(OpenRAVE::RobotBasePtr robot, string& manipname, OpenRAVE::dReal mu);
 
 /// compute the GIWC for giwc stability
-NEWMAT::ReturnMatrix GetGIWCSpanForm(std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs);
-void GetGIWC(std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs, std::vector<OpenRAVE::dReal>& ikparams);
+NEWMAT::ReturnMatrix GetGIWCSpanForm(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs);
+void GetGIWC(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs, std::vector<OpenRAVE::dReal>& ikparams);

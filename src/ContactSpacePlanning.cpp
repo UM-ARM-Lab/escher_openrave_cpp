@@ -321,7 +321,7 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
     std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
     for(auto & dynamics_sequence : dynamics_sequence_vector)
     {
-        for(auto & dynamics_state : dynamics_sequence)
+        for(auto & dynamics_state : dynamics_sequence.dynamicsSequence())
         {
             general_ik_interface_->resetContactStateRelatedParameters();
             // get the poses/CoM and transform it from SL frame to OpenRAVE frame
@@ -432,11 +432,10 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
         }
 
         // end-points IK
-        std::vector<OpenRAVE::dReal> q0 = ik_result.second;
         ContactManipulator moving_manipulator = current_state->prev_move_manip_;
 
         // touching down
-        general_ik_interface_->q0() = q0;
+        general_ik_interface_->q0() = ik_result.second;
         general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
         for(auto & manip : ALL_MANIPULATORS)
         {
@@ -456,7 +455,11 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
         // taking off
         std::shared_ptr<ContactState> prev_state = current_state->parent_;
         setupStateReachabilityIK(prev_state);
-        general_ik_interface_->q0() = q0;
+        general_ik_interface_->returnClosest() = true;
+        ik_result = general_ik_interface_->solve();
+
+        general_ik_interface_->q0() = ik_result.second;
+        general_ik_interface_->returnClosest() = false;
         general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
         for(auto & manip : ALL_MANIPULATORS)
         {
@@ -649,7 +652,7 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
                 // construct the new state
                 std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status));
 
-                std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1));
+                std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_));
 
                 // RAVELOG_INFO("state feasibility check.\n");
 

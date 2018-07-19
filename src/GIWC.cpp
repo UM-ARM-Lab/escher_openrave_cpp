@@ -1,3 +1,7 @@
+#include "Utilities.hpp"
+
+std::map<string,NEWMAT::Matrix> _computed_contact_surface_cones;
+
 int convexHull6D(coordT* pointsIn, int numPointsIn, std::vector< std::vector<double> >& facet_coefficients) {
 
     char flags[250];
@@ -102,7 +106,7 @@ int convexHull6D(coordT* pointsIn, int numPointsIn, std::vector< std::vector<dou
 void GetSupportPointsForLink(OpenRAVE::RobotBase::LinkPtr p_link, OpenRAVE::Vector tool_dir, OpenRAVE::Transform result_tf, std::vector<OpenRAVE::Vector>& contacts) {
     OpenRAVE::Transform tf = result_tf.inverse() * p_link->GetTransform();
 
-    AABB aabb = p_link->ComputeLocalAABB();
+    OpenRAVE::AABB aabb = p_link->ComputeLocalAABB();
 
     // If any extent is 0, the link has no volume and is assumed to be a virtual link
     if (aabb.extents.x <= 0 || aabb.extents.y <= 0 || aabb.extents.z <= 0) {
@@ -191,7 +195,7 @@ void GetFrictionCone(OpenRAVE::Vector& center, OpenRAVE::Vector& direction, Open
 
 void GetASurf(OpenRAVE::RobotBase::ManipulatorPtr p_manip, OpenRAVE::Transform cone_to_manip, NEWMAT::Matrix *mat, int offset_r) {
     OpenRAVE::Transform manip_to_world = p_manip->GetTransform(); // For testing
-    OpenRAVE::OpenRAVE::TransformMatrix tf_matrix = OpenRAVE::TransformMatrix(cone_to_manip); //TransformMatrix(cone_to_manip);
+    OpenRAVE::TransformMatrix tf_matrix = OpenRAVE::TransformMatrix(cone_to_manip); //TransformMatrix(cone_to_manip);
 
     // First 3 columns are just the tf_matrix
     for (int r = 0; r < 3; r++) {
@@ -259,7 +263,7 @@ void GetAStance(OpenRAVE::Transform tf, NEWMAT::Matrix* mat, int offset_r) {
     crossP_T.ReleaseAndDelete();
 }
 
-NEWMAT::ReturnMatrix GetSurfaceCone(string& manipname, OpenRAVE::dReal mu) {
+NEWMAT::ReturnMatrix GetSurfaceCone(OpenRAVE::RobotBasePtr robot, string& manipname, OpenRAVE::dReal mu) {
 
     if(_computed_contact_surface_cones.count(manipname) != 0){
         return _computed_contact_surface_cones.find(manipname)->second;
@@ -345,13 +349,13 @@ NEWMAT::ReturnMatrix GetSurfaceCone(string& manipname, OpenRAVE::dReal mu) {
     }
 }
 
-NEWMAT::ReturnMatrix GetGIWCSpanForm(std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs) {
+NEWMAT::ReturnMatrix GetGIWCSpanForm(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs) {
     int num_manips = manip_ids.size();
     std::vector<NEWMAT::Matrix> matrices;
     int total_rows = 0;
 
     for (int i = 0; i < num_manips; i++) {
-        matrices.push_back(GetSurfaceCone(manip_ids[i], friction_coeffs[i]));
+        matrices.push_back(GetSurfaceCone(robot, manip_ids[i], friction_coeffs[i]));
         total_rows += matrices.back().Nrows();
     }
 
@@ -392,7 +396,7 @@ NEWMAT::ReturnMatrix GetGIWCSpanForm(std::vector<std::string>& manip_ids, std::v
     return mat;
 }
 
-void GetGIWC(std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& mus, std::vector<OpenRAVE::dReal>& ikparams) {
+void GetGIWC(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& mus, std::vector<OpenRAVE::dReal>& ikparams) {
 
     // unsigned long start = timeGetTime();
 
@@ -408,7 +412,7 @@ void GetGIWC(std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& 
 
     dd_ErrorType err;
 
-    NEWMAT::Matrix giwc_span = GetGIWCSpanForm(manip_ids, mus);
+    NEWMAT::Matrix giwc_span = GetGIWCSpanForm(robot, manip_ids, mus);
     // RAVELOG_INFO("giwc_span_cdd Rows: %d, Col: %d\n",giwc_span.Nrows(),giwc_span.Ncols());
 
 

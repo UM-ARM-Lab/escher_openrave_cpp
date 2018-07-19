@@ -38,6 +38,11 @@
 #include <newmat/newmatap.h>
 #include <newmat/newmatio.h>
 
+// cddlib
+#define GMPRATIONAL 1
+#include <cdd/setoper.h>
+#include <cdd/cdd.h>
+
 typedef Eigen::Matrix4f TransformationMatrix;
 typedef Eigen::Matrix3f RotationMatrix;
 typedef Eigen::Vector2f Translation2D;
