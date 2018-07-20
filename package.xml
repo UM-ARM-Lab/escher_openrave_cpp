@@ -19,6 +19,8 @@
   <build_depend>momentumopt</build_depend>
   <build_depend>momentumopt_athena</build_depend>
   <build_depend>generalik</build_depend>
+  <build_depend>libqhull</build_depend>
+  <build_depend>newmat</build_depend>
   <run_depend>boost</run_depend>
   <run_depend>openrave_catkin</run_depend>
   <run_depend>roslib</run_depend>
@@ -27,6 +29,8 @@
   <run_depend>momentumopt</run_depend>
   <run_depend>momentumopt_athena</run_depend>
   <run_depend>generalik</run_depend>
+  <run_depend>libqhull</run_depend>
+  <run_depend>newmat</run_depend>
   <!-- <test_depend>python-numpy</test_depend>
   <test_depend>python</test_depend> -->
 </package>

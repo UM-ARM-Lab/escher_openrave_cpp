@@ -122,7 +122,6 @@ std::pair<bool, std::vector<OpenRAVE::dReal> > GeneralIKInterface::solve()
 
     if(found_solution)
     {
-
         q_final = *q_final_ptr.get();
         // int timetaken = timeGetTime() - starttime;
         // if(bGetTime)
@@ -166,20 +165,17 @@ void GeneralIKInterface::updateNewInput(std::map<std::string, OpenRAVE::Transfor
     q0_ = _q0;
     support_manips_ = _support_manips;
     com_ = _com;
-    reuse_giwc_ = false;
 }
 
 void GeneralIKInterface::addNewManipPose(std::string _manip_name, OpenRAVE::Transform _manip_transform)
 {
     manip_poses_.insert(std::make_pair(_manip_name, _manip_transform));
-    reuse_giwc_ = false;
 }
 
 
 void GeneralIKInterface::addNewContactManip(std::string _manip_name, double _mu)
 {
     support_manips_.push_back(std::make_pair(_manip_name, _mu));
-    reuse_giwc_ = false;
 }
 
 void GeneralIKInterface::preComputeGIWC()
@@ -194,18 +190,15 @@ void GeneralIKInterface::preComputeGIWC()
     }
 
     GetGIWC(robot_, support_manip_names, support_mus, giwc_);
-    reuse_giwc_ = true;
 }
 
 void GeneralIKInterface::shareGIWC(std::vector<OpenRAVE::dReal>& shared_giwc)
 {
     giwc_ = shared_giwc;
-    reuse_giwc_ = true;
 }
 
 void GeneralIKInterface::resetContactStateRelatedParameters()
 {
     manip_poses_.clear();
     support_manips_.clear();
-    q0_.clear();
 }

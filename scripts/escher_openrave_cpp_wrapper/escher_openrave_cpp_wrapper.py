@@ -350,7 +350,7 @@ class escher_openrave_cpp_wrapper(object):
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',dh_grid=None,output_first_solution=False,
-                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,planning_id=None,printing=None):
+                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,planning_id=None,use_dynamics_planning=None,printing=None):
 
         start = time.time()
 
@@ -442,6 +442,11 @@ class escher_openrave_cpp_wrapper(object):
                 cmd.append(0)
 
             if goal_as_exact_poses:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if use_dynamics_planning:
                 cmd.append(1)
             else:
                 cmd.append(0)

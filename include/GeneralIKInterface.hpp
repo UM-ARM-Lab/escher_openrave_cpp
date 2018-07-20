@@ -26,6 +26,7 @@ class GeneralIKInterface
         bool& executeMotion() {return execute_motion_;}
         bool& noRotation() {return no_rotation_;}
         bool& exactCoM() {return exact_com_;}
+        bool& reuseGIWC() {return reuse_giwc_;}
         OpenRAVE::BalanceMode& balanceMode() {return balance_mode_;}
 
         void updateNewInput(std::map<std::string, OpenRAVE::Transform> _manip_poses, std::vector<OpenRAVE::dReal> _q0,

@@ -5,7 +5,7 @@ set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS Eigen roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
 
-find_package(Boost REQUIRED COMPONENTS filesystem system)
+find_package(Boost REQUIRED COMPONENTS regex filesystem system)
 find_package(OpenRAVE REQUIRED)
 find_package(OpenMP REQUIRED)
 
@@ -54,6 +54,8 @@ openrave_plugin("${PROJECT_NAME}_plugin"
 target_link_libraries("${PROJECT_NAME}_plugin"
     qhull
     newmat
+    cddgmp
+    gmp
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
     ${OpenMP_LIBRARIES}

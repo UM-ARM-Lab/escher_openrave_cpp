@@ -116,7 +116,9 @@ void GetSupportPointsForLink(OpenRAVE::RobotBase::LinkPtr p_link, OpenRAVE::Vect
     if(strcmp(p_link->GetName().c_str(), "l_foot") != 0 &&
        strcmp(p_link->GetName().c_str(), "r_foot") != 0 &&
        strcmp(p_link->GetName().c_str(), "l_palm") != 0 &&
-       strcmp(p_link->GetName().c_str(), "r_palm") != 0)
+       strcmp(p_link->GetName().c_str(), "r_palm") != 0 &&
+       strcmp(p_link->GetName().c_str(), "L_ANKLE_AA") != 0 &&
+       strcmp(p_link->GetName().c_str(), "R_ANKLE_AA") != 0)
     {
         return;
     }

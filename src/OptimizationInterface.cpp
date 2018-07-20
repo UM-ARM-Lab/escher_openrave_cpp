@@ -173,19 +173,21 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
     reference_dynamics_sequence_.resize(optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
 }
 
-void OptimizationInterface::initializeKinematicsInterface()
-{
-    kinematics_interface_ = momentumopt_sl::KinematicsInterfaceSl(optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_Frequency));
-}
+// void OptimizationInterface::initializeKinematicsInterface()
+// {
+//     kinematics_interface_ = momentumopt_sl::KinematicsInterfaceSl(optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_Frequency));
+// }
 
 void OptimizationInterface::initializeKinematicsOptimizer()
 {
-    kinematics_optimizer_.initialize(optimizer_setting_, &kinematics_interface_);
+    // kinematics_optimizer_.initialize(optimizer_setting_, &kinematics_interface_);
+    kinematics_optimizer_.initialize(optimizer_setting_, &dummy_kinematics_interface_);
 }
 
 void OptimizationInterface::initializeDynamicsOptimizer()
 {
-    dynamics_optimizer_.initialize(optimizer_setting_, &kinematics_interface_, &contact_sequence_interpreter_);
+    // dynamics_optimizer_.initialize(optimizer_setting_, &kinematics_interface_, &contact_sequence_interpreter_);
+    dynamics_optimizer_.initialize(optimizer_setting_, &dummy_kinematics_interface_, &contact_sequence_interpreter_);
 }
 
 void OptimizationInterface::fillInitialRobotState()
@@ -240,7 +242,8 @@ void OptimizationInterface::fillInitialRobotState()
 
 void OptimizationInterface::fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence)
 {
-    contact_sequence_interpreter_.initialize(optimizer_setting_, &kinematics_interface_);
+    // contact_sequence_interpreter_.initialize(optimizer_setting_, &kinematics_interface_);
+    contact_sequence_interpreter_.initialize(optimizer_setting_, &dummy_kinematics_interface_);
     contact_sequence_interpreter_.optimize(initial_state_, dynamics_sequence);
 }
 

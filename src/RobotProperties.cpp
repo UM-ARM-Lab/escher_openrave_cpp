@@ -4,8 +4,8 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
                                  float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z,
                                  float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride):
     name_(_robot->GetName()),
-    default_DOF_Values_(_default_DOF_Values),
     IK_init_DOF_Values_(_IK_init_DOF_Values),
+    default_DOF_Values_(_default_DOF_Values),
     foot_h_(_foot_h),
     foot_w_(_foot_w),
     foot_radius_(std::sqrt(_foot_h*_foot_h + _foot_w*_foot_w)/2.0),

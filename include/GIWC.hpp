@@ -1,7 +1,12 @@
-
+#ifndef GIWC_HPP
+#define GIWC_HPP
 
 #include "Utilities.hpp"
 
+extern "C"
+{
+#include <stdio.h>
+#include <stdlib.h>
 #include <qhull/qhull.h>
 #include <qhull/mem.h>
 #include <qhull/qset.h>
@@ -10,7 +15,7 @@
 #include <qhull/poly.h>
 #include <qhull/io.h>
 #include <qhull/stat.h>
-
+}
 /// function for computing a 6D convex hull
 int convexHull6D(coordT* pointsIn, int numPointsIn, std::vector< std::vector<double> >& facet_coefficients);
 
@@ -28,3 +33,5 @@ NEWMAT::ReturnMatrix GetSurfaceCone(OpenRAVE::RobotBasePtr robot, string& manipn
 /// compute the GIWC for giwc stability
 NEWMAT::ReturnMatrix GetGIWCSpanForm(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs);
 void GetGIWC(OpenRAVE::RobotBasePtr robot, std::vector<std::string>& manip_ids, std::vector<OpenRAVE::dReal>& friction_coeffs, std::vector<OpenRAVE::dReal>& ikparams);
+
+#endif

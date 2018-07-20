@@ -14,7 +14,8 @@ class ContactSpacePlanning
                              int _num_stance_in_state,
                              int _thread_num,
                              std::shared_ptr<DrawingHandler> _drawing_handler,
-                             int _planning_id);
+                             int _planning_id,
+                             bool _use_dynamics_planning);
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,

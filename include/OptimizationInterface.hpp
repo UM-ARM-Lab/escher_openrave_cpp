@@ -4,7 +4,7 @@
 #include <momentumopt/dynopt/DynamicsOptimizer.hpp>
 #include <momentumopt/cntopt/ContactPlanInterface.hpp>
 #include <momentumopt/kinopt/KinematicsOptimizer.hpp>
-#include <momentumopt_athena/motion_optimization/KinematicsInterfaceSl.hpp>
+// #include <momentumopt_athena/motion_optimization/KinematicsInterfaceSl.hpp>
 
 /**
  * This class transforms a vector of the escher_openrave_cpp ContactState
@@ -58,13 +58,13 @@ class OptimizationInterface
     public:
         OptimizationInterface(float _step_transition_time, std::string cfg_file):
         step_transition_time_(_step_transition_time),
-        kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
+        // kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
         dynopt_result_digest_("dynopt_result_digest.txt",std::ofstream::app),
         // simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}
-        simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file); initializeKinematicsInterface();}
+        simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}// initializeKinematicsInterface();}
 
         // initialization functions
-        void initializeKinematicsInterface();
+        // void initializeKinematicsInterface();
         void initializeKinematicsOptimizer();
         void initializeDynamicsOptimizer();
 
@@ -94,7 +94,7 @@ class OptimizationInterface
     private:
         ContactPlanFromContactSequence          contact_sequence_interpreter_;
         DummyKinematicsInterface                dummy_kinematics_interface_;
-        momentumopt_sl::KinematicsInterfaceSl   kinematics_interface_;
+        // momentumopt_sl::KinematicsInterfaceSl   kinematics_interface_;
         momentumopt::PlannerSetting             optimizer_setting_;
         momentumopt::DynamicsState              initial_state_;
         momentumopt::DynamicsOptimizer          dynamics_optimizer_;

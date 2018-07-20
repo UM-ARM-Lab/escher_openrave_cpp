@@ -379,6 +379,37 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
     return transformed_e;
 }
 
+// RPYTF transformPoseFromSLToOpenrave(RPYTF& e)
+// {
+//     RPYTF transformed_e(e.x_, e.y_0, e.z_, 0, 0, 0);
+
+//     TransformationMatrix openrave_SL_transform;
+//     RotationMatrix openrave_SL_rotation;
+//     openrave_SL_transform << 0, 1, 0, 0,
+//                              -1, 0, 0, 0,
+//                              0,  0, 1, 1.05,
+//                              0, 0, 0, 1;
+//     openrave_SL_rotation = openrave_SL_transform.block(0,0,3,3);
+
+//     Translation3D transformed_position = (openrave_SL_transform * Translation3D(transformed_e.x_, transformed_e.y_, transformed_e.z_).homogeneous()).block(0,0,3,1);
+//     transformed_e.x_ = transformed_position[0];
+//     transformed_e.y_ = transformed_position[1];
+//     transformed_e.z_ = transformed_position[2];
+
+//     RPYTF rpy = SO3ToRPY(openrave_SL_rotation * RPYToSO3(e) * openrave_SL_rotation.transpose());
+//     transformed_e.roll_ = rpy.roll_;
+//     transformed_e.pitch_ = rpy.pitch_;
+//     transformed_e.yaw_ = rpy.yaw_;
+
+// 	RotationMatrix R = RPYToSO3(transformed_e);
+//     float foot_position_offset = 0.035;
+//     transformed_e.x_ = transformed_e.x_ + foot_position_offset * R(0,0);
+//     transformed_e.y_ = transformed_e.y_ + foot_position_offset * R(1,0);
+//     transformed_e.z_ = transformed_e.z_ + foot_position_offset * R(2,0);
+
+//     return transformed_e;
+// }
+
 Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t)
 {
     RotationMatrix SL_openrave_rotation;

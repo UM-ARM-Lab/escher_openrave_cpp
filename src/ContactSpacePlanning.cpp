@@ -11,7 +11,8 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            int _num_stance_in_state,
                                            int _thread_num,
                                            std::shared_ptr< DrawingHandler > _drawing_handler,
-                                           int _planning_id):
+                                           int _planning_id,
+                                           bool _use_dynamics_planning):
 robot_properties_(_robot_properties),
 foot_transition_model_(_foot_transition_model),
 hand_transition_model_(_hand_transition_model),
@@ -22,7 +23,7 @@ num_stance_in_state_(_num_stance_in_state),
 thread_num_(_thread_num),
 drawing_handler_(_drawing_handler),
 planning_id_(_planning_id),
-use_dynamics_planning_(false),
+use_dynamics_planning_(_use_dynamics_planning),
 general_ik_interface_(_general_ik_interface)
 {
     for(auto & structure : structures_)
@@ -89,152 +90,157 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
     std::vector< std::tuple<int,float,float,float,int> > planning_result; // planning time, path cost, dynamics cost, step num
 
-    while(!open_heap_.empty())
     {
+
+        OpenRAVE::EnvironmentMutex::scoped_lock lockenv(general_ik_interface_->env_->GetMutex());
+
         while(!open_heap_.empty())
         {
-            auto current_time = std::chrono::high_resolution_clock::now();
-            if(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() / 1000.0 > time_limit)
+            while(!open_heap_.empty())
             {
-                RAVELOG_INFO("Over time limit.\n");
-                over_time_limit = true;
-                break;
-            }
-            // get the state in the top of the heap
-            std::shared_ptr<ContactState> current_state;
-            if(double_unif(rng) >= epsilon_) // explore the top of the heap
-            {
-                current_state = open_heap_.top();
-                open_heap_.pop();
-            }
-            else // randomly explore (* uniform random in the heap, not uniform random over the search space)
-            {
-                std::uniform_int_distribution<> int_unif(0, contact_states_map_.size()-1);
-                auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng));
-                current_state = random_it->second;
-            }
-
-            if(current_state->explore_state_ == ExploreState::OPEN || current_state->explore_state_ == ExploreState::REOPEN)
-            {
-                // Collision Checking if needed
-
-                // Kinematic and dynamic feasibility check
-                float dummy_dynamics_cost = 0;
-                int dummy_index = 0;
-                if(!use_dynamics_planning_ && !stateFeasibilityCheck(current_state, dummy_dynamics_cost, dummy_index))
+                auto current_time = std::chrono::high_resolution_clock::now();
+                if(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() / 1000.0 > time_limit)
                 {
-                    current_state->explore_state_ = ExploreState::CLOSED;
-                    continue;
-                }
-
-                current_state->explore_state_ = ExploreState::EXPLORED;
-
-                // std::cout << current_state->explore_state_ << std::endl;
-                // std::size_t current_state_hash = std::hash<ContactState>()(*current_state);
-                // std::unordered_map<std::size_t, std::shared_ptr<ContactState> >::iterator contact_state_iterator = contact_states_map_.find(current_state_hash);
-                // current_state->stances_vector_[0]->left_foot_pose_.printPose();
-                // current_state->stances_vector_[0]->right_foot_pose_.printPose();
-                // current_state->stances_vector_[0]->left_hand_pose_.printPose();
-                // current_state->stances_vector_[0]->right_hand_pose_.printPose();
-                // std::cout << current_state->stances_vector_[0]->ee_contact_status_[0] << " "
-                //           << current_state->stances_vector_[0]->ee_contact_status_[1] << " "
-                //           << current_state->stances_vector_[0]->ee_contact_status_[2] << " "
-                //           << current_state->stances_vector_[0]->ee_contact_status_[3] << std::endl;
-                // std::cout << "hash: " << current_state_hash << std::endl;
-                // std::cout << "hash: " << std::hash<ContactState>()(*current_state) << std::endl;
-                // std::cout << current_state->stances_vector_.size() << std::endl;
-
-                // if (contact_state_iterator == contact_states_map_.end()) // the state is not in the set
-                // {
-                //     std::cout << "wait, what?" << std::endl;
-                // }
-
-                // std::cout << "===============" << std::endl;
-
-                // contact_state_iterator->second->stances_vector_[0]->left_foot_pose_.printPose();
-                // contact_state_iterator->second->stances_vector_[0]->right_foot_pose_.printPose();
-                // contact_state_iterator->second->stances_vector_[0]->left_hand_pose_.printPose();
-                // contact_state_iterator->second->stances_vector_[0]->right_hand_pose_.printPose();
-
-                // std::cout << contact_state_iterator->second->explore_state_ << std::endl;
-                // getchar();
-
-
-                // update E_
-                if(current_state->h_ != 0 && (G_-current_state->g_)/current_state->h_ < E_)
-                {
-                    E_ = (G_-current_state->g_)/current_state->h_;
-                }
-
-                // plotting the contact sequence so far
-                // RAVELOG_INFO("Plot the contact sequence.\n");
-                drawing_handler_->ClearHandler();
-
-                drawing_handler_->DrawContactPath(current_state);
-
-                // check if it reaches the goal
-                // RAVELOG_INFO("Check if it reaches the goal.\n");
-                if(isReachedGoal(current_state))
-                {
-                    G_ = current_state->g_;
-                    goal_state = current_state;
-                    goal_reached = true;
-
-                    int step_count = 0;
-                    std::shared_ptr<ContactState> path_state = goal_state;
-                    while(true)
-                    {
-                        if(path_state->is_root_)
-                        {
-                            break;
-                        }
-
-                        path_state = path_state->parent_;
-                        step_count++;
-                    }
-
-                    current_time = std::chrono::high_resolution_clock::now();
-
-                    float planning_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() /1000.0;
-
-                    RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
-
-                    planning_result.push_back(std::make_tuple(planning_id_, planning_time, G_, current_state->accumulated_dynamics_cost_, step_count));
-
-                    // getchar();
-
-                    if(!output_first_solution)
-                    {
-                        updateExploreStatesAndOpenHeap();
-                    }
-
+                    RAVELOG_INFO("Over time limit.\n");
+                    over_time_limit = true;
                     break;
                 }
+                // get the state in the top of the heap
+                std::shared_ptr<ContactState> current_state;
+                if(double_unif(rng) >= epsilon_) // explore the top of the heap
+                {
+                    current_state = open_heap_.top();
+                    open_heap_.pop();
+                }
+                else // randomly explore (* uniform random in the heap, not uniform random over the search space)
+                {
+                    std::uniform_int_distribution<> int_unif(0, contact_states_map_.size()-1);
+                    auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng));
+                    current_state = random_it->second;
+                }
 
-                // branch
-                branchingSearchTree(current_state, branching_method);
+                if(current_state->explore_state_ == ExploreState::OPEN || current_state->explore_state_ == ExploreState::REOPEN)
+                {
+                    // Collision Checking if needed
+
+                    // Kinematic and dynamic feasibility check
+                    float dummy_dynamics_cost = 0;
+                    int dummy_index = 0;
+                    if(!use_dynamics_planning_ && !stateFeasibilityCheck(current_state, dummy_dynamics_cost, dummy_index))
+                    {
+                        current_state->explore_state_ = ExploreState::CLOSED;
+                        continue;
+                    }
+
+                    current_state->explore_state_ = ExploreState::EXPLORED;
+
+                    // std::cout << current_state->explore_state_ << std::endl;
+                    // std::size_t current_state_hash = std::hash<ContactState>()(*current_state);
+                    // std::unordered_map<std::size_t, std::shared_ptr<ContactState> >::iterator contact_state_iterator = contact_states_map_.find(current_state_hash);
+                    // current_state->stances_vector_[0]->left_foot_pose_.printPose();
+                    // current_state->stances_vector_[0]->right_foot_pose_.printPose();
+                    // current_state->stances_vector_[0]->left_hand_pose_.printPose();
+                    // current_state->stances_vector_[0]->right_hand_pose_.printPose();
+                    // std::cout << current_state->stances_vector_[0]->ee_contact_status_[0] << " "
+                    //           << current_state->stances_vector_[0]->ee_contact_status_[1] << " "
+                    //           << current_state->stances_vector_[0]->ee_contact_status_[2] << " "
+                    //           << current_state->stances_vector_[0]->ee_contact_status_[3] << std::endl;
+                    // std::cout << "hash: " << current_state_hash << std::endl;
+                    // std::cout << "hash: " << std::hash<ContactState>()(*current_state) << std::endl;
+                    // std::cout << current_state->stances_vector_.size() << std::endl;
+
+                    // if (contact_state_iterator == contact_states_map_.end()) // the state is not in the set
+                    // {
+                    //     std::cout << "wait, what?" << std::endl;
+                    // }
+
+                    // std::cout << "===============" << std::endl;
+
+                    // contact_state_iterator->second->stances_vector_[0]->left_foot_pose_.printPose();
+                    // contact_state_iterator->second->stances_vector_[0]->right_foot_pose_.printPose();
+                    // contact_state_iterator->second->stances_vector_[0]->left_hand_pose_.printPose();
+                    // contact_state_iterator->second->stances_vector_[0]->right_hand_pose_.printPose();
+
+                    // std::cout << contact_state_iterator->second->explore_state_ << std::endl;
+                    // getchar();
+
+
+                    // update E_
+                    if(current_state->h_ != 0 && (G_-current_state->g_)/current_state->h_ < E_)
+                    {
+                        E_ = (G_-current_state->g_)/current_state->h_;
+                    }
+
+                    // plotting the contact sequence so far
+                    // RAVELOG_INFO("Plot the contact sequence.\n");
+                    drawing_handler_->ClearHandler();
+
+                    drawing_handler_->DrawContactPath(current_state);
+
+                    // check if it reaches the goal
+                    // RAVELOG_INFO("Check if it reaches the goal.\n");
+                    if(isReachedGoal(current_state))
+                    {
+                        G_ = current_state->g_;
+                        goal_state = current_state;
+                        goal_reached = true;
+
+                        int step_count = 0;
+                        std::shared_ptr<ContactState> path_state = goal_state;
+                        while(true)
+                        {
+                            if(path_state->is_root_)
+                            {
+                                break;
+                            }
+
+                            path_state = path_state->parent_;
+                            step_count++;
+                        }
+
+                        current_time = std::chrono::high_resolution_clock::now();
+
+                        float planning_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() /1000.0;
+
+                        RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
+
+                        planning_result.push_back(std::make_tuple(planning_id_, planning_time, G_, current_state->accumulated_dynamics_cost_, step_count));
+
+                        // getchar();
+
+                        if(!output_first_solution)
+                        {
+                            updateExploreStatesAndOpenHeap();
+                        }
+
+                        break;
+                    }
+
+                    // branch
+                    branchingSearchTree(current_state, branching_method);
+                }
             }
-        }
 
-        if(output_first_solution || over_time_limit)
-        {
-            break;
+            if(output_first_solution || over_time_limit)
+            {
+                break;
+            }
+
         }
 
     }
 
-    // store the planning result
-    std::ofstream planning_result_fstream("contact_planning_result_weight_0_3.txt",std::ofstream::app);
-    for(auto intermediate_result : planning_result)
-    {
-        planning_result_fstream << std::get<0>(intermediate_result) << " "
-                                << std::get<1>(intermediate_result) << " "
-                                << std::get<2>(intermediate_result) << " "
-                                << std::get<3>(intermediate_result) << " "
-                                << std::get<4>(intermediate_result) << " ";
-        planning_result_fstream << std::endl;
-    }
-
+    // // store the planning result
+    // std::ofstream planning_result_fstream("contact_planning_result_weight_0_3.txt", std::ofstream::app);
+    // for(auto intermediate_result : planning_result)
+    // {
+    //     planning_result_fstream << std::get<0>(intermediate_result) << " "
+    //                             << std::get<1>(intermediate_result) << " "
+    //                             << std::get<2>(intermediate_result) << " "
+    //                             << std::get<3>(intermediate_result) << " "
+    //                             << std::get<4>(intermediate_result) << " ";
+    //     planning_result_fstream << std::endl;
+    // }
 
     // retrace the paths from the final states
     std::vector< std::shared_ptr<ContactState> > contact_state_path;
@@ -265,7 +271,10 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         std::reverse(contact_state_path.begin(), contact_state_path.end());
 
-        kinematicsVerification(contact_state_path);
+        if(use_dynamics_planning_)
+        {
+            kinematicsVerification(contact_state_path);
+        }
     }
     else if(!over_time_limit)
     {
@@ -275,6 +284,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     {
         RAVELOG_ERROR("The time limit (%5.2f seconds) has been reached. No solution found.\n",time_limit);
     }
+
+    getchar();
 
     drawing_handler_->ClearHandler();
 
@@ -288,14 +299,14 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
 
     std::vector<momentumopt::DynamicsSequence> dynamics_sequence_vector;
 
-    std::array<int,4> num_contacts = {1,1,0,0};
+    // std::array<int,4> num_contacts = {1,1,0,0};
 
     for(auto & contact_state : contact_state_path)
     {
         if(!contact_state->is_root_)
         {
             dynamics_sequence_vector.push_back(contact_state->parent_edge_dynamics_sequence_);
-            num_contacts[contact_state->prev_move_manip_]++;
+            // num_contacts[contact_state->prev_move_manip_]++;
         }
     }
 
@@ -318,17 +329,57 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
     general_ik_interface_->exactCoM() = true;
     general_ik_interface_->noRotation() = false;
     general_ik_interface_->executeMotion() = true;
+    general_ik_interface_->robot_->SetDOFValues(robot_properties_->IK_init_DOF_Values_);
+    general_ik_interface_->robot_->GetActiveDOFValues(general_ik_interface_->q0());
     std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
+    int state_id = 1;
     for(auto & dynamics_sequence : dynamics_sequence_vector)
     {
+        std::shared_ptr<ContactState> current_state = contact_state_path[state_id];
+        std::shared_ptr<ContactState> prev_state = current_state->parent_;
+        ContactManipulator moving_manipulator = current_state->prev_move_manip_;
+
+        int dynamics_state_id = 0;
         for(auto & dynamics_state : dynamics_sequence.dynamicsSequence())
         {
             general_ik_interface_->resetContactStateRelatedParameters();
-            // get the poses/CoM and transform it from SL frame to OpenRAVE frame
+            // get the pose of contacting end-effectors
+            for(auto & manip : ALL_MANIPULATORS)
+            {
+                if(manip != moving_manipulator && current_state->stances_vector_[0]->ee_contact_status_[manip])
+                {
+                    general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], current_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform());
+                    general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+                }
+                else if(manip == moving_manipulator)
+                {
+                    double ratio = (1.0 * dynamics_state_id) / dynamics_sequence.dynamicsSequence().size();
+                    OpenRAVE::Transform moving_foot_start = prev_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
+                    OpenRAVE::Transform moving_foot_goal = current_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
+                    OpenRAVE::Transform moving_foot_transform;
+                    moving_foot_transform.rot = OpenRAVE::geometry::quatSlerp(moving_foot_start.rot, moving_foot_goal.rot, ratio);
+                    moving_foot_transform.trans = moving_foot_start.trans * (1-ratio) + moving_foot_goal.trans * ratio;
+                    moving_foot_transform.trans[2] += (1-2*fabs(ratio-0.5)) * 0.1;
 
+                    general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], moving_foot_transform);
+                }
+            }
+
+            // get the CoM and transform it from SL frame to OpenRAVE frame
+            Translation3D com = transformPositionFromSLToOpenrave(dynamics_state.centerOfMass());
+            general_ik_interface_->CenterOfMass()[0] = com[0];
+            general_ik_interface_->CenterOfMass()[1] = com[1];
+            general_ik_interface_->CenterOfMass()[2] = com[2];
             ik_result = general_ik_interface_->solve();
             general_ik_interface_->q0() = ik_result.second;
+
+            std::cout << "com: " << com[0] << ", " << com[1] << ", " << com[2] << std::endl;
+            std::cout << "result: " << ik_result.first << std::endl;
+
+            getchar();
+            dynamics_state_id++;
         }
+        state_id++;
     }
 
 }
@@ -359,12 +410,13 @@ void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState
     general_ik_interface_->CenterOfMass()[2] = current_state->mean_feet_position_[2] + robot_properties_->robot_z_;
 
     // Initial Configuration
-    std::vector<OpenRAVE::dReal> q0 = robot_properties_->IK_init_DOF_Values_;
-    q0[robot_properties_->ActiveDOFName_index_map_["x_prismatic_joint"]] = current_state->mean_feet_position_[0];
-    q0[robot_properties_->ActiveDOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
-    // q0[robot_properties_->ActiveDOFName_index_map_["z_prismatix_joint"]] = current_state->mean_feet_position_[2];
-    q0[robot_properties_->ActiveDOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw();
-    general_ik_interface_->q0() = q0;
+    std::vector<OpenRAVE::dReal> DOF0 = robot_properties_->IK_init_DOF_Values_;
+    DOF0[robot_properties_->DOFName_index_map_["x_prismatic_joint"]] = current_state->mean_feet_position_[0];
+    DOF0[robot_properties_->DOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
+    DOF0[robot_properties_->DOFName_index_map_["z_prismatic_joint"]] = current_state->mean_feet_position_[2] + 1.0;
+    DOF0[robot_properties_->DOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw() * DEG2RAD - M_PI/2.0;
+    general_ik_interface_->robot_->SetDOFValues(DOF0);
+    general_ik_interface_->robot_->GetActiveDOFValues(general_ik_interface_->q0());
 
     general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
     general_ik_interface_->returnClosest() = false;
@@ -437,15 +489,48 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
         // touching down
         general_ik_interface_->q0() = ik_result.second;
         general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        general_ik_interface_->reuseGIWC() = false;
+        float weight = 0.0;
+        general_ik_interface_->CenterOfMass()[0] = 0;
+        general_ik_interface_->CenterOfMass()[1] = 0;
+        general_ik_interface_->CenterOfMass()[2] = 0;
         for(auto & manip : ALL_MANIPULATORS)
         {
             if(manip != moving_manipulator && current_state->stances_vector_[0]->ee_contact_status_[manip])
             {
                 general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+
+                if(manip == ContactManipulator::L_LEG || manip == ContactManipulator::R_LEG)
+                {
+                    general_ik_interface_->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
+                    general_ik_interface_->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
+                    general_ik_interface_->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
+                    weight += 1;
+                }
             }
         }
 
+        // update target com
+        general_ik_interface_->CenterOfMass()[0] /= weight;
+        general_ik_interface_->CenterOfMass()[1] /= weight;
+        general_ik_interface_->CenterOfMass()[2] /= weight;
+        general_ik_interface_->CenterOfMass()[2] += robot_properties_->robot_z_;
+
         ik_result = general_ik_interface_->solve();
+
+        // std::cout << "l foot: " << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::L_LEG].x_ << " "
+        //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::L_LEG].y_ << " "
+        //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::L_LEG].z_ << std::endl;
+
+        // std::cout << "r foot: " << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::R_LEG].x_ << " "
+        //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::R_LEG].y_ << " "
+        //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::R_LEG].z_ << std::endl;
+
+        // std::cout << "com: " << general_ik_interface_->robot_->GetCenterOfMass() << std::endl;
+
+        // std::cout << ik_result.first << std::endl;
+
+        // getchar();
 
         if(!ik_result.first)
         {
@@ -461,15 +546,40 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
         general_ik_interface_->q0() = ik_result.second;
         general_ik_interface_->returnClosest() = false;
         general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        general_ik_interface_->reuseGIWC() = true;
+        weight = 0.0;
+        general_ik_interface_->CenterOfMass()[0] = 0;
+        general_ik_interface_->CenterOfMass()[1] = 0;
+        general_ik_interface_->CenterOfMass()[2] = 0;
         for(auto & manip : ALL_MANIPULATORS)
         {
             if(manip != moving_manipulator && prev_state->stances_vector_[0]->ee_contact_status_[manip])
             {
                 general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+
+                if(manip == ContactManipulator::L_LEG || manip == ContactManipulator::R_LEG)
+                {
+                    general_ik_interface_->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
+                    general_ik_interface_->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
+                    general_ik_interface_->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
+                    weight += 1;
+                }
             }
         }
 
+        // update target com
+        general_ik_interface_->CenterOfMass()[0] /= weight;
+        general_ik_interface_->CenterOfMass()[1] /= weight;
+        general_ik_interface_->CenterOfMass()[2] /= weight;
+        general_ik_interface_->CenterOfMass()[2] += robot_properties_->robot_z_;
+
         ik_result = general_ik_interface_->solve();
+
+        // std::cout << "com: " << general_ik_interface_->robot_->GetCenterOfMass() << std::endl;
+
+        // std::cout << ik_result.first << std::endl;
+
+        // getchar();
 
         if(!ik_result.first)
         {

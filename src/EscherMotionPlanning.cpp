@@ -1574,6 +1574,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     float time_limit;
     bool output_first_solution;
     bool goal_as_exact_poses;
+    bool use_dynamics_planning;
     PlanningHeuristicsType heuristics_type;
     BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
 
@@ -1722,6 +1723,18 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                 goal_as_exact_poses = true;
                 RAVELOG_INFO("The goal is set as a set of exact poses.\n");
             }
+
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                use_dynamics_planning = false;
+                RAVELOG_INFO("Planning with quasi-static end-point kinematics.\n");
+            }
+            else
+            {
+                use_dynamics_planning = true;
+                RAVELOG_INFO("Planning with dynamics optimizer.\n");
+            }
         }
 
         else if(strcmp(param.c_str(), "thread_num") == 0)
@@ -1793,7 +1806,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_, general_ik_interface_, 1, thread_num, drawing_handler_, planning_id);
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_, general_ik_interface_, 1, thread_num, drawing_handler_, planning_id, use_dynamics_planning);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
