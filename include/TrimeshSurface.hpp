@@ -39,18 +39,18 @@ public:
 	// returns a 3D point in global frame from a 2D point on the surface
 	Translation3D getGlobalPosition(const Translation2D& point) const;
 
-	
+
     // returns 3D point projected in plane frame. Ray is a 3D unit vector.
 	Translation3D projectionGlobalFrame(const Translation3D& start_point, const Translation3D& ray) const;
 	bool insidePolygon(const Translation3D& point) const;
 	bool insidePolygonPlaneFrame(const Translation2D& projected_point) const;
 
 	// polygon must be convex. contacts are rectangles.
-	bool contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type, std::shared_ptr<RobotProperties> robot_properties) const;
+	bool contactInsidePolygon(const TransformationMatrix& transform, const ContactManipulator& contact_manipulator, std::shared_ptr<RobotProperties> robot_properties) const;
 
 	// roll is the rotation of the contact about ray
 	TransformationMatrix projection(const Translation3D& origin, const Translation3D& ray, float roll,
-								    const ContactType& end_effector_type, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const;
+								    const ContactManipulator& contact_manipulator, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const;
 
 	// extract binary checking into another fn
 	float distToBoundary(Translation3D point, float search_radius = 999/*, bool binary_checking = false*/) const;
@@ -70,7 +70,7 @@ private:
 	std::vector< std::pair<int, int> > edges_; // contains indices into vertices vector
 	std::vector<Translation3D> vertices_; // historically called "boundaries"
 	std::vector<Translation2D> proj_vertices_; // last vertex is same as first vertex, i.e. "closed loop"
-	
+
 
 	float min_proj_x_;
 	float max_proj_x_;

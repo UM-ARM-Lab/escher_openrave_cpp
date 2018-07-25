@@ -63,6 +63,8 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
     int state_counter = 0;
     int eff_id, cnt_id;
     RPYTF eff_pose, prev_eff_pose;
+    std::array<bool,momentumopt::Problem::n_endeffs_> eff_final_in_contact;
+    eff_final_in_contact.fill(false);
 
     for(auto & contact_state : this->input_contact_state_sequence_)
     {
@@ -78,6 +80,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                     eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip]);
 
                     this->addContact(eff_id, eff_pose);
+                    eff_final_in_contact[eff_id] = true;
                 }
             }
         }
@@ -93,6 +96,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[moving_manip]);
 
                 this->addContact(eff_id, eff_pose);
+                eff_final_in_contact[eff_id] = true;
 
                 std::shared_ptr<Stance> prev_stance = contact_state->parent_->stances_vector_[0];
 
@@ -101,6 +105,13 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                     prev_eff_pose = transformPoseFromOpenraveToSL(prev_stance->ee_contact_poses_[moving_manip]);
                     this->addViapoint(eff_id, prev_eff_pose, eff_pose);
                 }
+            }
+            else
+            {
+                cnt_id = this->contacts_per_endeff_[eff_id];
+                this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_;
+                this->timer_ += this->step_transition_time_;
+                eff_final_in_contact[eff_id] = false;
             }
         }
 
@@ -111,9 +122,9 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
     // add the deactivation time for the last contact of each end-effector
     for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
     {
-        int cnt_id = this->contacts_per_endeff_[eff_id];
-        if(cnt_id > 0)
+        if(eff_final_in_contact[eff_id])
         {
+            cnt_id = this->contacts_per_endeff_[eff_id];
             this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_ + 1.0;
         }
     }
@@ -163,7 +174,7 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         total_time += 0.2;
         state_counter++;
     }
-    optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
+    // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step) * time_step;
     optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step));
     Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->com_ - this->contact_state_sequence_[0]->com_;
@@ -339,11 +350,6 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
 void OptimizationInterface::dynamicsSequenceConcatenation(std::vector<momentumopt::DynamicsSequence>& dynamics_sequence_vector)
 {
     this->initializeDynamicsOptimizer();
-    this->fillInitialRobotState();
-    this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
-
-    double current_time = 0.0;
-    double time_step = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep);
 
     dynamics_optimizer_.dynamicsSequence().clean();
     int dynamics_sequence_total_size = 0;
@@ -352,25 +358,34 @@ void OptimizationInterface::dynamicsSequenceConcatenation(std::vector<momentumop
         dynamics_sequence_total_size += dynamics_sequence.size();
     }
     dynamics_optimizer_.dynamicsSequence().resize(dynamics_sequence_total_size);
-    dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps() = Eigen::MatrixXi::Zero(dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().rows(),
-                                                                                  dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().cols());
+
+    this->fillInitialRobotState();
+    this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
+
+    const int active_eff_num = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors);
+    double current_time = 0.0;
+    double time_step = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep);
 
     // std::cout << "Dynamics Sequence Total Size: " << dynamics_sequence_total_size << std::endl;
+
+    // dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps() = Eigen::MatrixXi::Zero(dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().rows(),
+    //                                                                                         dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().cols());
 
     int time_id = 0;
     for(auto & dynamics_sequence : dynamics_sequence_vector)
     {
-        dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps() += dynamics_sequence.activeEndeffectorSteps();
-        if(time_id != 0)
-        {
-            for(int eff_id; eff_id < dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().rows(); eff_id++)
-            {
-                if(dynamics_sequence.dynamicsState(0).endeffectorActivation(eff_id))
-                {
-                    dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps()(eff_id,1) -= 1;
-                }
-            }
-        }
+        // dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps() += dynamics_sequence.activeEndeffectorSteps();
+        // std::cout << dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps() << std::endl;
+        // if(time_id != 0)
+        // {
+        //     for(int eff_id = 0; eff_id < dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps().rows(); eff_id++)
+        //     {
+        //         if(dynamics_sequence.dynamicsState(0).endeffectorActivation(eff_id))
+        //         {
+        //             dynamics_optimizer_.dynamicsSequence().activeEndeffectorSteps()(eff_id,1) -= 1;
+        //         }
+        //     }
+        // }
 
         // std::cout << "Dynamics Sequence Size: " << dynamics_sequence.dynamicsSequence().size() << " ";
 
@@ -378,7 +393,19 @@ void OptimizationInterface::dynamicsSequenceConcatenation(std::vector<momentumop
         {
             if(time_id == 0 || state_id != 0)
             {
+                std::vector<int> local_eff_activation_id(active_eff_num);
+                for (int eff_id=0; eff_id<active_eff_num; eff_id++)
+                {
+                    local_eff_activation_id[eff_id] = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorActivationId(eff_id);
+                }
+
                 dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id) = dynamics_sequence.dynamicsSequence()[state_id];
+
+                for (int eff_id=0; eff_id<active_eff_num; eff_id++)
+                {
+                    dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorActivationId(eff_id) = local_eff_activation_id[eff_id];
+                }
+
                 dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).time() = time_step;
                 // std::cout << "Time: " << time_step << " " << current_time << std::endl;
                 current_time += time_step;
@@ -386,6 +413,8 @@ void OptimizationInterface::dynamicsSequenceConcatenation(std::vector<momentumop
             }
         }
     }
+
+    // std::cout << "store solution" << std::endl;
 
     optimizer_setting_.get(momentumopt::PlannerBoolParam::PlannerBoolParam_StoreData) = true;
     dynamics_optimizer_.storeExternalDynamicsSequenceToFile(initial_state_, reference_dynamics_sequence_);

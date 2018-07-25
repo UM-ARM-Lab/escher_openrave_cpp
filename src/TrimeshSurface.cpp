@@ -586,12 +586,12 @@ bool TrimeshSurface::insidePolygonPlaneFrame(const Translation2D& projected_poin
 
 // polygon must be convex. contacts are rectangles.
 // TODO: split this fn up instead of switching on type
-bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform, const ContactType& contact_type, std::shared_ptr<RobotProperties> robot_properties) const
+bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform, const ContactManipulator& contact_manipulator, std::shared_ptr<RobotProperties> robot_properties) const
 {
     float h, w;
     std::vector<Translation3D> contact_vertices(4);
 
-    if(contact_type == ContactType::FOOT)
+    if(contact_manipulator == ContactManipulator::L_LEG || contact_manipulator == ContactManipulator::R_LEG)
     {
         h = robot_properties->foot_h_ / 2;
         w = robot_properties->foot_w_ / 2;
@@ -600,7 +600,7 @@ bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform,
         contact_vertices[2] = Translation3D(-h, w, 0);
         contact_vertices[3] = Translation3D(-h, -w, 0);
     }
-    else if(contact_type == ContactType::HAND)
+    else if(contact_manipulator == ContactManipulator::L_ARM || contact_manipulator == ContactManipulator::R_ARM)
     {
         h = robot_properties->hand_h_ / 2;
         w = robot_properties->hand_w_ / 2;
@@ -629,18 +629,53 @@ bool TrimeshSurface::contactInsidePolygon(const TransformationMatrix& transform,
 }
 
 // roll is the rotation of the contact about ray
-TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, const Translation3D& ray, float roll, const ContactType& end_effector_type, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const
+TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, const Translation3D& ray, float roll, const ContactManipulator& contact_manipulator, std::shared_ptr<RobotProperties> robot_properties, bool& valid_contact) const
 {
     Translation3D translation = projectionGlobalFrame(origin, ray);
 
+    if(translation[0] == -99.0)
+    {
+        valid_contact = false;
+        return TransformationMatrix();
+    }
+
     Translation3D cx, cy, cz;
 
-    if(end_effector_type == ContactType::FOOT)
+    if(contact_manipulator == ContactManipulator::L_LEG || contact_manipulator == ContactManipulator::R_LEG)
     {
         cz = getNormal();
         cx = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
         cy = cz.cross(cx).normalized();
         cx = cy.cross(cz);
+    }
+    else if(contact_manipulator == ContactManipulator::L_ARM)
+    {
+        cx = -getNormal();
+        if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
+        {
+            cy = Translation3D(std::sin(roll * DEG2RAD), 0, std::cos(roll * DEG2RAD));
+        }
+        else
+        {
+            cy = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
+        }
+        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        cz = cx.cross(cy);
+
+    }
+    else if(contact_manipulator == ContactManipulator::R_ARM)
+    {
+        cx = -getNormal();
+        if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
+        {
+            cy = Translation3D(-std::sin(roll * DEG2RAD), 0, -std::cos(roll * DEG2RAD));
+        }
+        else
+        {
+            cy = Translation3D(-std::cos(roll * DEG2RAD), -std::sin(roll * DEG2RAD), 0);
+        }
+        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        cz = cx.cross(cy);
     }
 
     TransformationMatrix ret_transform;
@@ -651,7 +686,7 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
 
     if(!valid_contact)
     {
-        valid_contact = contactInsidePolygon(ret_transform, end_effector_type, robot_properties);
+        valid_contact = contactInsidePolygon(ret_transform, contact_manipulator, robot_properties);
     }
 
     return ret_transform;

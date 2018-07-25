@@ -305,17 +305,20 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
     {
         if(!contact_state->is_root_)
         {
+            std::cout << "dynamics cost: "<< contact_state->accumulated_dynamics_cost_ - contact_state->parent_->accumulated_dynamics_cost_ << std::endl;
             dynamics_sequence_vector.push_back(contact_state->parent_edge_dynamics_sequence_);
             // num_contacts[contact_state->prev_move_manip_]++;
         }
+        std::cout << "com: " << contact_state->com_[0] << " " << contact_state->com_[1] << " " << contact_state->com_[2] << std::endl;
+        std::cout << "com_dot: " << contact_state->com_dot_[0] << " " << contact_state->com_dot_[1] << " " << contact_state->com_dot_[2] << std::endl;
     }
 
     /*********************************FAILED ATTEMPT TO USE KINEMATICS SOLVER BASED ON SL*********************************/
-    // std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
-    // std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
+    std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
 
-    // kinematics_optimization_interface->updateContactSequence(contact_state_path);
-    // kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
+    kinematics_optimization_interface->updateContactSequence(contact_state_path);
+    kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
 
     // // kinematics optimization
     // std::cout << "Start the Kinematics Optimization." << std::endl;
@@ -344,24 +347,32 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
         {
             general_ik_interface_->resetContactStateRelatedParameters();
             // get the pose of contacting end-effectors
+            std::cout << "moving manipulator: " << robot_properties_->manipulator_name_map_[moving_manipulator] << std::endl;
             for(auto & manip : ALL_MANIPULATORS)
             {
                 if(manip != moving_manipulator && current_state->stances_vector_[0]->ee_contact_status_[manip])
                 {
+                    std::cout << robot_properties_->manipulator_name_map_[manip] << ": " << current_state->stances_vector_[0]->ee_contact_poses_[manip].x_ << " "
+                              << current_state->stances_vector_[0]->ee_contact_poses_[manip].y_ << " "
+                              << current_state->stances_vector_[0]->ee_contact_poses_[manip].z_ << std::endl;
+
                     general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], current_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform());
                     general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
                 }
                 else if(manip == moving_manipulator)
                 {
-                    double ratio = (1.0 * dynamics_state_id) / dynamics_sequence.dynamicsSequence().size();
-                    OpenRAVE::Transform moving_foot_start = prev_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
-                    OpenRAVE::Transform moving_foot_goal = current_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
-                    OpenRAVE::Transform moving_foot_transform;
-                    moving_foot_transform.rot = OpenRAVE::geometry::quatSlerp(moving_foot_start.rot, moving_foot_goal.rot, ratio);
-                    moving_foot_transform.trans = moving_foot_start.trans * (1-ratio) + moving_foot_goal.trans * ratio;
-                    moving_foot_transform.trans[2] += (1-2*fabs(ratio-0.5)) * 0.1;
+                    if(prev_state->stances_vector_[0]->ee_contact_status_[manip] && current_state->stances_vector_[0]->ee_contact_status_[manip])
+                    {
+                        double ratio = (1.0 * dynamics_state_id) / dynamics_sequence.dynamicsSequence().size();
+                        OpenRAVE::Transform moving_foot_start = prev_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
+                        OpenRAVE::Transform moving_foot_goal = current_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform();
+                        OpenRAVE::Transform moving_foot_transform;
+                        moving_foot_transform.rot = OpenRAVE::geometry::quatSlerp(moving_foot_start.rot, moving_foot_goal.rot, ratio);
+                        moving_foot_transform.trans = moving_foot_start.trans * (1-ratio) + moving_foot_goal.trans * ratio;
+                        moving_foot_transform.trans[2] += (1-2*fabs(ratio-0.5)) * 0.1;
 
-                    general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], moving_foot_transform);
+                        general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], moving_foot_transform);
+                    }
                 }
             }
 
@@ -528,7 +539,7 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
         // std::cout << "com: " << general_ik_interface_->robot_->GetCenterOfMass() << std::endl;
 
-        // std::cout << ik_result.first << std::endl;
+        // // std::cout << ik_result.first << std::endl;
 
         // getchar();
 
@@ -650,10 +661,17 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     {
         branching_manips.push_back(ContactManipulator::L_LEG);
     }
-
     if(current_state->prev_move_manip_ != ContactManipulator::R_LEG)
     {
         branching_manips.push_back(ContactManipulator::R_LEG);
+    }
+    if(current_state->prev_move_manip_ != ContactManipulator::L_ARM)
+    {
+        branching_manips.push_back(ContactManipulator::L_ARM);
+    }
+    if(current_state->prev_move_manip_ != ContactManipulator::R_ARM)
+    {
+        branching_manips.push_back(ContactManipulator::R_ARM);
     }
 
     if(branching_method == BranchingMethod::CONTACT_PROJECTION)
@@ -748,11 +766,11 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
             // do projection to find the projected feet poses
             if(move_manip == ContactManipulator::L_LEG)
             {
-                projection_is_successful = footProjection(new_left_foot_pose);
+                projection_is_successful = footProjection(move_manip, new_left_foot_pose);
             }
             else if(move_manip == ContactManipulator::R_LEG)
             {
-                projection_is_successful = footProjection(new_right_foot_pose);
+                projection_is_successful = footProjection(move_manip, new_right_foot_pose);
             }
 
             if(projection_is_successful)
@@ -802,10 +820,157 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
 
 void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
 {
+    const float mean_hotizontal_yaw = current_state->getFeetMeanHorizontalYaw();
+    const RotationMatrix robot_yaw_rotation = RPYToSO3(RPYTF(0, 0, 0, 0, 0, mean_hotizontal_yaw));
+
+    Translation3D relative_shoulder_position;
+    Translation3D global_left_shoulder_position, global_right_shoulder_position;
+
+    std::vector< std::pair<std::array<float,2>, ContactManipulator> > branching_hands_combination;
+
+    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
+    RPYTF new_left_foot_pose = current_stance->left_foot_pose_;
+    RPYTF new_right_foot_pose = current_stance->right_foot_pose_;
+    std::array<float,2> breaking_contact_indicator = {-99.0,-99.0};
+
+    // assuming waist is fixed, which is wrong.
+    for(auto & manip : branching_manips)
+    {
+        if(manip == ContactManipulator::L_ARM || manip == ContactManipulator::R_ARM)
+        {
+            if(manip == ContactManipulator::L_ARM)
+            {
+                relative_shoulder_position[0] = 0;
+                relative_shoulder_position[1] = robot_properties_->shoulder_w_/2.0;
+                relative_shoulder_position[2] = robot_properties_->shoulder_z_;
+                global_left_shoulder_position = robot_yaw_rotation * relative_shoulder_position + current_state->mean_feet_position_;
+            }
+            else if(manip == ContactManipulator::R_ARM)
+            {
+                relative_shoulder_position[0] = 0;
+                relative_shoulder_position[1] = -robot_properties_->shoulder_w_/2.0;
+                relative_shoulder_position[2] = robot_properties_->shoulder_z_;
+                global_right_shoulder_position = robot_yaw_rotation * relative_shoulder_position + current_state->mean_feet_position_;
+            }
+
+            // iterate through the arm transition model
+            for(auto & arm_orientation : hand_transition_model_)
+            {
+                if(arm_orientation[0] != -99.0) // making contact
+                {
+                    std::array<float,2> global_arm_orientation;
+
+                    if(manip == ContactManipulator::L_ARM)
+                    {
+                        global_arm_orientation[0] = mean_hotizontal_yaw + 90.0 - arm_orientation[0];
+                        global_arm_orientation[1] = arm_orientation[1];
+                    }
+                    else if(manip == ContactManipulator::R_ARM)
+                    {
+                        global_arm_orientation[0] = mean_hotizontal_yaw - 90.0 + arm_orientation[0];
+                        global_arm_orientation[1] = arm_orientation[1];
+                    }
+
+                    branching_hands_combination.push_back(std::make_pair(global_arm_orientation, manip));
+                }
+                else // breaking contact
+                {
+                    if(current_stance->ee_contact_status_[manip])
+                    {
+                        branching_hands_combination.push_back(std::make_pair(breaking_contact_indicator, manip));
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_hands_combination.size());
+
+    #pragma omp parallel num_threads(thread_num_) shared (branching_hands_combination, state_feasibility_check_result)
+    {
+        #pragma omp for schedule(static)
+        for(int i = 0; i < branching_hands_combination.size(); i++)
+        {
+            auto hand_combination = branching_hands_combination[i];
+
+            std::array<float,2> global_arm_orientation = hand_combination.first;
+            ContactManipulator move_manip = hand_combination.second;
+
+            bool projection_is_successful = false;
+
+            std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_stance->ee_contact_status_;
+            RPYTF new_left_hand_pose = current_stance->left_hand_pose_;
+            RPYTF new_right_hand_pose = current_stance->right_hand_pose_;
+
+            if(global_arm_orientation[0] != -99.0)
+            {
+                if(move_manip == ContactManipulator::L_ARM)
+                {
+                    projection_is_successful = handProjection(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                }
+                else if(move_manip == ContactManipulator::R_ARM)
+                {
+                    projection_is_successful = handProjection(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                }
+
+                new_ee_contact_status[move_manip] = true;
+            }
+            else
+            {
+                projection_is_successful = true;
+                new_ee_contact_status[move_manip] = false;
+
+                if(move_manip == ContactManipulator::L_ARM)
+                {
+                    new_left_hand_pose = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+                }
+                else if(move_manip == ContactManipulator::R_ARM)
+                {
+                    new_right_hand_pose = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+                }
+            }
+
+            if(projection_is_successful)
+            {
+                // construct the new state
+                std::shared_ptr<Stance> new_stance(new Stance(new_left_foot_pose, new_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status));
+
+                std::shared_ptr<ContactState> new_contact_state(new ContactState(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_));
+
+                float dynamics_cost = 0.0;
+                if(!use_dynamics_planning_ || stateFeasibilityCheck(new_contact_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
+                }
+                else
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(false, new_contact_state, dynamics_cost);
+                }
+            }
+            else
+            {
+                state_feasibility_check_result[i] = std::make_tuple(false, current_state, 0.0);
+            }
+        }
+    }
+
+    for(auto & check_result: state_feasibility_check_result)
+    {
+        bool pass_state_feasibility_check = std::get<0>(check_result);
+        std::shared_ptr<ContactState> new_contact_state = std::get<1>(check_result);
+        float dynamics_cost = std::get<2>(check_result);
+
+        if(pass_state_feasibility_check)
+        {
+            // dynamics_cost = 0.0;
+            insertState(new_contact_state, dynamics_cost);
+        }
+    }
+
 
 }
 
-bool ContactSpacePlanning::footProjection(RPYTF& projection_pose)
+bool ContactSpacePlanning::footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose)
 {
     // can use map grid to predict if it is safelt inside a surface, and what are the surfaces to check, skip that for now
 
@@ -825,7 +990,7 @@ bool ContactSpacePlanning::footProjection(RPYTF& projection_pose)
     {
         TransformationMatrix tmp_projection_transformation_matrix;
         bool valid_contact = false;
-        tmp_projection_transformation_matrix = structure->projection(projection_origin, projection_ray, contact_projection_yaw, ContactType::FOOT, robot_properties_, valid_contact);
+        tmp_projection_transformation_matrix = structure->projection(projection_origin, projection_ray, contact_projection_yaw, contact_manipulator, robot_properties_, valid_contact);
 
         if(valid_contact)
         {
@@ -847,9 +1012,44 @@ bool ContactSpacePlanning::footProjection(RPYTF& projection_pose)
     return found_projection_surface;
 }
 
-bool ContactSpacePlanning::handProjection()
-{
 
+bool ContactSpacePlanning::handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose)
+{
+    float arm_length = 9999.0;
+    bool found_projection_surface = false;
+    Vector3D arm_projection_ray(std::cos(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
+                                std::sin(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
+                                std::sin(arm_orientation[1] * DEG2RAD));
+
+    std::shared_ptr<TrimeshSurface> projected_surface;
+    TransformationMatrix closest_projection_transformation_matrix;
+
+    for(auto & structure : hand_structures_)
+    {
+        TransformationMatrix tmp_projection_transformation_matrix;
+        bool valid_contact = false;
+        tmp_projection_transformation_matrix = structure->projection(shoulder_position, arm_projection_ray, 0.0, contact_manipulator, robot_properties_, valid_contact);
+
+        if(valid_contact)
+        {
+            double temp_arm_legnth = (tmp_projection_transformation_matrix.block(0,3,3,1) - shoulder_position).norm();
+            if(!found_projection_surface || temp_arm_legnth < arm_length)
+            {
+                arm_length = temp_arm_legnth;
+                closest_projection_transformation_matrix = tmp_projection_transformation_matrix;
+                projected_surface = structure;
+            }
+
+            found_projection_surface = true;
+        }
+    }
+
+    if(found_projection_surface)
+    {
+        projection_pose = SE3ToXYZRPY(closest_projection_transformation_matrix);
+    }
+
+    return found_projection_surface;
 }
 
 void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost)

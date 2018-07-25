@@ -58,6 +58,8 @@ class ContactState
 
         momentumopt::DynamicsSequence parent_edge_dynamics_sequence_;
 
+        std::shared_ptr<ContactState> parent_;
+
         bool operator==(const ContactState& other) const;
         bool operator!=(const ContactState& other) const;
 
@@ -71,8 +73,6 @@ class ContactState
                 return *lhs < *rhs;
             }
         };
-
-        std::shared_ptr<ContactState> parent_;
 
         // inline std::shared_ptr<ContactState> getParent() {return parent_;}
         inline const float getF() const {return (g_ + h_);}

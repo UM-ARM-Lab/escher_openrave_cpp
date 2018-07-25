@@ -91,8 +91,8 @@ class ContactSpacePlanning
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
-        bool footProjection(RPYTF& projection_pose);
-        bool handProjection();
+        bool footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose);
+        bool handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_point, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
 
         void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost);
 

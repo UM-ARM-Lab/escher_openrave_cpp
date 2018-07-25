@@ -353,7 +353,8 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
     RPYTF transformed_e(0, 0, 0, 0, 0, 0);
     RotationMatrix R = RPYToSO3(e);
 
-    float foot_position_offset = 0.035;
+    // float foot_position_offset = 0.035;
+	float foot_position_offset = 0.0;
     transformed_e.x_ = e.x_ - foot_position_offset * R(0,0);
     transformed_e.y_ = e.y_ - foot_position_offset * R(1,0);
     transformed_e.z_ = e.z_ - foot_position_offset * R(2,0);
