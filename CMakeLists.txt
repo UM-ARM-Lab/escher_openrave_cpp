@@ -1,13 +1,18 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(escher_openrave_cpp)
 
-set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++1y -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS Eigen roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
+find_package(catkin REQUIRED COMPONENTS roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
 
 find_package(Boost REQUIRED COMPONENTS regex filesystem system)
 find_package(OpenRAVE REQUIRED)
 find_package(OpenMP REQUIRED)
+
+SET( Eigen_INCLUDE_DIRS "/usr/local/include/eigen3" ) # compiled with version 3.3.5
+IF( NOT Eigen_INCLUDE_DIRS )
+    find_package(Eigen REQUIRED)
+ENDIF()
 
 if(OPENMP_FOUND)
   message(STATUS "OPENMP FOUND")
@@ -49,6 +54,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/OptimizationInterface.cpp
     src/GeneralIKInterface.cpp
     src/GIWC.cpp
+    src/NeuralNetworkInterface.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"

@@ -26,7 +26,7 @@ class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
         void customInitialization(){}
         solver::ExitCode customContactsOptimization(const momentumopt::DynamicsState& ini_state, momentumopt::DynamicsSequence& dyn_seq);
 
-        void addContact(int eff_id, RPYTF& eff_pose);
+        void addContact(int eff_id, RPYTF& eff_pose, bool prev_in_contact);
         void addViapoint(int eff_id, RPYTF& prev_eff_pose, RPYTF& eff_pose);
 
         std::vector< std::shared_ptr<ContactState> > input_contact_state_sequence_;
@@ -56,12 +56,7 @@ class DummyKinematicsInterface : public virtual momentumopt::KinematicsInterface
 class OptimizationInterface
 {
     public:
-        OptimizationInterface(float _step_transition_time, std::string cfg_file):
-        step_transition_time_(_step_transition_time),
-        // kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
-        dynopt_result_digest_("dynopt_result_digest.txt",std::ofstream::app),
-        // simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}
-        simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}// initializeKinematicsInterface();}
+        OptimizationInterface(float _step_transition_time, std::string cfg_file);
 
         // initialization functions
         // void initializeKinematicsInterface();

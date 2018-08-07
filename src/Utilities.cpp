@@ -74,18 +74,18 @@ TransformationMatrix XYZRPYToSE3(const RPYTF& e)
 	float pitch_in_rad = e.pitch_ * DEG2RAD;
 	float yaw_in_rad = e.yaw_ * DEG2RAD;
 
-	float roll_x = cos(roll_in_rad);
-	float roll_y = sin(roll_in_rad);
+	float roll_cos = cos(roll_in_rad);
+	float roll_sin = sin(roll_in_rad);
 
-	float pitch_x = cos(pitch_in_rad);
-	float pitch_y = sin(pitch_in_rad);
+	float pitch_cos = cos(pitch_in_rad);
+	float pitch_sin = sin(pitch_in_rad);
 
-	float yaw_x = cos(yaw_in_rad);
-	float yaw_y = sin(yaw_in_rad);
+	float yaw_cos = cos(yaw_in_rad);
+	float yaw_sin = sin(yaw_in_rad);
 
-	return constructTransformationMatrix(pitch_x * yaw_x, -pitch_x * yaw_y, pitch_y, e.x_,
-	                                     roll_x * yaw_y + yaw_x * roll_y * pitch_y, roll_x * yaw_x - roll_y * pitch_y * yaw_y, -pitch_x * roll_y, e.y_,
-									     roll_y * yaw_y - roll_x * yaw_x * pitch_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, e.z_);
+	return constructTransformationMatrix(                                pitch_cos * yaw_cos,                                -pitch_cos * yaw_sin,             pitch_sin, e.x_,
+	                                     roll_cos * yaw_sin + yaw_cos * roll_sin * pitch_sin, roll_cos * yaw_cos - roll_sin * pitch_sin * yaw_sin, -pitch_cos * roll_sin, e.y_,
+									     roll_sin * yaw_sin - roll_cos * yaw_cos * pitch_sin, yaw_cos * roll_sin + roll_cos * pitch_sin * yaw_sin,  roll_cos * pitch_cos, e.z_);
 
 }
 
@@ -373,6 +373,36 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
     transformed_e.z_ = transformed_position[2];
 
     RPYTF rpy = SO3ToRPY(SL_openrave_rotation * RPYToSO3(e) * SL_openrave_rotation.transpose());
+    transformed_e.roll_ = rpy.roll_;
+    transformed_e.pitch_ = rpy.pitch_;
+    transformed_e.yaw_ = rpy.yaw_;
+
+    return transformed_e;
+}
+
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_transform)
+{
+    RPYTF transformed_e(0, 0, 0, 0, 0, 0);
+    RotationMatrix R = RPYToSO3(e);
+	Translation3D  t = Translation3D(e.x_, e.y_, e.z_);
+
+	RotationMatrix R_offset = offset_transform.block(0,0,3,3);
+	Translation3D  t_offset = offset_transform.block(0,3,3,1);
+
+    TransformationMatrix SL_openrave_transform;
+    RotationMatrix SL_openrave_rotation;
+    SL_openrave_transform << 0, -1, 0, 0,
+                             1,  0, 0, 0,
+                             0,  0, 1, -1.05,
+                             0, 0, 0, 1;
+    SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
+
+    Translation3D transformed_position = (SL_openrave_transform * (R*t_offset+t).homogeneous()).block(0,0,3,1);
+    transformed_e.x_ = transformed_position[0];
+    transformed_e.y_ = transformed_position[1];
+    transformed_e.z_ = transformed_position[2];
+
+    RPYTF rpy = SO3ToRPY(SL_openrave_rotation * R * R_offset * SL_openrave_rotation.transpose());
     transformed_e.roll_ = rpy.roll_;
     transformed_e.pitch_ = rpy.pitch_;
     transformed_e.yaw_ = rpy.yaw_;

@@ -41,6 +41,7 @@ class ContactState
         const int num_stance_in_state_;
 
         std::vector<std::shared_ptr<Stance> > stances_vector_;
+        Translation3D nominal_com_;
         Translation3D com_;
         Vector3D com_dot_;
 
@@ -53,6 +54,7 @@ class ContactState
         float h_;
         float priority_value_;
         float accumulated_dynamics_cost_;
+        float max_manip_x_;
 
         ExploreState explore_state_;
 

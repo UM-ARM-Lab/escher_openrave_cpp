@@ -72,7 +72,7 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
-const float STEP_TRANSITION_TIME = 2.0;
+const float STEP_TRANSITION_TIME = 1.0;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
@@ -88,7 +88,7 @@ enum ContactManipulator
     R_LEG,
     L_ARM,
     R_ARM,
-	MANIP_NUM
+    MANIP_NUM
 };
 
 enum ContactType
@@ -105,29 +105,29 @@ enum TrimeshType
 
 enum PlanningHeuristicsType
 {
-	EUCLIDEAN,
-	DIJKSTRA
+    EUCLIDEAN,
+    DIJKSTRA
 };
 
 enum ExploreState
 {
-	OPEN,
-	EXPLORED,
-	CLOSED,
-	REOPEN
+    OPEN,
+    EXPLORED,
+    CLOSED,
+    REOPEN
 };
 
 enum TerrainType
 {
-	SOLID,
-	GAP,
-	OBSTACLE
+    SOLID,
+    GAP,
+    OBSTACLE
 };
 
 enum BranchingMethod
 {
-	CONTACT_PROJECTION,
-	CONTACT_OPTIMIZATION
+    CONTACT_PROJECTION,
+    CONTACT_OPTIMIZATION
 };
 
 const std::vector<ContactManipulator> ALL_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG, ContactManipulator::L_ARM, ContactManipulator::R_ARM};
@@ -136,76 +136,76 @@ const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_
 
 class RPYTF
 {
-	public:
-		RPYTF(){};
-		RPYTF(std::array<float,6> xyzrpy)
-		{
-			x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
-			y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
-			z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
-			roll_ = round(xyzrpy[3] * 10.0) / 10.0;
-			pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
-			yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
-		}
+    public:
+        RPYTF(){};
+        RPYTF(std::array<float,6> xyzrpy)
+        {
+            x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
+            y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
+            z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
+            roll_ = round(xyzrpy[3] * 10.0) / 10.0;
+            pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
+            yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
+        }
 
-		RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
-		{
-			x_ = round(_x * 1000.0) / 1000.0;
-			y_ = round(_y * 1000.0) / 1000.0;
-			z_ = round(_z * 1000.0) / 1000.0;
-			roll_ = round(_roll * 10.0) / 10.0;
-			pitch_ = round(_pitch * 10.0) / 10.0;
-			yaw_ = round(_yaw * 10.0) / 10.0;
-		}
+        RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
+        {
+            x_ = round(_x * 1000.0) / 1000.0;
+            y_ = round(_y * 1000.0) / 1000.0;
+            z_ = round(_z * 1000.0) / 1000.0;
+            roll_ = round(_roll * 10.0) / 10.0;
+            pitch_ = round(_pitch * 10.0) / 10.0;
+            yaw_ = round(_yaw * 10.0) / 10.0;
+        }
 
-		inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
-															(this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
-		inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
-															(this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
+        inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
+                                                            (this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
+        inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
+                                                            (this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
 
-		inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
-		inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+        inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
+        inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
 
-		inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
+        inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
 
-		float x_; // meters
-		float y_; // meters
-		float z_; // meters
-		float roll_; // degrees
-		float pitch_; // degrees
-		float yaw_; // degrees
+        float x_; // meters
+        float y_; // meters
+        float z_; // meters
+        float roll_; // degrees
+        float pitch_; // degrees
+        float yaw_; // degrees
 
-		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> GetRaveTransformMatrix() const
-		{
-			OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
-			OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
-			OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> GetRaveTransformMatrix() const
+        {
+            OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
 
-    		OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
 
-    		OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix = OpenRAVE::geometry::matrixFromAxisAngle(x_axis_angle) *
+            OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix = OpenRAVE::geometry::matrixFromAxisAngle(x_axis_angle) *
                                                                               OpenRAVE::geometry::matrixFromAxisAngle(y_axis_angle) *
                                                                               OpenRAVE::geometry::matrixFromAxisAngle(z_axis_angle);
-			transform_matrix.trans = translation;
+            transform_matrix.trans = translation;
 
-			return transform_matrix;
-		}
+            return transform_matrix;
+        }
 
-		OpenRAVE::Transform GetRaveTransform() const
-		{
-			OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
-			OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
-			OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+        OpenRAVE::Transform GetRaveTransform() const
+        {
+            OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
 
-    		OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
 
-    		OpenRAVE::Transform transform = OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(x_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
+            OpenRAVE::Transform transform = OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(x_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
                                             OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(y_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
                                             OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(z_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0));
-			transform.trans = translation;
+            transform.trans = translation;
 
-			return transform;
-		}
+            return transform;
+        }
 
 
 };
@@ -237,6 +237,7 @@ bool isValidPosition(Translation2D p);
 
 // Transform pose and position from OpenRAVE to SL
 RPYTF transformPoseFromOpenraveToSL(RPYTF& e);
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_transform);
 Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t);
 Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t);
 Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
@@ -262,5 +263,6 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "ContactSpacePlanning.hpp"
 #include "EscherMotionPlanning.hpp"
 #include "Boundary.hpp"
+#include "NeuralNetworkInterface.hpp"
 
 #endif

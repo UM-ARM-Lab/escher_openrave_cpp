@@ -44,6 +44,15 @@ general_ik_interface_(_general_ik_interface)
     {
         dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
     }
+
+    // general_ik_interface_vector_.resize(2 * std::max(foot_transition_model_.size(), hand_transition_model_.size()));
+
+    // for(int i = 0; i < general_ik_interface_vector_.size(); i++)
+    // {
+    //     // OpenRAVE::EnvironmentBasePtr cloned_env = general_ik_interface_->env_->CloneSelf(OpenRAVE::Clone_Bodies);
+    //     // general_ik_interface_vector_[i] = std::make_shared<GeneralIKInterface>(cloned_env, cloned_env->GetRobot(general_ik_interface_->robot_->GetName()));
+    //     general_ik_interface_vector_[i] = general_ik_interface_;
+    // }
 }
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
@@ -52,7 +61,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                                                                                    float time_limit, bool output_first_solution, bool goal_as_exact_poses)
 {
     // initialize parameters
-    G_ = 9999.0;
+    G_ = 999999.0;
     E_ = G_;
     goal_ = goal;
     goal_radius_ = goal_radius;
@@ -91,7 +100,6 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     std::vector< std::tuple<int,float,float,float,int> > planning_result; // planning time, path cost, dynamics cost, step num
 
     {
-
         OpenRAVE::EnvironmentMutex::scoped_lock lockenv(general_ik_interface_->env_->GetMutex());
 
         while(!open_heap_.empty())
@@ -118,6 +126,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng));
                     current_state = random_it->second;
                 }
+
+                // current_state = open_heap_.top();
+                // open_heap_.pop();
 
                 if(current_state->explore_state_ == ExploreState::OPEN || current_state->explore_state_ == ExploreState::REOPEN)
                 {
@@ -204,6 +215,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                         RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
 
+                        // getchar();
+
                         planning_result.push_back(std::make_tuple(planning_id_, planning_time, G_, current_state->accumulated_dynamics_cost_, step_count));
 
                         // getchar();
@@ -215,6 +228,10 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                         break;
                     }
+
+                    // getchar();
+                    // std::cout << "current: g: " << current_state->g_ << ", h: " << current_state->h_ << ", priority: " << current_state->priority_value_ << std::endl;
+                    // std::cout << "CoM: " << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " " << std::endl;
 
                     // branch
                     branchingSearchTree(current_state, branching_method);
@@ -230,17 +247,17 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
     }
 
-    // // store the planning result
-    // std::ofstream planning_result_fstream("contact_planning_result_weight_0_3.txt", std::ofstream::app);
-    // for(auto intermediate_result : planning_result)
-    // {
-    //     planning_result_fstream << std::get<0>(intermediate_result) << " "
-    //                             << std::get<1>(intermediate_result) << " "
-    //                             << std::get<2>(intermediate_result) << " "
-    //                             << std::get<3>(intermediate_result) << " "
-    //                             << std::get<4>(intermediate_result) << " ";
-    //     planning_result_fstream << std::endl;
-    // }
+    // store the planning result
+    std::ofstream planning_result_fstream("contact_planning_result_weight_3_0_test_env_5_2_epsilon_0_1.txt", std::ofstream::app);
+    for(auto intermediate_result : planning_result)
+    {
+        planning_result_fstream << std::get<0>(intermediate_result) << " "
+                                << std::get<1>(intermediate_result) << " "
+                                << std::get<2>(intermediate_result) << " "
+                                << std::get<3>(intermediate_result) << " "
+                                << std::get<4>(intermediate_result) << " ";
+        planning_result_fstream << std::endl;
+    }
 
     // retrace the paths from the final states
     std::vector< std::shared_ptr<ContactState> > contact_state_path;
@@ -273,7 +290,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         if(use_dynamics_planning_)
         {
-            kinematicsVerification(contact_state_path);
+            // getchar();
+            // kinematicsVerification(contact_state_path);
         }
     }
     else if(!over_time_limit)
@@ -285,7 +303,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         RAVELOG_ERROR("The time limit (%5.2f seconds) has been reached. No solution found.\n",time_limit);
     }
 
-    getchar();
+    // getchar();
 
     drawing_handler_->ClearHandler();
 
@@ -395,30 +413,30 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
 
 }
 
-void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState> current_state)
+void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState> current_state, std::shared_ptr<GeneralIKInterface> general_ik_interface)
 {
     bool left_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM];
     bool right_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_ARM];
 
-    general_ik_interface_->resetContactStateRelatedParameters();
+    general_ik_interface->resetContactStateRelatedParameters();
 
     // Contact Manipulator Pose
-    general_ik_interface_->addNewManipPose("l_leg", current_state->stances_vector_[0]->left_foot_pose_.GetRaveTransform());
-    general_ik_interface_->addNewManipPose("r_leg", current_state->stances_vector_[0]->right_foot_pose_.GetRaveTransform());
+    general_ik_interface->addNewManipPose("l_leg", current_state->stances_vector_[0]->left_foot_pose_.GetRaveTransform());
+    general_ik_interface->addNewManipPose("r_leg", current_state->stances_vector_[0]->right_foot_pose_.GetRaveTransform());
     if(left_hand_in_contact)
     {
-        general_ik_interface_->addNewManipPose("l_arm", current_state->stances_vector_[0]->left_hand_pose_.GetRaveTransform());
+        general_ik_interface->addNewManipPose("l_arm", current_state->stances_vector_[0]->left_hand_pose_.GetRaveTransform());
     }
     if(right_hand_in_contact)
     {
-        general_ik_interface_->addNewManipPose("r_arm", current_state->stances_vector_[0]->right_hand_pose_.GetRaveTransform());
+        general_ik_interface->addNewManipPose("r_arm", current_state->stances_vector_[0]->right_hand_pose_.GetRaveTransform());
     }
 
     // Center of Mass
     std::array<OpenRAVE::dReal,3> com;
-    general_ik_interface_->CenterOfMass()[0] = current_state->mean_feet_position_[0];
-    general_ik_interface_->CenterOfMass()[1] = current_state->mean_feet_position_[1];
-    general_ik_interface_->CenterOfMass()[2] = current_state->mean_feet_position_[2] + robot_properties_->robot_z_;
+    general_ik_interface->CenterOfMass()[0] = current_state->mean_feet_position_[0];
+    general_ik_interface->CenterOfMass()[1] = current_state->mean_feet_position_[1];
+    general_ik_interface->CenterOfMass()[2] = current_state->mean_feet_position_[2] + robot_properties_->robot_z_;
 
     // Initial Configuration
     std::vector<OpenRAVE::dReal> DOF0 = robot_properties_->IK_init_DOF_Values_;
@@ -426,17 +444,17 @@ void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState
     DOF0[robot_properties_->DOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
     DOF0[robot_properties_->DOFName_index_map_["z_prismatic_joint"]] = current_state->mean_feet_position_[2] + 1.0;
     DOF0[robot_properties_->DOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw() * DEG2RAD - M_PI/2.0;
-    general_ik_interface_->robot_->SetDOFValues(DOF0);
-    general_ik_interface_->robot_->GetActiveDOFValues(general_ik_interface_->q0());
+    general_ik_interface->robot_->SetDOFValues(DOF0);
+    general_ik_interface->robot_->GetActiveDOFValues(general_ik_interface->q0());
 
-    general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
-    general_ik_interface_->returnClosest() = false;
-    general_ik_interface_->exactCoM() = false;
-    general_ik_interface_->noRotation() = false;
-    general_ik_interface_->executeMotion() = false;
+    general_ik_interface->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
+    general_ik_interface->returnClosest() = false;
+    general_ik_interface->exactCoM() = false;
+    general_ik_interface->noRotation() = false;
+    general_ik_interface->executeMotion() = false;
 }
 
-bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state)
+bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, int index)
 {
     // both feet should be in contact
     bool left_foot_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG];
@@ -452,11 +470,9 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
     // distance check for the current state
     TransformationMatrix feet_mean_transform = current_state->getFeetMeanTransform();
 
-    Translation3D right_shoulder_position(0, -robot_properties_->shoulder_w_ / 2.0, robot_properties_->shoulder_z_);
-
     if(left_hand_in_contact)
     {
-        Translation3D left_hand_position = current_state->stances_vector_[0]->left_foot_pose_.getXYZ();
+        Translation3D left_hand_position = current_state->stances_vector_[0]->left_hand_pose_.getXYZ();
         Translation3D left_shoulder_position(0, robot_properties_->shoulder_w_ / 2.0, robot_properties_->shoulder_z_);
         left_shoulder_position = (feet_mean_transform * left_shoulder_position.homogeneous()).block(0,0,3,1);
         float left_hand_to_shoulder_dist = (left_hand_position - left_shoulder_position).norm();
@@ -469,7 +485,7 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
     if(right_hand_in_contact)
     {
-        Translation3D right_hand_position = current_state->stances_vector_[0]->right_foot_pose_.getXYZ();
+        Translation3D right_hand_position = current_state->stances_vector_[0]->right_hand_pose_.getXYZ();
         Translation3D right_shoulder_position(0, robot_properties_->shoulder_w_ / 2.0, robot_properties_->shoulder_z_);
         right_shoulder_position = (feet_mean_transform * right_shoulder_position.homogeneous()).block(0,0,3,1);
         float right_hand_to_shoulder_dist = (right_hand_position - right_shoulder_position).norm();
@@ -485,49 +501,64 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
     if(!use_dynamics_planning_ && !current_state->is_root_)
     {
         // reachability check
-        setupStateReachabilityIK(current_state);
+        std::shared_ptr<GeneralIKInterface> general_ik_interface = general_ik_interface_vector_[index];
+        std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
 
-        std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
+        setupStateReachabilityIK(current_state, general_ik_interface);
+
+        ik_result = general_ik_interface->solve();
 
         if(!ik_result.first)
         {
             return false;
         }
+        else
+        {
+            general_ik_interface->robot_->SetActiveDOFValues(ik_result.second);
+            for(int axis_id = 0; axis_id < 3; axis_id++)
+            {
+                current_state->nominal_com_[axis_id] = general_ik_interface->robot_->GetCenterOfMass()[axis_id];
+                // std::cout << current_state->nominal_com_[axis_id] << " ";
+            }
+            // std::cout << std::endl;
+            // getchar();
+        }
+
 
         // end-points IK
         ContactManipulator moving_manipulator = current_state->prev_move_manip_;
 
         // touching down
-        general_ik_interface_->q0() = ik_result.second;
-        general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
-        general_ik_interface_->reuseGIWC() = false;
+        general_ik_interface->q0() = ik_result.second;
+        general_ik_interface->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        general_ik_interface->reuseGIWC() = false;
         float weight = 0.0;
-        general_ik_interface_->CenterOfMass()[0] = 0;
-        general_ik_interface_->CenterOfMass()[1] = 0;
-        general_ik_interface_->CenterOfMass()[2] = 0;
+        general_ik_interface->CenterOfMass()[0] = 0;
+        general_ik_interface->CenterOfMass()[1] = 0;
+        general_ik_interface->CenterOfMass()[2] = 0;
         for(auto & manip : ALL_MANIPULATORS)
         {
             if(manip != moving_manipulator && current_state->stances_vector_[0]->ee_contact_status_[manip])
             {
-                general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+                general_ik_interface->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
 
                 if(manip == ContactManipulator::L_LEG || manip == ContactManipulator::R_LEG)
                 {
-                    general_ik_interface_->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
-                    general_ik_interface_->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
-                    general_ik_interface_->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
+                    general_ik_interface->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
+                    general_ik_interface->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
+                    general_ik_interface->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
                     weight += 1;
                 }
             }
         }
 
         // update target com
-        general_ik_interface_->CenterOfMass()[0] /= weight;
-        general_ik_interface_->CenterOfMass()[1] /= weight;
-        general_ik_interface_->CenterOfMass()[2] /= weight;
-        general_ik_interface_->CenterOfMass()[2] += robot_properties_->robot_z_;
+        general_ik_interface->CenterOfMass()[0] /= weight;
+        general_ik_interface->CenterOfMass()[1] /= weight;
+        general_ik_interface->CenterOfMass()[2] /= weight;
+        general_ik_interface->CenterOfMass()[2] += robot_properties_->robot_z_;
 
-        ik_result = general_ik_interface_->solve();
+        ik_result = general_ik_interface->solve();
 
         // std::cout << "l foot: " << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::L_LEG].x_ << " "
         //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::L_LEG].y_ << " "
@@ -537,7 +568,7 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
         //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::R_LEG].y_ << " "
         //                         << current_state->stances_vector_[0]->ee_contact_poses_[ContactManipulator::R_LEG].z_ << std::endl;
 
-        // std::cout << "com: " << general_ik_interface_->robot_->GetCenterOfMass() << std::endl;
+        // std::cout << "com: " << general_ik_interface->robot_->GetCenterOfMass() << std::endl;
 
         // // std::cout << ik_result.first << std::endl;
 
@@ -550,43 +581,43 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
         // taking off
         std::shared_ptr<ContactState> prev_state = current_state->parent_;
-        setupStateReachabilityIK(prev_state);
-        general_ik_interface_->returnClosest() = true;
-        ik_result = general_ik_interface_->solve();
+        setupStateReachabilityIK(prev_state, general_ik_interface);
+        general_ik_interface->returnClosest() = true;
+        ik_result = general_ik_interface->solve();
 
-        general_ik_interface_->q0() = ik_result.second;
-        general_ik_interface_->returnClosest() = false;
-        general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
-        general_ik_interface_->reuseGIWC() = true;
+        general_ik_interface->q0() = ik_result.second;
+        general_ik_interface->returnClosest() = false;
+        general_ik_interface->balanceMode() = OpenRAVE::BalanceMode::BALANCE_GIWC;
+        general_ik_interface->reuseGIWC() = true;
         weight = 0.0;
-        general_ik_interface_->CenterOfMass()[0] = 0;
-        general_ik_interface_->CenterOfMass()[1] = 0;
-        general_ik_interface_->CenterOfMass()[2] = 0;
+        general_ik_interface->CenterOfMass()[0] = 0;
+        general_ik_interface->CenterOfMass()[1] = 0;
+        general_ik_interface->CenterOfMass()[2] = 0;
         for(auto & manip : ALL_MANIPULATORS)
         {
             if(manip != moving_manipulator && prev_state->stances_vector_[0]->ee_contact_status_[manip])
             {
-                general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+                general_ik_interface->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
 
                 if(manip == ContactManipulator::L_LEG || manip == ContactManipulator::R_LEG)
                 {
-                    general_ik_interface_->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
-                    general_ik_interface_->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
-                    general_ik_interface_->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
+                    general_ik_interface->CenterOfMass()[0] += current_state->stances_vector_[0]->ee_contact_poses_[manip].x_;
+                    general_ik_interface->CenterOfMass()[1] += current_state->stances_vector_[0]->ee_contact_poses_[manip].y_;
+                    general_ik_interface->CenterOfMass()[2] += current_state->stances_vector_[0]->ee_contact_poses_[manip].z_;
                     weight += 1;
                 }
             }
         }
 
         // update target com
-        general_ik_interface_->CenterOfMass()[0] /= weight;
-        general_ik_interface_->CenterOfMass()[1] /= weight;
-        general_ik_interface_->CenterOfMass()[2] /= weight;
-        general_ik_interface_->CenterOfMass()[2] += robot_properties_->robot_z_;
+        general_ik_interface->CenterOfMass()[0] /= weight;
+        general_ik_interface->CenterOfMass()[1] /= weight;
+        general_ik_interface->CenterOfMass()[2] /= weight;
+        general_ik_interface->CenterOfMass()[2] += robot_properties_->robot_z_;
 
-        ik_result = general_ik_interface_->solve();
+        ik_result = general_ik_interface->solve();
 
-        // std::cout << "com: " << general_ik_interface_->robot_->GetCenterOfMass() << std::endl;
+        // std::cout << "com: " << general_ik_interface->robot_->GetCenterOfMass() << std::endl;
 
         // std::cout << ik_result.first << std::endl;
 
@@ -611,8 +642,8 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
 
         dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
 
-        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
-        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
 
         // bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
         // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
@@ -628,6 +659,8 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
             // update com, com_dot, and parent edge dynamics sequence of the current_state
             dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
             dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+
+            storeDynamicsOptimizationResult(current_state, dynamics_cost);
         }
 
         // std::cout << "Dynamically feasible: " << dynamically_feasible << std::endl;
@@ -645,11 +678,11 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
     // verify the state kinematic and dynamic feasibility
     if(use_dynamics_planning_)
     {
-        return (kinematicsFeasibilityCheck(current_state) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index));
+        return (kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index));
     }
     else
     {
-        return kinematicsFeasibilityCheck(current_state);
+        return kinematicsFeasibilityCheck(current_state, index);
     }
 }
 
@@ -680,7 +713,7 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
         branchingFootContacts(current_state, branching_manips);
 
         // branching hand contacts
-        branchingHandContacts(current_state, branching_manips);
+        // branchingHandContacts(current_state, branching_manips);
     }
     else if(branching_method == BranchingMethod::CONTACT_OPTIMIZATION)
     {
@@ -813,9 +846,7 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
         {
             insertState(new_contact_state, dynamics_cost);
         }
-
     }
-
 }
 
 void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
@@ -1056,7 +1087,7 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
 {
     std::shared_ptr<ContactState> prev_state = current_state->parent_;
     // calculate the edge cost and the cost to come
-    current_state->g_ += getEdgeCost(prev_state, current_state, dynamics_cost);
+    current_state->g_ = prev_state->g_ + getEdgeCost(prev_state, current_state, dynamics_cost);
 
     // calculate the heuristics (cost to go)
     current_state->h_ = getHeuristics(current_state);
@@ -1098,10 +1129,10 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
             contact_states_map_.insert(std::make_pair(current_state_hash, current_state));
             open_heap_.push(current_state);
         }
-
     }
     else
     {
+        // RAVELOG_INFO("Existing state.\n");
         std::shared_ptr<ContactState> existing_state = contact_state_iterator->second;
 
         // std::cout << "===============================" << std::endl;
@@ -1133,9 +1164,16 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
                     existing_state->priority_value_ = (G_ - existing_state->g_) / 0.00001;
                 }
                 open_heap_.push(existing_state);
+                current_state->priority_value_ = existing_state->priority_value_;
             }
         }
     }
+
+    // std::cout << "branching: g: " << current_state->g_ << ", h: " << current_state->h_ << ", priority: " << current_state->priority_value_ << ", dynamics_cost: " << dynamics_cost << ", prev_move_manip: " << current_state->prev_move_manip_ << std::endl;
+    // std::cout << "CoM: " << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " " << std::endl;
+    // std::cout << "L_FOOT: " << current_state->stances_vector_[0]->left_foot_pose_.x_ << " " << current_state->stances_vector_[0]->left_foot_pose_.y_ << " " << current_state->stances_vector_[0]->left_foot_pose_.y_ << " " << std::endl;
+    // std::cout << "R_FOOT: " << current_state->stances_vector_[0]->right_foot_pose_.x_ << " " << current_state->stances_vector_[0]->right_foot_pose_.y_ << " " << current_state->stances_vector_[0]->right_foot_pose_.y_ << " " << std::endl;
+    // std::cout << "L_HAND: " << current_state->stances_vector_[0]->left_hand_pose_.x_ << " " << current_state->stances_vector_[0]->left_hand_pose_.y_ << " " << current_state->stances_vector_[0]->left_hand_pose_.y_ << " " << std::endl;
 
 }
 
@@ -1144,8 +1182,9 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
     if(heuristics_type_ == PlanningHeuristicsType::EUCLIDEAN)
     {
         // float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->com_(0) - goal_[0],2) + std::pow(current_state->com_(1) - goal_[1],2));
-        float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->mean_feet_position_[0] - goal_[0],2) +
-                                                     std::pow(current_state->mean_feet_position_[1] - goal_[1],2));
+        float euclidean_distance_to_goal = fabs(current_state->max_manip_x_ - goal_[0]);
+        // float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->mean_feet_position_[0] - goal_[0],2) +
+        //                                              std::pow(current_state->mean_feet_position_[1] - goal_[1],2));
         float step_cost_to_goal = step_cost_weight_ * (euclidean_distance_to_goal / robot_properties_->max_stride_);
 
         return (euclidean_distance_to_goal + step_cost_to_goal);
@@ -1173,13 +1212,23 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
 float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost)
 {
     // float traveling_distance_cost = std::sqrt(std::pow(current_state->com_(0) - prev_state->com_(0), 2) + std::pow(current_state->com_(1) - prev_state->com_(1), 2));
-    float traveling_distance_cost = std::sqrt(std::pow(current_state->mean_feet_position_[0] - prev_state->mean_feet_position_[0], 2) +
-                                              std::pow(current_state->mean_feet_position_[1] - prev_state->mean_feet_position_[1], 2));
+    // float traveling_distance_cost = std::sqrt(std::pow(current_state->mean_feet_position_[0] - prev_state->mean_feet_position_[0], 2) +
+    //                                           std::pow(current_state->mean_feet_position_[1] - prev_state->mean_feet_position_[1], 2));
+    float traveling_distance_cost = current_state->max_manip_x_ - prev_state->max_manip_x_;
     float orientation_cost = 0.01 * fabs(current_state->getFeetMeanHorizontalYaw() - prev_state->getFeetMeanHorizontalYaw());
     float step_cost = step_cost_weight_;
-    dynamics_cost = dynamics_cost_weight_ * dynamics_cost;
 
-    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost);
+    // if(prev_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM] || current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM])
+    // {
+    //     step_cost = 0.001 * step_cost;
+    // }
+
+    // if(current_state->prev_move_manip_ == ContactManipulator::L_LEG)
+    // {
+    //     step_cost = step_cost * 0.9;
+    // }
+
+    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost);
     // return (traveling_distance_cost + orientation_cost + step_cost);
     // return dynamics_cost;
 }
@@ -1224,5 +1273,102 @@ void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
 bool ContactSpacePlanning::isReachedGoal(std::shared_ptr<ContactState> current_state)
 {
     // return std::sqrt(std::pow(goal_[0]-current_state->com_(0), 2) + std::pow(goal_[1]-current_state->com_(1), 2)) <= goal_radius_;
-    return std::sqrt(std::pow(goal_[0]-current_state->mean_feet_position_[0], 2) + std::pow(goal_[1]-current_state->mean_feet_position_[1], 2)) <= goal_radius_;
+    // return std::sqrt(std::pow(goal_[0]-current_state->mean_feet_position_[0], 2) + std::pow(goal_[1]-current_state->mean_feet_position_[1], 2)) <= goal_radius_;
+    // return current_state->mean_feet_position_[0] > goal_[0]-goal_radius_;
+    return current_state->max_manip_x_ > (goal_[0] - goal_radius_);
+}
+
+void ContactSpacePlanning::storeDynamicsOptimizationResult(std::shared_ptr<ContactState> current_state, float& dynamics_cost)
+{
+    std::shared_ptr<ContactState> prev_state = current_state->parent_;
+    std::shared_ptr<Stance> prev_stance = prev_state->stances_vector_[0];
+
+    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
+
+    TransformationMatrix inv_prev_mean_feet_transform = inverseTransformationMatrix(prev_state->getFeetMeanTransform());
+    RotationMatrix inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
+
+    std::ofstream dynopt_result_fstream("dynopt_result/dynopt_result_" + std::to_string(planning_id_) + ".txt", std::ofstream::app);
+
+    // get the prev_state poses
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(prev_stance->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = SE3ToXYZRPY(inv_prev_mean_feet_transform * XYZRPYToSE3(prev_stance->ee_contact_poses_[i]));
+            dynopt_result_fstream << transformed_pose.x_ << " "
+                                  << transformed_pose.y_ << " "
+                                  << transformed_pose.z_ << " "
+                                  << transformed_pose.roll_ * DEG2RAD << " "
+                                  << transformed_pose.pitch_ * DEG2RAD << " "
+                                  << transformed_pose.yaw_ * DEG2RAD << " ";
+        }
+    }
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(prev_stance->ee_contact_status_[i])
+        {
+            dynopt_result_fstream << 1 << " ";
+        }
+        else
+        {
+            dynopt_result_fstream << 0 << " ";
+        }
+    }
+
+    // get the current_state poses
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(current_stance->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = SE3ToXYZRPY(inv_prev_mean_feet_transform * XYZRPYToSE3(current_stance->ee_contact_poses_[i]));
+            dynopt_result_fstream << transformed_pose.x_ << " "
+                                  << transformed_pose.y_ << " "
+                                  << transformed_pose.z_ << " "
+                                  << transformed_pose.roll_ * DEG2RAD << " "
+                                  << transformed_pose.pitch_ * DEG2RAD << " "
+                                  << transformed_pose.yaw_ * DEG2RAD << " ";
+        }
+    }
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(current_stance->ee_contact_status_[i])
+        {
+            dynopt_result_fstream << 1 << " ";
+        }
+        else
+        {
+            dynopt_result_fstream << 0 << " ";
+        }
+    }
+
+    // int move_manip = current_state->prev_move_manip_;
+    // RPYTF transformed_moving_manip_pose = SE3ToXYZRPY(inv_prev_mean_feet_transform * XYZRPYToSE3(current_state->stances_vector_[0]->ee_contact_poses_[move_manip]));
+
+    // dynopt_result_fstream << transformed_moving_manip_pose.x_ << " "
+    //                       << transformed_moving_manip_pose.y_ << " "
+    //                       << transformed_moving_manip_pose.z_ << " "
+    //                       << transformed_moving_manip_pose.roll_ * DEG2RAD << " "
+    //                       << transformed_moving_manip_pose.pitch_ * DEG2RAD << " "
+    //                       << transformed_moving_manip_pose.yaw_ * DEG2RAD << " ";
+
+    Translation3D transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
+    Vector3D transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+
+    dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
+    dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+
+    Translation3D transformed_current_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
+    Vector3D transformed_current_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
+
+    dynopt_result_fstream << transformed_current_com[0] << " " << transformed_current_com[1] << " " << transformed_current_com[2] << " ";
+    dynopt_result_fstream << transformed_current_com_dot[0] << " " << transformed_current_com_dot[1] << " " << transformed_current_com_dot[2] << " ";
+
+    dynopt_result_fstream << dynamics_cost;
+
+    dynopt_result_fstream << std::endl;
+
+    dynopt_result_fstream.close();
 }

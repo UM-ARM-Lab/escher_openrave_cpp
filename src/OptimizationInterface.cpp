@@ -4,13 +4,16 @@ static const std::map<ContactManipulator, int> contact_manipulator_id_map_ = {{C
                                                                               {ContactManipulator::L_ARM, 3}, {ContactManipulator::R_ARM, 2}};
 
 
-void ContactPlanFromContactSequence::addContact(int eff_id, RPYTF& eff_pose)
+static std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt;
+
+
+void ContactPlanFromContactSequence::addContact(int eff_id, RPYTF& eff_pose, bool prev_in_contact)
 {
     int cnt_id = this->contacts_per_endeff_[eff_id];
     this->contactSequence().endeffectorContacts(eff_id).push_back(momentumopt::ContactState());
 
     this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() = this->timer_;
-    if(cnt_id != 0)
+    if(prev_in_contact)
     {
         this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_ - this->step_transition_time_;
     }
@@ -48,6 +51,45 @@ void ContactPlanFromContactSequence::addViapoint(int eff_id, RPYTF& prev_eff_pos
     this->viapointSequence().numViapoints()++;
 }
 
+OptimizationInterface::OptimizationInterface(float _step_transition_time, std::string cfg_file):
+step_transition_time_(_step_transition_time),
+// kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
+dynopt_result_digest_("dynopt_result_digest.txt", std::ofstream::app),
+// simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}
+simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt", std::ofstream::app)
+{
+    loadDynamicsOptimizerSetting(cfg_file);
+    //initializeKinematicsInterface();
+
+    TransformationMatrix lf_offset_transform;
+    lf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
+
+    TransformationMatrix rf_offset_transform;
+    rf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
+
+    TransformationMatrix lh_offset_transform;
+    lh_offset_transform << 0, 0,-1, 0,
+                           1, 0, 0, 0,
+                           0,-1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
+
+    TransformationMatrix rh_offset_transform;
+    rh_offset_transform << 0, 0,-1, 0,
+                          -1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
+}
+
 solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(const momentumopt::DynamicsState& ini_state, momentumopt::DynamicsSequence& dyn_seq)
 {
     this->contactSequence().numContacts() = 0;
@@ -77,36 +119,42 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
                 {
                     eff_id = contact_manipulator_id_map_.find(manip)->second;
-                    eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip]);
+                    eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip], ee_offset_transform_to_dynopt[manip]);
 
-                    this->addContact(eff_id, eff_pose);
+                    bool prev_in_contact = this->contacts_per_endeff_[eff_id] != 0 && contact_state->parent_->stances_vector_[0]->ee_contact_status_[manip];
+
+                    this->addContact(eff_id, eff_pose, prev_in_contact);
                     eff_final_in_contact[eff_id] = true;
                 }
             }
         }
         else
         {
-            this->timer_ += this->step_transition_time_;
+            this->timer_ += 0.4;
 
             ContactManipulator moving_manip = contact_state->prev_move_manip_;
 
             if(stance->ee_contact_status_[moving_manip]) // if the robot makes new contact, add it
             {
-                eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
-                eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[moving_manip]);
+                this->timer_ += this->step_transition_time_;
 
-                this->addContact(eff_id, eff_pose);
+                eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
+                eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[moving_manip], ee_offset_transform_to_dynopt[moving_manip]);
+
+                bool prev_in_contact = this->contacts_per_endeff_[eff_id] != 0 && contact_state->parent_->stances_vector_[0]->ee_contact_status_[moving_manip];
+
+                this->addContact(eff_id, eff_pose, prev_in_contact);
                 eff_final_in_contact[eff_id] = true;
 
                 std::shared_ptr<Stance> prev_stance = contact_state->parent_->stances_vector_[0];
 
                 if(prev_stance->ee_contact_status_[moving_manip])
                 {
-                    prev_eff_pose = transformPoseFromOpenraveToSL(prev_stance->ee_contact_poses_[moving_manip]);
+                    prev_eff_pose = transformPoseFromOpenraveToSL(prev_stance->ee_contact_poses_[moving_manip], ee_offset_transform_to_dynopt[moving_manip]);
                     this->addViapoint(eff_id, prev_eff_pose, eff_pose);
                 }
             }
-            else
+            else // the robot is breaking contact
             {
                 cnt_id = this->contacts_per_endeff_[eff_id];
                 this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_;
@@ -115,7 +163,6 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             }
         }
 
-        this->timer_ += 0.2;
         state_counter++;
     }
 
@@ -127,9 +174,12 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             cnt_id = this->contacts_per_endeff_[eff_id];
             this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_ + 1.0;
         }
+        // for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
+        // {
+        //     std::cout << "eff_id: " << eff_id << ", cnt_id: " << cnt_id << "(" << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime()
+        //     << "," << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ")" << std::endl;
+        // }
     }
-
-    // update the planning variable time horizon, and active ee number
 }
 
 void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)
@@ -167,17 +217,21 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         }
         else
         {
+            total_time += 0.4;
+
             total_time += this->step_transition_time_;
             active_eff_set.insert(int(contact_state->prev_move_manip_));
         }
 
-        total_time += 0.2;
         state_counter++;
     }
+
+    total_time += 0.2;
+
     // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
-    optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step) * time_step;
-    optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step));
-    Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->com_ - this->contact_state_sequence_[0]->com_;
+    optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
+    optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step + 0.001));
+    Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
     optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
 
     reference_dynamics_sequence_.clean();
@@ -221,7 +275,7 @@ void OptimizationInterface::fillInitialRobotState()
     for(auto & manip : ALL_MANIPULATORS)
     {
         eff_id = contact_manipulator_id_map_.find(manip)->second;
-        eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip]);
+        eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[manip], ee_offset_transform_to_dynopt[manip]);
 
         if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
         {

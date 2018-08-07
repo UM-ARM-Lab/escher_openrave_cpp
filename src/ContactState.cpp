@@ -48,12 +48,14 @@ bool Stance::operator!=(const Stance& other) const
 // Constructor for the initial state
 ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state):
                            is_root_(true),
+                           nominal_com_(_initial_com),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
                            num_stance_in_state_(_num_stance_in_state),
                            explore_state_(ExploreState::OPEN),
                            g_(0.0),
                            h_(0.0),
+                           priority_value_(-9999.0),
                            accumulated_dynamics_cost_(0.0)
 {
     this->stances_vector_.resize(num_stance_in_state_);
@@ -64,6 +66,19 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
     mean_feet_position_[2] = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
 
     stances_vector_.resize(num_stance_in_state_);
+
+    this->max_manip_x_ = -9999.0;
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(this->stances_vector_[0]->ee_contact_status_[i])
+        {
+            if(this->stances_vector_[0]->ee_contact_poses_[i].x_ > this->max_manip_x_)
+            {
+                this->max_manip_x_ = this->stances_vector_[0]->ee_contact_poses_[i].x_;
+            }
+        }
+    }
 }
 
 // Constructor for other states
@@ -87,6 +102,8 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     this->com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_com_z;
     this->com_dot_ = Vector3D(0, 0, 0);
 
+    this->nominal_com_ = this->com_;
+
     mean_feet_position_[0] = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
     mean_feet_position_[1] = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
     mean_feet_position_[2] = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
@@ -100,7 +117,18 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     // update the h
     this->h_ = 0.0;
 
-    stances_vector_.resize(num_stance_in_state_);
+    this->max_manip_x_ = -9999.0;
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(this->stances_vector_[0]->ee_contact_status_[i])
+        {
+            if(this->stances_vector_[0]->ee_contact_poses_[i].x_ > this->max_manip_x_)
+            {
+                this->max_manip_x_ = this->stances_vector_[0]->ee_contact_poses_[i].x_;
+            }
+        }
+    }
 }
 
 bool ContactState::operator==(const ContactState& other) const

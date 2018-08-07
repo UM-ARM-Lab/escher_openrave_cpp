@@ -8,7 +8,7 @@ class ContactSpacePlanning
                              std::vector< std::array<float,3> > _foot_transition_model,
                              std::vector< std::array<float,2> > _hand_transition_model,
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
-                             std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,\
+                             std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                              std::shared_ptr<MapGrid> _map_grid,
                              std::shared_ptr<GeneralIKInterface> _general_ik_interface,
                              int _num_stance_in_state,
@@ -49,11 +49,12 @@ class ContactSpacePlanning
         const std::vector< std::array<float,2> > hand_transition_model_;
 
         // cost parameters
-        const float step_cost_weight_ = 0.0;
-        const float dynamics_cost_weight_ = 3.0;
+        const float step_cost_weight_ = 3.0;
+        const float dynamics_cost_weight_ = 0.1; // original
+        // const float dynamics_cost_weight_ = 1.0; // simplified
 
         // random parameters
-        const float epsilon_ = 0.0;
+        const float epsilon_ = 0.1;
 
         // thread number for OpenMP
         const int thread_num_;
@@ -77,11 +78,12 @@ class ContactSpacePlanning
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
 
         // the general_ik interface
+        std::vector< std::shared_ptr<GeneralIKInterface> > general_ik_interface_vector_;
         std::shared_ptr<GeneralIKInterface> general_ik_interface_;
 
-        void setupStateReachabilityIK(std::shared_ptr<ContactState> current_state);
+        void setupStateReachabilityIK(std::shared_ptr<ContactState> current_state, std::shared_ptr<GeneralIKInterface> general_ik_interface);
 
-        bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state);
+        bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, int index);
         bool dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
         bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
 
@@ -100,6 +102,8 @@ class ContactSpacePlanning
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);
 
         void kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+
+        void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
 };
 
 #endif
