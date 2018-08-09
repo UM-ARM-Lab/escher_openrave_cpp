@@ -99,8 +99,8 @@ class OptimizationInterface
         const float step_transition_time_;
         std::vector< std::shared_ptr<ContactState> > contact_state_sequence_;
 
-        std::ofstream dynopt_result_digest_;
-        std::ofstream simplified_dynopt_result_digest_;
+        // std::ofstream dynopt_result_digest_;
+        // std::ofstream simplified_dynopt_result_digest_;
 };
 
 #endif

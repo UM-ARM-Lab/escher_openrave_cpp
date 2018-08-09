@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(escher_openrave_cpp)
 
-set(CMAKE_CXX_FLAGS "-std=c++1y -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
+# set(CMAKE_CXX_FLAGS "-std=c++1y -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
 
@@ -54,7 +55,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/OptimizationInterface.cpp
     src/GeneralIKInterface.cpp
     src/GIWC.cpp
-    src/NeuralNetworkInterface.cpp
+    # src/NeuralNetworkInterface.cpp
 )
 
 target_link_libraries("${PROJECT_NAME}_plugin"

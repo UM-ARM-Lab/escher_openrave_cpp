@@ -11,7 +11,7 @@ class GeneralIKInterface
 {
     public:
         GeneralIKInterface(OpenRAVE::EnvironmentBasePtr _env, OpenRAVE::RobotBasePtr _robot);
-        ~GeneralIKInterface() {};
+        // ~GeneralIKInterface() {};
 
         std::pair<bool, std::vector<OpenRAVE::dReal> > solve();
         std::pair<bool, std::vector<OpenRAVE::dReal> > solve(std::map<std::string, OpenRAVE::Transform> _manip_poses, std::vector<OpenRAVE::dReal> _q0,

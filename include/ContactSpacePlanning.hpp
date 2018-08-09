@@ -77,6 +77,9 @@ class ContactSpacePlanning
         // the dynamics optimizer interface
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
 
+        // the dynamics prediciton neural network interface
+        // std::vector< std::shared_ptr<NeuralNetworkInterface> > neural_network_interface_vector_;
+
         // the general_ik interface
         std::vector< std::shared_ptr<GeneralIKInterface> > general_ik_interface_vector_;
         std::shared_ptr<GeneralIKInterface> general_ik_interface_;

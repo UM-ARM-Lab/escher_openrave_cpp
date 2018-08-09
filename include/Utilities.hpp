@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <fstream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -260,9 +261,9 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "MapGrid.hpp"
 #include "ContactState.hpp"
 #include "OptimizationInterface.hpp"
+// #include "NeuralNetworkInterface.hpp"
 #include "ContactSpacePlanning.hpp"
 #include "EscherMotionPlanning.hpp"
 #include "Boundary.hpp"
-#include "NeuralNetworkInterface.hpp"
 
 #endif

@@ -38,12 +38,25 @@ general_ik_interface_(_general_ik_interface)
         }
     }
 
+    RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
     dynamics_optimizer_interface_vector_.resize(2 * std::max(foot_transition_model_.size(), hand_transition_model_.size()));
 
-    for(int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
+    OptimizationInterface a(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+
+    for(unsigned int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
     {
+        std::cout << "ggg" << i << std::endl;
         dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+        std::cout << "hhh" << i << std::endl;
     }
+
+    // RAVELOG_INFO("Initialize neural network interface.\n");
+    // neural_network_interface_vector_.resize(2 * std::max(foot_transition_model_.size(), hand_transition_model_.size()));
+
+    // for(unsigned int i = 0; i < neural_network_interface_vector_.size(); i++)
+    // {
+    //     neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("dynopt_result/nn_models/");
+    // }
 
     // general_ik_interface_vector_.resize(2 * std::max(foot_transition_model_.size(), hand_transition_model_.size()));
 
@@ -60,6 +73,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                                                                                    BranchingMethod branching_method,
                                                                                    float time_limit, bool output_first_solution, bool goal_as_exact_poses)
 {
+    RAVELOG_INFO("Start ANA* planning.\n");
+
     // initialize parameters
     G_ = 999999.0;
     E_ = G_;
@@ -290,8 +305,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         if(use_dynamics_planning_)
         {
-            // getchar();
-            // kinematicsVerification(contact_state_path);
+            getchar();
+            kinematicsVerification(contact_state_path);
         }
     }
     else if(!over_time_limit)
@@ -303,7 +318,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         RAVELOG_ERROR("The time limit (%5.2f seconds) has been reached. No solution found.\n",time_limit);
     }
 
-    // getchar();
+    getchar();
 
     drawing_handler_->ClearHandler();
 
@@ -637,30 +652,39 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
     if(!current_state->is_root_)
     {
         dynamics_cost = 0.0;
-        // update the state cost and CoM
-        std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
+        bool dynamically_feasible;
 
-        dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
-
-        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
-        bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
-
-        // bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
-        // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
-        // if(!simplified_dynamically_feasible && dynamically_feasible)
-        // {
-        //     std::cout << "weird thing happens." << std::endl;
-        //     getchar();
-        // }
-        // std::cout << "===============================================================" << std::endl;
-
-        if(dynamically_feasible)
+        if(true)
         {
-            // update com, com_dot, and parent edge dynamics sequence of the current_state
-            dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
-            dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+            // update the state cost and CoM
+            std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
 
-            storeDynamicsOptimizationResult(current_state, dynamics_cost);
+            dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
+
+            // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+            dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+
+            // bool simplified_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+            // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+            // if(!simplified_dynamically_feasible && dynamically_feasible)
+            // {
+            //     std::cout << "weird thing happens." << std::endl;
+            //     getchar();
+            // }
+            // std::cout << "===============================================================" << std::endl;
+
+            if(dynamically_feasible)
+            {
+                // update com, com_dot, and parent edge dynamics sequence of the current_state
+                dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
+                dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+
+                storeDynamicsOptimizationResult(current_state, dynamics_cost);
+            }
+        }
+        else
+        {
+            // dynamically_feasible = neural_network_interface_vector_[index]->dynamicsPrediction(current_state, dynamics_cost);
         }
 
         // std::cout << "Dynamically feasible: " << dynamically_feasible << std::endl;
