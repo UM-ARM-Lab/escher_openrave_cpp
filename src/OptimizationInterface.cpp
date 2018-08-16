@@ -51,53 +51,9 @@ void ContactPlanFromContactSequence::addViapoint(int eff_id, RPYTF& prev_eff_pos
     this->viapointSequence().numViapoints()++;
 }
 
-OptimizationInterface::OptimizationInterface(float _step_transition_time, std::string cfg_file):
-step_transition_time_(_step_transition_time)
-// kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
-// dynopt_result_digest_("dynopt_result_digest.txt", std::ofstream::app),
-// simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(cfg_file);}
-// simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt", std::ofstream::app)
-{
-    std::cout << "aaa" << std::endl;
-
-    loadDynamicsOptimizerSetting(cfg_file);
-    //initializeKinematicsInterface();
-
-    std::cout << "bbb" << std::endl;
-
-    TransformationMatrix lf_offset_transform;
-    lf_offset_transform << 1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 1, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
-
-    TransformationMatrix rf_offset_transform;
-    rf_offset_transform << 1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 1, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
-
-    TransformationMatrix lh_offset_transform;
-    lh_offset_transform << 0, 0,-1, 0,
-                           1, 0, 0, 0,
-                           0,-1, 0, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
-
-    TransformationMatrix rh_offset_transform;
-    rh_offset_transform << 0, 0,-1, 0,
-                          -1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
-
-    std::cout << "ccc" << std::endl;
-}
-
 solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(const momentumopt::DynamicsState& ini_state, momentumopt::DynamicsSequence& dyn_seq)
 {
+
     this->contactSequence().numContacts() = 0;
     this->viapointSequence().numViapoints() = 0;
     this->timer_ = 0.0;
@@ -188,6 +144,46 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
     }
 }
 
+
+OptimizationInterface::OptimizationInterface(float _step_transition_time, std::string _cfg_file):
+step_transition_time_(_step_transition_time)
+// kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
+// dynopt_result_digest_("dynopt_result_digest.txt", std::ofstream::app),
+// simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(_cfg_file);}
+// simplified_dynopt_result_digest_("simplified_dynopt_test_result_digest.txt", std::ofstream::app)
+{
+    loadDynamicsOptimizerSetting(_cfg_file);
+    //initializeKinematicsInterface();
+
+    TransformationMatrix lf_offset_transform;
+    lf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
+
+    TransformationMatrix rf_offset_transform;
+    rf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
+
+    TransformationMatrix lh_offset_transform;
+    lh_offset_transform << 0, 0,-1, 0,
+                           1, 0, 0, 0,
+                           0,-1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
+
+    TransformationMatrix rh_offset_transform;
+    rh_offset_transform << 0, 0,-1, 0,
+                          -1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
+}
+
 void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)
 {
     this->contact_state_sequence_.resize(new_contact_state_sequence.size());
@@ -196,9 +192,9 @@ void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<C
     this->updateContactSequenceRelatedDynamicsOptimizerSetting();
 }
 
-void OptimizationInterface::loadDynamicsOptimizerSetting(std::string cfg_file)
+void OptimizationInterface::loadDynamicsOptimizerSetting(std::string _cfg_file)
 {
-    optimizer_setting_.initialize(cfg_file);
+    optimizer_setting_.initialize(_cfg_file);
 }
 
 void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting()

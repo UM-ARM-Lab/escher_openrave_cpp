@@ -1,6 +1,8 @@
 #ifndef CONTACTSPACEPLANNING_HPP
 #define CONTACTSPACEPLANNING_HPP
 
+void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contact_pose_combinations, const std::vector<std::vector<RPYTF> >& possible_contact_pose_representation, size_t vec_index, std::vector<RPYTF>& contact_pose_combination);
+
 class ContactSpacePlanning
 {
     public:
@@ -54,7 +56,7 @@ class ContactSpacePlanning
         // const float dynamics_cost_weight_ = 1.0; // simplified
 
         // random parameters
-        const float epsilon_ = 0.1;
+        const float epsilon_ = 0.3;
 
         // thread number for OpenMP
         const int thread_num_;
@@ -78,7 +80,7 @@ class ContactSpacePlanning
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
 
         // the dynamics prediciton neural network interface
-        // std::vector< std::shared_ptr<NeuralNetworkInterface> > neural_network_interface_vector_;
+        std::vector< std::shared_ptr<NeuralNetworkInterface> > neural_network_interface_vector_;
 
         // the general_ik interface
         std::vector< std::shared_ptr<GeneralIKInterface> > general_ik_interface_vector_;
@@ -104,9 +106,11 @@ class ContactSpacePlanning
         void updateExploreStatesAndOpenHeap();
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);
 
+        float fillDynamicsSequence(std::vector< std::shared_ptr<ContactState> > contact_state_path);
         void kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+        void kinematicsVerification_StateOnly(std::vector< std::shared_ptr<ContactState> > contact_state_path);
 
-        void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> current_state, float& dynamics_cost);
+        void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost);
 };
 
 #endif

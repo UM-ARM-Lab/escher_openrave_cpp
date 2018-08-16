@@ -146,7 +146,6 @@ RPYTF SO3ToRPY(const RotationMatrix& R)
 	}
     else if(std::fabs(R(0,0)) <= epsilon and std::fabs(R(2,2)) <= epsilon)
 	{
-
         if(std::fabs(R(0,2))-1 <= epsilon)
 		{
             if(R(0,2) > 0)
@@ -199,6 +198,13 @@ RPYTF SO3ToRPY(const RotationMatrix& R)
 	}
 
 	return RPYTF(0, 0, 0, roll, pitch, yaw);
+}
+
+Quaternion RPYToQuaternion(const RPYTF& e)
+{
+	return Quaternion(Eigen::AngleAxisf(e.roll_ * DEG2RAD, Eigen::Vector3f::UnitX()) *
+			     	  Eigen::AngleAxisf(e.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
+                      Eigen::AngleAxisf(e.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
 }
 
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T)

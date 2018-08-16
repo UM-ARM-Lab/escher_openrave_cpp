@@ -9,6 +9,9 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
     RegisterCommand("StartPlanningFromScratch",boost::bind(&EscherMotionPlanning::startPlanningFromScratch,this,_1,_2),
                     "Start the A* planning process.");
 
+    RegisterCommand("StartTestingTransitionDynamicsOptimization",boost::bind(&EscherMotionPlanning::startTestingTransitionDynamicsOptimization,this,_1,_2),
+                    "Start the transition optimization process.");
+
     RegisterCommand("StartCalculatingTraversability",boost::bind(&EscherMotionPlanning::calculateTraversability,this,_1,_2),
                     "Start calculating traversability.");
 
@@ -352,6 +355,61 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     robot_properties_ = std::make_shared<RobotProperties>(probot_, IK_init_DOF_Values, default_DOF_Values,
                                                           foot_h, foot_w, hand_h, hand_w, robot_z, top_z,
                                                           shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride);
+}
+
+std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std::istream& sinput)
+{
+    std::vector<RPYTF> ee_poses(ContactManipulator::MANIP_NUM);
+    std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
+
+    Translation3D com;
+    Vector3D com_dot;
+
+    std::string param;
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        float x, y, z, roll, pitch, yaw;
+        sinput >> x;
+        sinput >> y;
+        sinput >> z;
+        sinput >> roll;
+        sinput >> pitch;
+        sinput >> yaw;
+
+        ee_poses[i] = RPYTF(x, y, z, roll, pitch, yaw);
+        // std::cout << ee_poses[i].x_ << " " << ee_poses[i].y_ << " " << ee_poses[i].z_ << " " << ee_poses[i].roll_ << " " << ee_poses[i].pitch_ << " " << ee_poses[i].yaw_ << " " << std::endl;
+    }
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        sinput >> param;
+        if(strcmp(param.c_str(), "0") == 0)
+        {
+            ee_contact_status[i] = false;
+        }
+        else
+        {
+            ee_contact_status[i] = true;
+        }
+        std::cout << ee_contact_status[i] << " ";
+    }
+    std::cout << std::endl;
+
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> com(i);
+    }
+
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> com_dot(i);
+    }
+
+    std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
+    auto state = std::make_shared<ContactState>(stance, com, com_dot, 1);
+
+    return state;
 }
 
 bool EscherMotionPlanning::calculateTraversability(std::ostream& sout, std::istream& sinput)
@@ -1561,6 +1619,180 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
 
 }
 
+bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostream& sout, std::istream& sinput)
+{
+    penv_ = GetEnv();
+
+    std::string param;
+
+    std::shared_ptr<ContactState> initial_state;
+    std::shared_ptr<ContactState> second_state;
+
+    RAVELOG_INFO("Parse commands and initialize variables...\n");
+
+    while(!sinput.eof())
+    {
+        sinput >> param;
+        if(!sinput)
+        {
+            break;
+        }
+
+        if(strcmp(param.c_str(), "initial_state") == 0)
+        {
+            initial_state = parseContactStateCommand(sinput);
+        }
+        else if(strcmp(param.c_str(), "second_state") == 0)
+        {
+            second_state = parseContactStateCommand(sinput);
+        }
+    }
+
+    srand (time(NULL));
+
+    second_state->parent_ = initial_state;
+    second_state->prev_move_manip_ = ContactManipulator::R_ARM;
+
+    TransformationMatrix rand_transform = XYZRPYToSE3(RPYTF((std::rand()%100)/100.0, (std::rand()%100)/100.0, (std::rand()%100)/100.0, 0, 0, float(std::rand()%180)));
+    // TransformationMatrix rand_transform  = Eigen::Matrix4f::Identity();
+    // TransformationMatrix rand_transform;
+
+    // rand_transform << 0.882948, -0.469472,         0,      0.98,
+    //                   0.469472,  0.882948,        -0,      0.97,
+    //                          0,         0,         1,      0.98,
+    //                          0,         0,         0,         1;
+    RotationMatrix rand_rotation = rand_transform.block(0,0,3,3);
+
+    std::cout << rand_transform << std::endl;
+
+    for(unsigned int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(initial_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF original_pose = initial_state->stances_vector_[0]->ee_contact_poses_[i];
+            RPYTF transformed_pose = SE3ToXYZRPY(rand_transform * XYZRPYToSE3(original_pose));
+            initial_state->stances_vector_[0]->ee_contact_poses_[i] = transformed_pose;
+        }
+
+        if(second_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF original_pose = second_state->stances_vector_[0]->ee_contact_poses_[i];
+            RPYTF transformed_pose = SE3ToXYZRPY(rand_transform * XYZRPYToSE3(original_pose));
+            second_state->stances_vector_[0]->ee_contact_poses_[i] = transformed_pose;
+        }
+    }
+
+    initial_state->com_ = (rand_transform * initial_state->com_.homogeneous()).block(0,0,3,1);
+    initial_state->com_dot_ = rand_rotation * initial_state->com_dot_;
+
+    std::cout << "=====initial state=====" << std::endl;
+    for(unsigned int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(initial_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = initial_state->stances_vector_[0]->ee_contact_poses_[i];
+            std::cout << i << ": " << transformed_pose.x_ << " " << transformed_pose.y_ << " " << transformed_pose.z_ << " " << transformed_pose.roll_ << " " << transformed_pose.pitch_ << " " << transformed_pose.yaw_ << " " << std::endl;
+        }
+    }
+
+    std::cout << "com: " << initial_state->com_.transpose() << std::endl;
+    std::cout << "com_dot: " << initial_state->com_dot_.transpose() << std::endl;
+
+    std::cout << "=====second state=====" << std::endl;
+    for(unsigned int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(second_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = second_state->stances_vector_[0]->ee_contact_poses_[i];
+            std::cout << i << ": " << transformed_pose.x_ << " " << transformed_pose.y_ << " " << transformed_pose.z_ << " " << transformed_pose.roll_ << " " << transformed_pose.pitch_ << " " << transformed_pose.yaw_ << " " << std::endl;
+        }
+    }
+
+    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+
+    float dynamics_cost = 0.0;
+    bool dynamically_feasible;
+
+    // update the state cost and CoM
+
+    std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {second_state->parent_, second_state};
+
+    dynamics_optimizer_interface->updateContactSequence(contact_state_sequence);
+
+    dynamically_feasible = dynamics_optimizer_interface->dynamicsOptimization(dynamics_cost);
+
+    if(dynamically_feasible)
+    {
+        RAVELOG_INFO("Dynamically feasible.\n");
+        // update com, com_dot, and parent edge dynamics sequence of the current_state
+        dynamics_optimizer_interface->updateStateCoM(second_state);
+        dynamics_optimizer_interface->recordEdgeDynamicsSequence(second_state);
+
+        std::cout << "com: " << second_state->com_.transpose() << std::endl;
+        std::cout << "com_dot: " << second_state->com_dot_.transpose() << std::endl;
+        std::cout << "Dynamics Cost: " << dynamics_cost << std::endl;
+    }
+    else
+    {
+        RAVELOG_ERROR("Dynamically infeasible.\n");
+    }
+
+
+
+
+    TransformationMatrix initial_state_feet_mean_transform = initial_state->getFeetMeanTransform();
+    std::shared_ptr<ContactState> mirror_initial_state = initial_state->getMirrorState(initial_state_feet_mean_transform);
+    std::shared_ptr<ContactState> mirror_second_state = second_state->getMirrorState(initial_state_feet_mean_transform);
+    mirror_second_state->parent_ = mirror_initial_state;
+
+    std::vector< std::shared_ptr<ContactState> > mirror_contact_state_sequence = {mirror_initial_state, mirror_second_state};
+
+    dynamics_optimizer_interface->updateContactSequence(mirror_contact_state_sequence);
+
+    dynamically_feasible = dynamics_optimizer_interface->dynamicsOptimization(dynamics_cost);
+
+    std::cout << "=====initial state=====" << std::endl;
+    for(unsigned int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(mirror_initial_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = mirror_initial_state->stances_vector_[0]->ee_contact_poses_[i];
+            std::cout << i << ": " << transformed_pose.x_ << " " << transformed_pose.y_ << " " << transformed_pose.z_ << " " << transformed_pose.roll_ << " " << transformed_pose.pitch_ << " " << transformed_pose.yaw_ << " " << std::endl;
+        }
+    }
+
+    std::cout << "com: " << mirror_initial_state->com_.transpose() << std::endl;
+    std::cout << "com_dot: " << mirror_initial_state->com_dot_.transpose() << std::endl;
+
+    std::cout << "=====second state=====" << std::endl;
+    for(unsigned int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        if(mirror_second_state->stances_vector_[0]->ee_contact_status_[i])
+        {
+            RPYTF transformed_pose = mirror_second_state->stances_vector_[0]->ee_contact_poses_[i];
+            std::cout << i << ": " << transformed_pose.x_ << " " << transformed_pose.y_ << " " << transformed_pose.z_ << " " << transformed_pose.roll_ << " " << transformed_pose.pitch_ << " " << transformed_pose.yaw_ << " " << std::endl;
+        }
+    }
+
+    if(dynamically_feasible)
+    {
+        RAVELOG_INFO("Dynamically feasible.\n");
+        // update com, com_dot, and parent edge dynamics sequence of the current_state
+        dynamics_optimizer_interface->updateStateCoM(mirror_second_state);
+        dynamics_optimizer_interface->recordEdgeDynamicsSequence(mirror_second_state);
+
+        std::cout << "com: " << mirror_second_state->com_.transpose() << std::endl;
+        std::cout << "com_dot: " << mirror_second_state->com_dot_.transpose() << std::endl;
+        std::cout << "Dynamics Cost: " << dynamics_cost << std::endl;
+    }
+    else
+    {
+        RAVELOG_ERROR("Dynamically infeasible.\n");
+    }
+
+
+}
+
 bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)
 {
     penv_ = GetEnv();
@@ -1609,53 +1841,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
         else if(strcmp(param.c_str(), "initial_state") == 0)
         {
-            std::vector<RPYTF> initial_ee_poses(ContactManipulator::MANIP_NUM);
-            std::array<bool,ContactManipulator::MANIP_NUM> initial_ee_contact_status;
-
-            Translation3D initial_com;
-            Vector3D initial_com_dot;
-
-            for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
-            {
-                float x, y, z, roll, pitch, yaw;
-                sinput >> x;
-                sinput >> y;
-                sinput >> z;
-                sinput >> roll;
-                sinput >> pitch;
-                sinput >> yaw;
-
-                initial_ee_poses[i] = RPYTF(x, y, z, roll, pitch, yaw);
-                std::cout << initial_ee_poses[i].x_ << " " << initial_ee_poses[i].y_ << " " << initial_ee_poses[i].z_ << " " << initial_ee_poses[i].roll_ << " " << initial_ee_poses[i].pitch_ << " " << initial_ee_poses[i].yaw_ << " " << std::endl;
-            }
-
-            for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
-            {
-                sinput >> param;
-                if(strcmp(param.c_str(), "0") == 0)
-                {
-                    initial_ee_contact_status[i] = false;
-                }
-                else
-                {
-                    initial_ee_contact_status[i] = true;
-                }
-                std::cout << initial_ee_contact_status[i] << " ";
-            }
-            std::cout << std::endl;
-
-            for(int i = 0; i < 3; i++)
-            {
-                sinput >> initial_com(i);
-            }
-
-            for(int i = 0; i < 3; i++)
-            {
-                sinput >> initial_com_dot(i);
-            }
-
-            std::shared_ptr<Stance> initial_stance = std::make_shared<Stance>(initial_ee_poses[0], initial_ee_poses[1], initial_ee_poses[2], initial_ee_poses[3], initial_ee_contact_status);
-            initial_state = std::make_shared<ContactState>(initial_stance, initial_com, initial_com_dot, 1);
+            initial_state = parseContactStateCommand(sinput);
             if(printing_)
             {
                 RAVELOG_INFO("Initial state is initialized.\n");

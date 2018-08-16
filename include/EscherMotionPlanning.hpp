@@ -18,6 +18,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         bool constructContactRegions(std::ostream& sout, std::istream& sinput);
 
+        bool startTestingTransitionDynamicsOptimization(std::ostream& sout, std::istream& sinput);
+
         bool startPlanningFromScratch(std::ostream& sout, std::istream& sinput);
 
     private:
@@ -32,6 +34,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         void parseMapGridDimCommand(std::istream& sinput);
         void parseMapGridCommand(std::istream& sinput);
         void parseRobotPropertiesCommand(std::istream& sinput);
+        std::shared_ptr<ContactState> parseContactStateCommand(std::istream& sinput);
 
         std::map<std::array<int,5>,std::array<float,3> > calculateFootstepTransitionTraversability(std::vector<std::array<int,5>> torso_transitions, std::string motion_mode);
         std::array<float,3> sumFootstepTransitionTraversability(std::array<int,4> correspondence, std::vector< std::array<std::array<int,2>,3> > footstep_window, GridIndices2D torso_indices);

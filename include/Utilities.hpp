@@ -44,12 +44,13 @@
 #include <cdd/setoper.h>
 #include <cdd/cdd.h>
 
-typedef Eigen::Matrix4f TransformationMatrix;
-typedef Eigen::Matrix3f RotationMatrix;
-typedef Eigen::Vector2f Translation2D;
-typedef Eigen::Vector3f Translation3D;
-typedef Eigen::Vector2f Vector2D;
-typedef Eigen::Vector3f Vector3D;
+typedef Eigen::Matrix4f          TransformationMatrix;
+typedef Eigen::Matrix3f          RotationMatrix;
+typedef Eigen::Vector2f          Translation2D;
+typedef Eigen::Vector3f          Translation3D;
+typedef Eigen::Vector2f          Vector2D;
+typedef Eigen::Vector3f          Vector3D;
+typedef Eigen::Quaternion<float> Quaternion;
 
 typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
@@ -129,6 +130,29 @@ enum BranchingMethod
 {
     CONTACT_PROJECTION,
     CONTACT_OPTIMIZATION
+};
+
+enum ContactTransitionCode
+{
+    FEET_ONLY_MOVE_FOOT,                // 0
+    FEET_ONLY_ADD_HAND,                 // 1
+    FEET_AND_ONE_HAND_MOVE_INNER_FOOT,  // 2
+    FEET_AND_ONE_HAND_MOVE_OUTER_FOOT,  // 3
+    FEET_AND_ONE_HAND_BREAK_HAND,       // 4
+    FEET_AND_ONE_HAND_MOVE_HAND,        // 5
+    FEET_AND_ONE_HAND_ADD_HAND,         // 6
+    FEET_AND_TWO_HANDS_MOVE_FOOT,        // 7
+    FEET_AND_TWO_HANDS_BREAK_HAND,       // 8
+    FEET_AND_TWO_HANDS_MOVE_HAND         // 9
+};
+
+struct EnumClassHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        return static_cast<std::size_t>(t);
+    }
 };
 
 const std::vector<ContactManipulator> ALL_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG, ContactManipulator::L_ARM, ContactManipulator::R_ARM};
@@ -222,6 +246,9 @@ RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T);
 RPYTF SO3ToRPY(const RotationMatrix& R);
+Quaternion RPYToQuaternion(const RPYTF& e);
+// Quaternion SO3ToQuaternion(const );
+// RotationMatrix QauternionToSO3();
 
 // Manipulate the angle differences
 float getFirstTerminalAngle(float angle);
@@ -261,7 +288,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "MapGrid.hpp"
 #include "ContactState.hpp"
 #include "OptimizationInterface.hpp"
-// #include "NeuralNetworkInterface.hpp"
+#include "NeuralNetworkInterface.hpp"
 #include "ContactSpacePlanning.hpp"
 #include "EscherMotionPlanning.hpp"
 #include "Boundary.hpp"

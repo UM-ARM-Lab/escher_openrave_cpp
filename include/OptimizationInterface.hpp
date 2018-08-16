@@ -56,7 +56,7 @@ class DummyKinematicsInterface : public virtual momentumopt::KinematicsInterface
 class OptimizationInterface
 {
     public:
-        OptimizationInterface(float _step_transition_time, std::string cfg_file);
+        OptimizationInterface(float _step_transition_time, std::string _cfg_file);
 
         // initialization functions
         // void initializeKinematicsInterface();
@@ -64,7 +64,7 @@ class OptimizationInterface
         void initializeDynamicsOptimizer();
 
         // helper functions to load parameters from files
-        void loadDynamicsOptimizerSetting(std::string cfg_file);
+        void loadDynamicsOptimizerSetting(std::string _cfg_file);
 
         // helper functions to load parameters from planner information (Input: Planner --> Optimizer)
         void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence);

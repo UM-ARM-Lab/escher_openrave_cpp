@@ -57,8 +57,8 @@ class NeuralNetworkInterface
         bool dynamicsPrediction(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
 
     private:
-        std::unordered_map<std::string, ClassificationModel> feasibility_calssification_models_map_;
-        std::unordered_map<std::string, RegressionModel> dynamics_cost_regression_models_map_;
+        std::unordered_map<ContactTransitionCode, ClassificationModel, EnumClassHash> feasibility_calssification_models_map_;
+        std::unordered_map<ContactTransitionCode, RegressionModel, EnumClassHash> dynamics_cost_regression_models_map_;
 
 
 };

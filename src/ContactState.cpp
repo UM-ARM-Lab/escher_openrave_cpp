@@ -183,3 +183,160 @@ TransformationMatrix ContactState::getFeetMeanTransform()
 
     return XYZRPYToSE3(RPYTF(feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw));
 }
+
+std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix& reference_frame)
+{
+    // mirror the left and right end-effector poses
+    TransformationMatrix inv_reference_frame =  inverseTransformationMatrix(reference_frame);
+    RotationMatrix reference_frame_rotation = reference_frame.block(0,0,3,3);
+    RotationMatrix inv_reference_frame_rotation = inv_reference_frame.block(0,0,3,3);
+
+    RotationMatrix mirror_matrix;
+    mirror_matrix << 1,  0, 0,
+                     0, -1, 0,
+                     0,  0, 1;
+
+    std::vector<ContactManipulator> mirror_manip_vec = {ContactManipulator::R_LEG, ContactManipulator::L_LEG, ContactManipulator::R_ARM, ContactManipulator::L_ARM};
+
+    std::array<RPYTF,ContactManipulator::MANIP_NUM> mirror_ee_contact_pose;
+    std::array<bool,ContactManipulator::MANIP_NUM> mirror_ee_contact_status;
+
+    // mirror the end-effector poses
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        RPYTF mirrored_contact_pose_rpy;
+
+        if(stances_vector_[0]->ee_contact_status_[int(manip)])
+        {
+            TransformationMatrix transformed_contact_pose = inv_reference_frame * XYZRPYToSE3(stances_vector_[0]->ee_contact_poses_[int(manip)]);
+            TransformationMatrix mirrored_contact_pose = transformed_contact_pose;
+            mirrored_contact_pose.block(0,0,3,3) = mirror_matrix * transformed_contact_pose.block(0,0,3,3) * mirror_matrix;
+            mirrored_contact_pose(1,3) = -transformed_contact_pose(1,3);
+            mirrored_contact_pose_rpy = SE3ToXYZRPY(reference_frame * mirrored_contact_pose);
+        }
+        else
+        {
+            mirrored_contact_pose_rpy = stances_vector_[0]->ee_contact_poses_[int(manip)];
+        }
+
+        mirror_ee_contact_pose[int(mirror_manip_vec[int(manip)])] = mirrored_contact_pose_rpy;
+        mirror_ee_contact_status[int(mirror_manip_vec[int(manip)])] = stances_vector_[0]->ee_contact_status_[int(manip)];
+    }
+
+    std::shared_ptr<Stance> mirror_stance = std::make_shared<Stance>(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3], mirror_ee_contact_status);
+
+    // mirror the com and com dot
+    Translation3D transformed_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
+    transformed_com[1] = -transformed_com[1];
+    Translation3D mirror_com = (reference_frame * transformed_com.homogeneous()).block(0,0,3,1);
+
+    Vector3D transformed_com_dot = inv_reference_frame_rotation * com_dot_;
+    transformed_com_dot[1] = -transformed_com_dot[1];
+    Vector3D mirror_com_dot = reference_frame_rotation * transformed_com_dot;
+
+    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, 1);
+    if(!is_root_)
+    {
+        mirror_state->prev_move_manip_ = mirror_manip_vec[int(prev_move_manip_)];
+    }
+
+    return mirror_state;
+}
+
+
+std::pair<ContactTransitionCode, std::vector<RPYTF> > ContactState::getTransitionCodeAndPoses()
+{
+    std::shared_ptr<ContactState> prev_state = parent_;
+    std::shared_ptr<Stance> current_stance = stances_vector_[0];
+    std::shared_ptr<Stance> prev_stance = prev_state->stances_vector_[0];
+
+    ContactTransitionCode contact_transition_code;
+
+    std::vector<RPYTF> contact_manip_pose_vec = {prev_stance->left_foot_pose_, prev_stance->right_foot_pose_};
+
+    if(!prev_stance->ee_contact_status_[ContactManipulator::L_ARM] && !prev_stance->ee_contact_status_[ContactManipulator::R_ARM])
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            contact_transition_code = ContactTransitionCode::FEET_ONLY_MOVE_FOOT;
+            contact_manip_pose_vec.push_back(current_stance->left_foot_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            contact_transition_code = ContactTransitionCode::FEET_ONLY_ADD_HAND;
+            contact_manip_pose_vec.push_back(current_stance->left_hand_pose_);
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown Contact Transition.\n");
+            getchar();
+        }
+    }
+    else if(prev_stance->ee_contact_status_[ContactManipulator::L_ARM] && prev_stance->ee_contact_status_[ContactManipulator::R_ARM])
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_TWO_HANDS_MOVE_FOOT;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+            contact_manip_pose_vec.push_back(prev_stance->right_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_foot_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM && !current_stance->ee_contact_status_[ContactManipulator::L_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+            contact_manip_pose_vec.push_back(prev_stance->right_hand_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM && current_stance->ee_contact_status_[ContactManipulator::L_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_TWO_HANDS_MOVE_HAND;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+            contact_manip_pose_vec.push_back(prev_stance->right_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_hand_pose_);
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown Contact Transition.\n");
+            getchar();
+        }
+    }
+    else
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG && current_stance->ee_contact_status_[ContactManipulator::L_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_INNER_FOOT;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_foot_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_LEG && current_stance->ee_contact_status_[ContactManipulator::R_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_OUTER_FOOT;
+            contact_manip_pose_vec.push_back(prev_stance->right_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_foot_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM && !current_stance->ee_contact_status_[ContactManipulator::L_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM && current_stance->ee_contact_status_[ContactManipulator::L_ARM] && !current_stance->ee_contact_status_[ContactManipulator::R_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_HAND;
+            contact_manip_pose_vec.push_back(prev_stance->left_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_hand_pose_);
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM && current_stance->ee_contact_status_[ContactManipulator::L_ARM] && current_stance->ee_contact_status_[ContactManipulator::R_ARM])
+        {
+            contact_transition_code = ContactTransitionCode::FEET_AND_ONE_HAND_ADD_HAND;
+            contact_manip_pose_vec.push_back(prev_stance->right_hand_pose_);
+            contact_manip_pose_vec.push_back(current_stance->left_hand_pose_);
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown Contact Transition.\n");
+            getchar();
+        }
+    }
+
+    return std::make_pair(contact_transition_code, contact_manip_pose_vec);
+}

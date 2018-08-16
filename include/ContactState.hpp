@@ -79,6 +79,9 @@ class ContactState
         // inline std::shared_ptr<ContactState> getParent() {return parent_;}
         inline const float getF() const {return (g_ + h_);}
 
+        std::shared_ptr<ContactState> getMirrorState(TransformationMatrix& reference_frame);
+        std::pair<ContactTransitionCode, std::vector<RPYTF> > getTransitionCodeAndPoses();
+
     private:
 
 };

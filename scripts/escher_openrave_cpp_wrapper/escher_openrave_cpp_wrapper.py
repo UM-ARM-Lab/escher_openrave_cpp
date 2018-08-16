@@ -347,6 +347,51 @@ class escher_openrave_cpp_wrapper(object):
 
         return (contact_points_values,contact_regions_values)
 
+    def SendStartTestingDynamicsOptimization(self,initial_state, initial_state_com, initial_state_com_dot, second_state):
+
+        cmd = ['StartTestingTransitionDynamicsOptimization']
+
+        if initial_state is not None:
+            cmd.append('initial_state')
+
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
+                for v in pose:
+                    cmd.append(v)
+
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
+
+                if pose[0] == -99.0:
+                    cmd.append(0)
+                else:
+                    cmd.append(1)
+
+            cmd.extend(initial_state_com)
+            cmd.extend(initial_state_com_dot)
+
+        if second_state is not None:
+            cmd.append('second_state')
+
+            for i in range(4):
+                pose = second_state.get_manip_pose(i)
+                for v in pose:
+                    cmd.append(v)
+
+            for i in range(4):
+                pose = second_state.get_manip_pose(i)
+
+                if pose[0] == -99.0:
+                    cmd.append(0)
+                else:
+                    cmd.append(1)
+
+            cmd.extend([0,0,0])
+            cmd.extend([0,0,0])
+
+        cmd_str = " ".join(str(item) for item in cmd)
+
+        result_str = self.module.SendCommand(cmd_str)
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',dh_grid=None,output_first_solution=False,
