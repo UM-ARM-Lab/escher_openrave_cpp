@@ -394,8 +394,10 @@ class escher_openrave_cpp_wrapper(object):
         result_str = self.module.SendCommand(cmd_str)
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
-                                     structures=None,goal_radius=None,time_limit=None,planning_heuristics='euclidean',dh_grid=None,output_first_solution=False,
-                                     goal_as_exact_poses=False,thread_num=None,branching_method=None,planning_id=None,use_dynamics_planning=None,printing=None):
+                                     structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',dh_grid=None,
+                                     output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
+                                     use_learned_dynamics_model=False,enforce_stop_in_the_end=False,
+                                     thread_num=None,branching_method=None,planning_id=None,printing=None):
 
         start = time.time()
 
@@ -468,12 +470,13 @@ class escher_openrave_cpp_wrapper(object):
             self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
 
         if dh_grid is not None:
-            self.AppendMapGridDimCommand(cmd, dh_grid);
+            self.AppendMapGridDimCommand(cmd, dh_grid)
 
-        if (goal_radius is not None) and (time_limit is not None):
+        if (goal_radius is not None) and (time_limit is not None) and (epsilon is not None):
             cmd.append('planning_parameters')
             cmd.append(goal_radius)
             cmd.append(time_limit)
+            cmd.append(epsilon)
 
             if planning_heuristics == 'euclidean' or planning_heuristics == 'dijkstra':
                 cmd.append(planning_heuristics)
@@ -495,8 +498,18 @@ class escher_openrave_cpp_wrapper(object):
                 cmd.append(1)
             else:
                 cmd.append(0)
+
+            if use_learned_dynamics_model:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if enforce_stop_in_the_end:
+                cmd.append(1)
+            else:
+                cmd.append(0)
         else:
-            print('goal radius and time limit are required for planning. Abort.')
+            print('goal radius, time limit, and epsilon are required for planning. Abort.')
             return
 
         if thread_num is not None:
@@ -526,5 +539,5 @@ class escher_openrave_cpp_wrapper(object):
         after_parsing_output = time.time()
 
         print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
-        print('Contact Region and Point Calculation Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
+        print('Planning Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
         print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))

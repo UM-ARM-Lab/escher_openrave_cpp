@@ -11,7 +11,7 @@ class ClassificationModel
         input_std_(_input_std),
         input_dim_(_input_mean.size()),
         model_(_model) {};
-        int predict(Eigen::VectorXd input);
+        float predict(Eigen::VectorXd input);
 
     private:
         const int input_dim_;
@@ -50,10 +50,10 @@ class RegressionModel
 class NeuralNetworkInterface
 {
     public:
-        NeuralNetworkInterface(std::string model_file_path);
+        NeuralNetworkInterface(std::string regression_model_file_path, std::string classification_model_file_path);
 
-        bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
-        std::tuple<float, Translation3D, Vector3D> predictDynamicsCost(std::shared_ptr<ContactState> branching_state);
+        // bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
+        std::tuple<bool, float, Translation3D, Vector3D> predictDynamicsCost(std::shared_ptr<ContactState> branching_state);
         bool dynamicsPrediction(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
 
     private:

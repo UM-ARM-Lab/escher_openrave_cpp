@@ -22,7 +22,9 @@ class ContactSpacePlanning
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,
                                                                      BranchingMethod branching_method,
-                                                                     float time_limit, bool output_first_solution, bool goal_as_exact_poses);
+                                                                     float time_limit, float epsilon,
+                                                                     bool output_first_solution, bool goal_as_exact_poses,
+                                                                     bool use_learned_dynamics_model, bool enforce_stop_in_the_end);
 
     private:
         // std::set< std::shared_ptr<ContactState>, ContactState::pointer_less > openHeap;
@@ -43,6 +45,8 @@ class ContactSpacePlanning
         // planner options
         bool use_dynamics_planning_;
         bool goal_as_exact_poses_;
+        bool use_learned_dynamics_model_;
+        bool enforce_stop_in_the_end_;
         PlanningHeuristicsType heuristics_type_;
         int num_stance_in_state_;
 
@@ -56,7 +60,7 @@ class ContactSpacePlanning
         // const float dynamics_cost_weight_ = 1.0; // simplified
 
         // random parameters
-        const float epsilon_ = 0.3;
+        float epsilon_;
 
         // thread number for OpenMP
         const int thread_num_;
@@ -107,10 +111,11 @@ class ContactSpacePlanning
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);
 
         float fillDynamicsSequence(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+        float fillDynamicsSequenceSegmentBySegment(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+        void verifyContactSequenceDynamicsFeasibilityPrediction(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+
         void kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path);
         void kinematicsVerification_StateOnly(std::vector< std::shared_ptr<ContactState> > contact_state_path);
-
-        void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost);
 };
 
 #endif

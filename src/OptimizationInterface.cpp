@@ -24,11 +24,7 @@ void ContactPlanFromContactSequence::addContact(int eff_id, RPYTF& eff_pose, boo
                                                                                                                  Eigen::AngleAxisf(eff_pose.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
                                                                                                                  Eigen::AngleAxisf(eff_pose.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
 
-    if (eff_id == 0)      { this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactId() = 2*cnt_id;   }
-    else if (eff_id == 1) { this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactId() = 2*cnt_id+1; }
-    else if (eff_id == 2) { this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactId() = 2*cnt_id;   }
-    else if (eff_id == 3) { this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactId() = 2*cnt_id+1; }
-
+    this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactId() = this->contacts_per_endeff_.sum();
     this->contactSequence().numContacts()++;
     this->contacts_per_endeff_[eff_id]++;
 }
@@ -95,12 +91,12 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             this->timer_ += 0.4;
 
             ContactManipulator moving_manip = contact_state->prev_move_manip_;
+            eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
 
             if(stance->ee_contact_status_[moving_manip]) // if the robot makes new contact, add it
             {
                 this->timer_ += this->step_transition_time_;
 
-                eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
                 eff_pose = transformPoseFromOpenraveToSL(stance->ee_contact_poses_[moving_manip], ee_offset_transform_to_dynopt[moving_manip]);
 
                 bool prev_in_contact = this->contacts_per_endeff_[eff_id] != 0 && contact_state->parent_->stances_vector_[0]->ee_contact_status_[moving_manip];
@@ -113,17 +109,42 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 if(prev_stance->ee_contact_status_[moving_manip])
                 {
                     prev_eff_pose = transformPoseFromOpenraveToSL(prev_stance->ee_contact_poses_[moving_manip], ee_offset_transform_to_dynopt[moving_manip]);
-                    this->addViapoint(eff_id, prev_eff_pose, eff_pose);
+                    // this->addViapoint(eff_id, prev_eff_pose, eff_pose);
                 }
             }
             else // the robot is breaking contact
             {
-                cnt_id = this->contacts_per_endeff_[eff_id];
-                this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_;
+                cnt_id = this->contacts_per_endeff_[eff_id] - 1;
+                this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() = this->timer_;
                 this->timer_ += this->step_transition_time_;
                 eff_final_in_contact[eff_id] = false;
             }
+
+            // std::cout << "$$$$$$$$$$$$$" << std::endl;
+            // for(auto & manip : ALL_MANIPULATORS)
+            // {
+            //     std::cout << contact_state->parent_->stances_vector_[0]->ee_contact_status_[manip] << " ";
+            // }
+            // std::cout << std::endl;
+            // std::cout << "prev_move_manip: " << moving_manip << std::endl;
+            // for(auto & manip : ALL_MANIPULATORS)
+            // {
+            //     std::cout << stance->ee_contact_status_[manip] << " ";
+            // }
+            // std::cout << std::endl;
         }
+
+        // std::cout << "+++++++++++++++" << std::endl;
+        // for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+        // {
+        //     for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
+        //     {
+        //         std::cout << "eff_id: " << eff_id << ", cnt_id: " << cnt_id << "(" << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime()
+        //         << "," << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ")" << std::endl;
+        //     }
+        // }
+        // std::cout << "==============" << std::endl;
+        // getchar();
 
         state_counter++;
     }
@@ -228,7 +249,7 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         state_counter++;
     }
 
-    total_time += 0.2;
+    total_time += time_step;
 
     // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
@@ -274,6 +295,7 @@ void OptimizationInterface::fillInitialRobotState()
     // Contact poses, and forces
     int eff_id;
     RPYTF eff_pose;
+    int num_initial_contact = 0;
     for(auto & manip : ALL_MANIPULATORS)
     {
         eff_id = contact_manipulator_id_map_.find(manip)->second;
@@ -281,18 +303,29 @@ void OptimizationInterface::fillInitialRobotState()
 
         if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
         {
-            initial_state_.endeffectorActivation(eff_id) = 1;
+            initial_state_.endeffectorActivation(eff_id) = true;
             initial_state_.endeffectorPosition(eff_id) = Eigen::Vector3d(eff_pose.x_, eff_pose.y_, eff_pose.z_);
             initial_state_.endeffectorOrientation(eff_id) = Eigen::Quaternion<double>(Eigen::AngleAxisf(eff_pose.roll_ * DEG2RAD, Eigen::Vector3f::UnitX()) *
                                                                                       Eigen::AngleAxisf(eff_pose.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
                                                                                       Eigen::AngleAxisf(eff_pose.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
-            initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 0.5);
+            // initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 0.5);
+            num_initial_contact++;
         }
         else
         {
-            initial_state_.endeffectorActivation(eff_id) = 0;
+            initial_state_.endeffectorActivation(eff_id) = false;
             // if it is okay to not specifying poses of the end-effectors not in contact
             initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 0);
+        }
+    }
+
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        eff_id = contact_manipulator_id_map_.find(manip)->second;
+
+        if(stance->ee_contact_status_[manip]) // add the contact if it is in contact
+        {
+            initial_state_.endeffectorForce(eff_id) = Eigen::Vector3d(0, 0, 1.0/float(num_initial_contact));
         }
     }
 
@@ -576,4 +609,144 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
     file_stream << std::endl;
 
     // getchar();
+}
+
+void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id)
+{
+    // mirror the data if the robot is using the right side of the manipulators
+    std::shared_ptr<ContactState> current_state = std::make_shared<ContactState>(*input_current_state);
+    std::shared_ptr<ContactState> prev_state = std::make_shared<ContactState>(*input_current_state->parent_);
+
+    if(current_state->prev_move_manip_ == ContactManipulator::R_LEG || current_state->prev_move_manip_ == ContactManipulator::R_ARM)
+    {
+        TransformationMatrix reference_frame = prev_state->getFeetMeanTransform();
+        current_state = current_state->getMirrorState(reference_frame);
+        prev_state = prev_state->getMirrorState(reference_frame);
+    }
+
+    current_state->parent_ = prev_state;
+    std::shared_ptr<Stance> prev_stance = prev_state->stances_vector_[0];
+    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
+
+    TransformationMatrix inv_prev_mean_feet_transform = inverseTransformationMatrix(prev_state->getFeetMeanTransform());
+    RotationMatrix inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
+
+    if(current_state->prev_move_manip_ != ContactManipulator::L_LEG && current_state->prev_move_manip_ != ContactManipulator::L_ARM)
+    {
+        RAVELOG_ERROR("Recording a motion which moves right hand side of the robot. This should not happen.\n");
+        getchar();
+    }
+
+    auto transition_code_poses_pair = current_state->getTransitionCodeAndPoses();
+    ContactTransitionCode contact_transition_code = transition_code_poses_pair.first;
+    std::vector<RPYTF> contact_manip_pose_vec = transition_code_poses_pair.second;
+
+    std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_manip_pose_vec.size());
+    float angle_duplication_range = 90;
+
+
+    for(unsigned int i = 0; i < contact_manip_pose_vec.size(); i++)
+    {
+        RPYTF transformed_pose = SE3ToXYZRPY(inv_prev_mean_feet_transform * XYZRPYToSE3(contact_manip_pose_vec[i]));
+        std::array<std::vector<float>,3> possible_rpy;
+
+        for(int j = 3; j < 6; j++)
+        {
+            possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]);
+            if(transformed_pose.getXYZRPY()[j] > 180-angle_duplication_range/2.0)
+            {
+                possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]-360);
+            }
+            else if(transformed_pose.getXYZRPY()[j] < -180+angle_duplication_range/2.0)
+            {
+                possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]+360);
+            }
+        }
+
+        for(auto & roll : possible_rpy[0])
+        {
+            for(auto & pitch : possible_rpy[1])
+            {
+                for(auto & yaw : possible_rpy[2])
+                {
+                    possible_contact_pose_representation[i].push_back(RPYTF(transformed_pose.x_, transformed_pose.y_, transformed_pose.z_, roll, pitch, yaw));
+                }
+            }
+        }
+    }
+
+    std::vector< std::vector<RPYTF> > all_contact_pose_combinations;
+    std::vector<RPYTF> contact_pose_combination_placeholder(possible_contact_pose_representation.size());
+    getAllContactPoseCombinations(all_contact_pose_combinations, possible_contact_pose_representation, 0, contact_pose_combination_placeholder);
+
+    if(dynamically_feasible)
+    {
+        std::ofstream dynopt_result_fstream("dynopt_result/dynopt_result_" + std::to_string(planning_id) + ".txt", std::ofstream::app);
+
+        Translation3D transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
+        Vector3D transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+
+        Translation3D transformed_current_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
+        Vector3D transformed_current_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
+
+        for(auto & contact_pose_combination : all_contact_pose_combinations)
+        {
+            // contact state code
+            dynopt_result_fstream << int(contact_transition_code) << " ";
+
+            // get the contact poses
+            for(auto & transformed_pose : contact_pose_combination)
+            {
+                dynopt_result_fstream << transformed_pose.x_ << " "
+                                        << transformed_pose.y_ << " "
+                                        << transformed_pose.z_ << " "
+                                        << transformed_pose.roll_ * DEG2RAD << " "
+                                        << transformed_pose.pitch_ * DEG2RAD << " "
+                                        << transformed_pose.yaw_ * DEG2RAD << " ";
+            }
+
+            dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
+            dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+
+            dynopt_result_fstream << transformed_current_com[0] << " " << transformed_current_com[1] << " " << transformed_current_com[2] << " ";
+            dynopt_result_fstream << transformed_current_com_dot[0] << " " << transformed_current_com_dot[1] << " " << transformed_current_com_dot[2] << " ";
+
+            dynopt_result_fstream << dynamics_cost;
+
+            dynopt_result_fstream << std::endl;
+        }
+
+        dynopt_result_fstream.close();
+    }
+    else
+    {
+        std::ofstream dynopt_result_fstream("dynopt_result/dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt", std::ofstream::app);
+
+        Translation3D transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
+        Vector3D transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+
+        for(auto & contact_pose_combination : all_contact_pose_combinations)
+        {
+            // contact state code
+            dynopt_result_fstream << int(contact_transition_code) << " ";
+
+            // get the contact poses
+            for(auto & transformed_pose : contact_pose_combination)
+            {
+                dynopt_result_fstream << transformed_pose.x_ << " "
+                                        << transformed_pose.y_ << " "
+                                        << transformed_pose.z_ << " "
+                                        << transformed_pose.roll_ * DEG2RAD << " "
+                                        << transformed_pose.pitch_ * DEG2RAD << " "
+                                        << transformed_pose.yaw_ * DEG2RAD << " ";
+            }
+
+            dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
+            dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+
+            dynopt_result_fstream << std::endl;
+        }
+
+        dynopt_result_fstream.close();
+    }
 }

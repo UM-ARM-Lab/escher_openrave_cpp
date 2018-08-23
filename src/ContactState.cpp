@@ -48,7 +48,6 @@ bool Stance::operator!=(const Stance& other) const
 // Constructor for the initial state
 ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state):
                            is_root_(true),
-                           nominal_com_(_initial_com),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
                            num_stance_in_state_(_num_stance_in_state),
@@ -60,6 +59,11 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
 {
     this->stances_vector_.resize(num_stance_in_state_);
     this->stances_vector_[0] = _initial_stance;
+
+    // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
+    this->nominal_com_(0) = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
+    this->nominal_com_(1) = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
+    this->nominal_com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + 1.0;
 
     mean_feet_position_[0] = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
     mean_feet_position_[1] = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
@@ -82,7 +86,7 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
 }
 
 // Constructor for other states
-ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float robot_com_z):
+ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float _robot_com_z):
                            parent_(_parent),
                            prev_move_manip_(_move_manip),
                            is_root_(false),
@@ -99,7 +103,7 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
     this->com_(0) = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
     this->com_(1) = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    this->com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + robot_com_z;
+    this->com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + _robot_com_z;
     this->com_dot_ = Vector3D(0, 0, 0);
 
     this->nominal_com_ = this->com_;
