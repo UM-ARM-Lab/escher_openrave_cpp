@@ -39,6 +39,9 @@
 #include <newmat/newmatap.h>
 #include <newmat/newmatio.h>
 
+// frugally deep
+#include <fdeep/fdeep.hpp>
+
 // cddlib
 #define GMPRATIONAL 1
 #include <cdd/setoper.h>

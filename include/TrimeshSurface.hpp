@@ -31,6 +31,8 @@ public:
 	inline TransformationMatrix getInverseTransform() const {return inverse_transformation_matrix_;}
 	inline TrimeshType getType() const {return type_;}
 	inline float getCircumRadius() const {return circum_radius_;}
+	inline std::vector<Translation3D> getVertices() const {return vertices_;}
+	inline std::vector<Translation2D> getProjVertices() const {return proj_vertices_;}
 
 	// returns 2D point projected in plane frame. This assumes the "ray" is the surface normal.
 	Translation2D projectionPlaneFrame(const Translation3D& start_point) const;

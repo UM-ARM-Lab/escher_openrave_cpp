@@ -1741,12 +1741,12 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
         // std::cout << "com_dot: " << second_state->com_dot_.transpose() << std::endl;
         // std::cout << "Dynamics Cost: " << dynamics_cost << std::endl;
 
-        dynamics_optimizer_interface->storeDynamicsOptimizationResult(second_state, dynamics_cost, dynamically_feasible, 10000);
+        dynamics_optimizer_interface->storeDynamicsOptimizationResult(second_state, dynamics_cost, dynamically_feasible, 10005);
     }
     else
     {
         // RAVELOG_ERROR("Dynamically infeasible.\n");
-        dynamics_optimizer_interface->storeDynamicsOptimizationResult(second_state, dynamics_cost, dynamically_feasible, 10000);
+        dynamics_optimizer_interface->storeDynamicsOptimizationResult(second_state, dynamics_cost, dynamically_feasible, 10005);
     }
 
     // TransformationMatrix initial_state_feet_mean_transform = initial_state->getFeetMeanTransform();
@@ -2033,6 +2033,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                                                general_ik_interface_, 1, thread_num, drawing_handler_, planning_id, use_dynamics_planning);
 
     RAVELOG_INFO("Start ANA* Planning \n");
+
+    contact_space_planner.storeSLEnvironment();
 
     std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
                                                                                                             branching_method, time_limit, epsilon, output_first_solution,

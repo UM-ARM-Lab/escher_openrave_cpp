@@ -1,7 +1,7 @@
 #ifndef NEURALNETWORKINTERFACE_HPP
 #define NEURALNETWORKINTERFACE_HPP
 
-#include <fdeep/fdeep.hpp>
+// #define FDEEP_FLOAT_TYPE double
 
 class ClassificationModel
 {

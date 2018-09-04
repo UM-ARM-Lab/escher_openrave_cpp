@@ -139,13 +139,36 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
 void DrawingHandler::DrawLocation(OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform, OpenRAVE::RaveVector<float> color) // Draw a point at the location(DrawLocation)
 {
     float trans_x_float = (float)transform.trans[0];
-    graphptrs.push_back(penv->plot3(&(trans_x_float), 1, 0, 15, color));
+    graphptrs.push_back(penv->plot3(&(trans_x_float), 1, 0, 0.02, color, 1));
 }
 
-void DrawingHandler::DrawLocation(OpenRAVE::RaveVector<OpenRAVE::dReal> location, OpenRAVE::RaveVector<float> color) // Draw a point at the location(DrawLocation)
+void DrawingHandler::DrawLocation(OpenRAVE::RaveVector<float> location, OpenRAVE::RaveVector<float> color) // Draw a point at the location(DrawLocation)
 {
-    float trans_x_float = (float)location[0];
-    graphptrs.push_back(penv->plot3(&(trans_x_float), 1, 0, 15, color));
+    graphptrs.push_back(penv->plot3(&(location.x), 1, 0, 0.02, color, 1));
+}
+
+void DrawingHandler::DrawLocation(Translation3D location, Vector3D color) // Draw a point at the location(DrawLocation)
+{
+    OpenRAVE::RaveVector<float> location_ravevector(location[0], location[1], location[2]);
+    OpenRAVE::RaveVector<float> color_ravevector(color[0], color[1], color[2], 1);
+    DrawLocation(location_ravevector, color_ravevector);
+}
+
+void DrawingHandler::DrawArrow(OpenRAVE::RaveVector<OpenRAVE::dReal> location, OpenRAVE::RaveVector<OpenRAVE::dReal> arrow, OpenRAVE::RaveVector<float> color) // Draw an arrow at the location(DrawArrow)
+{
+    graphptrs.push_back(penv->drawarrow(location, location+arrow, 0.005, color));
+}
+
+void DrawingHandler::DrawArrow(Translation3D location, Vector3D arrow, Vector3D color) // Draw an arrow at the location(DrawArrow)
+{
+    OpenRAVE::RaveVector<OpenRAVE::dReal> location_ravevector(location[0], location[1], location[2]);
+    OpenRAVE::RaveVector<OpenRAVE::dReal> arrow_ravevector(arrow[0], arrow[1], arrow[2]);
+    OpenRAVE::RaveVector<float> color_ravevector(color[0], color[1], color[2], 1);
+
+    if(arrow[0] != 0 || arrow[1] != 0 || arrow[2] != 0)
+    {
+        graphptrs.push_back(penv->drawarrow(location_ravevector, location_ravevector+arrow_ravevector, 0.005, color_ravevector));
+    }
 }
 
 void DrawingHandler::DrawTransform(OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform) // Draw the transform in 3 axes(DrawOrientation)

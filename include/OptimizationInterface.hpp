@@ -88,6 +88,8 @@ class OptimizationInterface
 
         void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id);
 
+        void drawCoMTrajectory(std::shared_ptr<DrawingHandler> drawing_handler, Vector3D color);
+
     private:
         ContactPlanFromContactSequence          contact_sequence_interpreter_;
         DummyKinematicsInterface                dummy_kinematics_interface_;

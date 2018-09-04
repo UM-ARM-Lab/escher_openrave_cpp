@@ -29,7 +29,11 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
 
+    // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
     auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+    // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
+    // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
+
 
     // fdeep::float_vec output_vec = *result[0].as_vector();
 
@@ -66,8 +70,9 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string regression_model_file
     for(auto & contact_status_code : state_transition_contact_status_code_vec)
     {
         // load the regression neural network
-        std::string regression_model_parameter_string = "_0.0001_256_0.0";
+        std::string regression_model_parameter_string = "_0.0005_256_0.0";
         std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json"));
 
         // load the input/output mean and std of the regression model
         std::ifstream f_input_mean_std, f_output_mean_std;
@@ -223,15 +228,15 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // decide wheather the transition is dynamically feasible
     bool dynamics_feasibility;
 
-    if(contact_transition_code != ContactTransitionCode::FEET_ONLY_MOVE_FOOT)
-    {
+    // if(contact_transition_code != ContactTransitionCode::FEET_ONLY_MOVE_FOOT)
+    // {
         float dynamics_feasibility_prediction = feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
         dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
-    }
-    else
-    {
-        dynamics_feasibility = true;
-    }
+    // }
+    // else
+    // {
+        // dynamics_feasibility = true;
+    // }
 
     if(dynamics_feasibility)
     {

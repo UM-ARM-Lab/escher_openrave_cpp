@@ -88,7 +88,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         }
         else
         {
-            this->timer_ += 0.4;
+            this->timer_ += 0.6;
 
             ContactManipulator moving_manip = contact_state->prev_move_manip_;
             eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
@@ -119,6 +119,8 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 this->timer_ += this->step_transition_time_;
                 eff_final_in_contact[eff_id] = false;
             }
+
+            this->timer_ += 0.4;
 
             // std::cout << "$$$$$$$$$$$$$" << std::endl;
             // for(auto & manip : ALL_MANIPULATORS)
@@ -163,6 +165,20 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         //     << "," << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ")" << std::endl;
         // }
     }
+
+    // std::vector<std::string> eff_name = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    // std::ofstream eff_cnt_fstream("eff_cnt_list.txt", std::ofstream::out);
+    // for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    // {
+    //     eff_cnt_fstream << eff_name[eff_id] << ":" << std::endl;
+    //     for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
+    //     {
+    //         eff_cnt_fstream << "cnt" << cnt_id << ":" << "["
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime()
+    //                         << "]" << std::endl;
+    //     }
+    // }
 }
 
 
@@ -240,16 +256,18 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         }
         else
         {
-            total_time += 0.4;
+            total_time += (time_step*3);
 
             total_time += this->step_transition_time_;
             active_eff_set.insert(int(contact_state->prev_move_manip_));
+
+            total_time += (time_step*2);
         }
 
         state_counter++;
     }
 
-    total_time += time_step;
+    // total_time += time_step;
 
     // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
@@ -748,5 +766,32 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
         }
 
         dynopt_result_fstream.close();
+    }
+}
+
+void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> drawing_handler, Vector3D color)
+{
+    dynamics_optimizer_.dynamicsSequence();
+
+    int final_time_id = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
+    double robot_mass = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_RobotMass);
+
+    Translation3D prev_com, com;
+    Vector3D prev_com_dot, com_dot;
+
+    for(int time_id = 0; time_id <= final_time_id; time_id++)
+    {
+        com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).centerOfMass());
+        com_dot = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum()) / robot_mass;
+        drawing_handler->DrawLocation(com, color);
+        drawing_handler->DrawArrow(com, com_dot, color);
+
+        if(time_id != 0)
+        {
+            // drawing_handler->DrawLineSegment(prev_com, com, {color[0],color[1],color[2],1});
+        }
+
+        prev_com = com;
+        prev_com_dot = com_dot;
     }
 }
