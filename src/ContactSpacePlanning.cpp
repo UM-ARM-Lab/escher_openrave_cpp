@@ -212,12 +212,12 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                     // plotting the contact sequence so far
                     // RAVELOG_INFO("Plot the contact sequence.\n");
-                    drawing_handler_->ClearHandler();
-                    drawing_handler_->DrawContactPath(current_state);
+                    // drawing_handler_->ClearHandler();
+                    // drawing_handler_->DrawContactPath(current_state);
                     if(drawing_counter == 10)
                     {
-                        // drawing_handler_->ClearHandler();
-                        // drawing_handler_->DrawContactPath(current_state);
+                        drawing_handler_->ClearHandler();
+                        drawing_handler_->DrawContactPath(current_state);
                         drawing_counter = 0;
                     }
 

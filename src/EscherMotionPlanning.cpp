@@ -2037,7 +2037,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     contact_space_planner.storeSLEnvironment();
 
-    getchar();
+    // getchar();
 
     std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
                                                                                                             branching_method, time_limit, epsilon, output_first_solution,
