@@ -66,6 +66,8 @@ dim_theta_(360/TORSO_GRID_ANGULAR_RESOLUTION)
         cell_3D_list_.push_back(tmp_cell_3D_list_2);
     }
 
+    // std::cout << "dim: " << dim_x_ << " " << dim_y_ << " " << dim_theta_ << std::endl;
+
 }
 
 GridIndices2D MapGrid::positionsToIndicesXY(GridPositions2D xy_position)
@@ -167,8 +169,15 @@ void MapGrid::obstacleAndGapMapping(std::vector< std::shared_ptr<TrimeshSurface>
                 {
                     cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::GAP;
                 }
+                // std::cout << "0 ";
+            }
+            else
+            {
+                // std::cout << "1 ";
             }
         }
+
+        // std::cout << std::endl;
     }
 }
 
@@ -199,7 +208,8 @@ void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
                         if(insideGrid(new_cell_indices))
                         {
                             MapCell3D* cell_ptr = &cell_3D_list_[new_cell_indices[0]][new_cell_indices[1]][new_cell_indices[2]];
-                            if(cell_ptr->terrain_type_ == TerrainType::SOLID)
+                            // if(cell_ptr->terrain_type_ == TerrainType::SOLID)
+                            if(true)
                             {
                                 float edge_cost = std::sqrt(ix*ix*1.0 + iy*iy*1.0) * xy_resolution_;
                                 if(current_cell->getF() + edge_cost < cell_ptr->getF())

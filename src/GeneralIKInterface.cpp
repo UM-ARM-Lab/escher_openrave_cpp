@@ -118,16 +118,19 @@ std::pair<bool, std::vector<OpenRAVE::dReal> > GeneralIKInterface::solve()
     std::vector<OpenRAVE::dReal> q_final(robot_->GetActiveDOF());
     boost::shared_ptr<std::vector<OpenRAVE::dReal> > q_final_ptr(new std::vector<OpenRAVE::dReal> );
 
+    // auto time_before_ik = std::chrono::high_resolution_clock::now();
+
     bool found_solution = iksolver_->Solve(OpenRAVE::IkParameterization(), q0_, ik_parameters, false, q_final_ptr);
+
+    // auto time_after_ik = std::chrono::high_resolution_clock::now();
+
+    // float timetaken = std::chrono::duration_cast<std::chrono::microseconds>(time_after_ik - time_before_ik).count()/1000.0;
 
     if(found_solution)
     {
         q_final = *q_final_ptr.get();
-        // int timetaken = timeGetTime() - starttime;
-        // if(bGetTime)
-        //     sout << timetaken << " ";
 
-        // RAVELOG_INFO("Solution Found! (%d ms)\n",timetaken);
+        // RAVELOG_INFO("Solution Found! (%5.1f ms)\n",timetaken);
         if(execute_motion_)
         {
             robot_->SetActiveDOFValues(q_final);
@@ -135,14 +138,12 @@ std::pair<bool, std::vector<OpenRAVE::dReal> > GeneralIKInterface::solve()
     }
     else
     {
-        // int timetaken = timeGetTime() - starttime;
         if(return_closest_)
         {
             q_final = *q_final_ptr.get();
         }
-        // if(bGetTime)
-        //     sout << timetaken << " ";
-        // RAVELOG_INFO("No IK Solution Found (%d ms)\n",timetaken);
+
+        // RAVELOG_INFO("No IK Solution Found (%5.1f ms)\n",timetaken);
     }
 
     reuse_giwc_ = true;

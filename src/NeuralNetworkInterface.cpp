@@ -228,15 +228,16 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // decide wheather the transition is dynamically feasible
     bool dynamics_feasibility;
 
-    // if(contact_transition_code != ContactTransitionCode::FEET_ONLY_MOVE_FOOT)
+
+    float dynamics_feasibility_prediction = feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+    dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
+
+    // if(contact_transition_code == ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND || contact_transition_code == ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND)
     // {
-        float dynamics_feasibility_prediction = feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
-        dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
+    //     dynamics_feasibility = true;
     // }
-    // else
-    // {
-        // dynamics_feasibility = true;
-    // }
+
+    dynamics_feasibility = true;
 
     if(dynamics_feasibility)
     {

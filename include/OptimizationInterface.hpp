@@ -90,6 +90,18 @@ class OptimizationInterface
 
         void drawCoMTrajectory(std::shared_ptr<DrawingHandler> drawing_handler, Vector3D color);
 
+        void recordDynamicsMetrics();
+
+        // dynamics metrics
+        double mean_min_force_dist_to_boundary_, mean_min_cop_dist_to_boundary_, mean_max_force_angle_, mean_max_lateral_force_, \
+               mean_mean_cop_dist_to_boundary_, mean_mean_force_dist_to_boundary_, mean_mean_force_angle_, mean_mean_lateral_force_, \
+               mean_force_rms_, mean_max_torque_, mean_mean_torque_, \
+               mean_lmom_x_, mean_lmom_y_, mean_lmom_z_, mean_lmom_norm_, \
+               mean_amom_x_, mean_amom_y_, mean_amom_z_, mean_amom_norm_, \
+               mean_lmom_rate_x_, mean_lmom_rate_y_, mean_lmom_rate_z_, mean_lmom_rate_norm_, \
+               mean_amom_rate_x_, mean_amom_rate_y_, mean_amom_rate_z_, mean_amom_rate_norm_;
+
+
     private:
         ContactPlanFromContactSequence          contact_sequence_interpreter_;
         DummyKinematicsInterface                dummy_kinematics_interface_;

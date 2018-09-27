@@ -2025,6 +2025,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     map_grid_->obstacleAndGapMapping(structures_);
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
+    // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
     map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
@@ -2035,6 +2036,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     RAVELOG_INFO("Start ANA* Planning \n");
 
     contact_space_planner.storeSLEnvironment();
+
+    getchar();
 
     std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
                                                                                                             branching_method, time_limit, epsilon, output_first_solution,

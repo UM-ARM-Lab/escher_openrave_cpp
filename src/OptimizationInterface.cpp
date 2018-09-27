@@ -166,19 +166,28 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         // }
     }
 
-    // std::vector<std::string> eff_name = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
-    // std::ofstream eff_cnt_fstream("eff_cnt_list.txt", std::ofstream::out);
-    // for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
-    // {
-    //     eff_cnt_fstream << eff_name[eff_id] << ":" << std::endl;
-    //     for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
-    //     {
-    //         eff_cnt_fstream << "cnt" << cnt_id << ":" << "["
-    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() << ", "
-    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime()
-    //                         << "]" << std::endl;
-    //     }
-    // }
+    std::vector<std::string> eff_name = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    std::ofstream eff_cnt_fstream("eff_cnt_list.txt", std::ofstream::out);
+    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    {
+        eff_cnt_fstream << eff_name[eff_id] << ":" << std::endl;
+        for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
+        {
+            eff_cnt_fstream << "cnt" << cnt_id << ":" << "["
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[0] << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[1] << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[2] << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().w() << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().x() << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().y() << ", "
+                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().z() << ", "
+                            << float(this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactType()) << ", "
+                            << -1.0
+                            << "]" << std::endl;
+        }
+    }
 }
 
 
@@ -446,12 +455,208 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
 
     if(int(solver_exitcode) <= 1)
     {
+        recordDynamicsMetrics();
         return true;
     }
     else
     {
         return false;
     }
+}
+
+void OptimizationInterface::recordDynamicsMetrics()
+{
+    const int num_timesteps = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps);
+    double mu = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_FrictionCoefficient);
+
+    Eigen::VectorXd min_cop_dist_to_boundary_vec(num_timesteps);
+    Eigen::VectorXd min_force_dist_to_boundary_vec(num_timesteps);
+    Eigen::VectorXd max_force_angle_vec(num_timesteps);
+    Eigen::VectorXd max_lateral_force_vec(num_timesteps);
+    Eigen::VectorXd max_torque_vec(num_timesteps);
+    Eigen::VectorXd force_rms_vec(num_timesteps);
+
+    Eigen::VectorXd mean_cop_dist_to_boundary_vec(num_timesteps);
+    Eigen::VectorXd mean_force_dist_to_boundary_vec(num_timesteps);
+    Eigen::VectorXd mean_force_angle_vec(num_timesteps);
+    Eigen::VectorXd mean_lateral_force_vec(num_timesteps);
+    Eigen::VectorXd mean_torque_vec(num_timesteps);
+
+    Eigen::MatrixXd lmom_vec(3, num_timesteps);
+    Eigen::MatrixXd amom_vec(3, num_timesteps);
+    Eigen::MatrixXd lmom_rate_vec(3, num_timesteps);
+    Eigen::MatrixXd amom_rate_vec(3, num_timesteps);
+
+    Eigen::VectorXd lmom_norm_vec(num_timesteps);
+    Eigen::VectorXd amom_norm_vec(num_timesteps);
+    Eigen::VectorXd lmom_rate_norm_vec(num_timesteps);
+    Eigen::VectorXd amom_rate_norm_vec(num_timesteps);
+
+    // friction cone distance & cop distance
+    for(int time_id = 0; time_id < num_timesteps; time_id++)
+    {
+        double min_cop_dist_to_boundary = 9999.0;
+        double min_force_dist_to_boundary = 9999.0;
+        double max_lateral_force = -9999.0;
+        double max_force_angle = -9999.0;
+        double max_torque = -9999.0;
+
+        double mean_cop_dist_to_boundary = 0;
+        double mean_force_dist_to_boundary = 0;
+        double mean_lateral_force = 0;
+        double mean_force_angle = 0;
+        double mean_torque = 0;
+
+        double force_rms = 0;
+
+        int num_contacts = 0;
+        int num_solid_contacts = 0;
+
+        for (int eff_id = 0; eff_id < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors); eff_id++)
+        {
+            if (dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorContactType(eff_id) != momentumopt::ContactType::FullContact)
+            {
+                if (dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorActivation(eff_id))
+                {
+                    num_contacts++;
+                    // penalty on lateral forces of each contact
+                    Eigen::Matrix3d eff_rotation = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorOrientation(eff_id).toRotationMatrix().transpose();
+                    Eigen::Vector3d frc_local = eff_rotation * dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorForce(eff_id);
+
+                    force_rms += pow(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorForce(eff_id).norm(), 2);
+
+                    if(frc_local[2] > 0.01)
+                    {
+                        num_solid_contacts += 1;
+
+                        double lateral_force_norm = sqrt(pow(frc_local[0],2) + pow(frc_local[1],2));
+                        double force_dist_to_boundary = fabs(mu*lateral_force_norm - frc_local[2]) / sqrt(pow(mu,2)+1);
+
+                        double force_angle = atan2(lateral_force_norm, frc_local[2]);
+
+                        if(force_dist_to_boundary < min_force_dist_to_boundary)
+                        {
+                            min_force_dist_to_boundary = force_dist_to_boundary;
+                        }
+
+                        if(force_angle > max_force_angle)
+                        {
+                            max_force_angle = force_angle;
+                        }
+
+                        if(lateral_force_norm > max_lateral_force)
+                        {
+                            max_lateral_force = lateral_force_norm;
+                        }
+
+                        mean_force_dist_to_boundary += force_dist_to_boundary;
+                        mean_lateral_force += lateral_force_norm;
+                        mean_force_angle += force_angle;
+                    }
+
+                    // penalty on cop position of each contact
+                    double cop_x_lower_bound = optimizer_setting_.get(momentumopt::PlannerArrayParam::PlannerArrayParam_CenterOfPressureRange)[eff_id][0];
+                    double cop_x_upper_bound = optimizer_setting_.get(momentumopt::PlannerArrayParam::PlannerArrayParam_CenterOfPressureRange)[eff_id][1];
+                    double cop_y_lower_bound = optimizer_setting_.get(momentumopt::PlannerArrayParam::PlannerArrayParam_CenterOfPressureRange)[eff_id][2];
+                    double cop_y_upper_bound = optimizer_setting_.get(momentumopt::PlannerArrayParam::PlannerArrayParam_CenterOfPressureRange)[eff_id][3];
+
+                    double cop_x_lower_dist = fabs(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorCoP(eff_id)[0] - cop_x_lower_bound);
+                    double cop_x_upper_dist = fabs(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorCoP(eff_id)[0] - cop_x_upper_bound);
+                    double cop_y_lower_dist = fabs(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorCoP(eff_id)[1] - cop_y_lower_bound);
+                    double cop_y_upper_dist = fabs(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorCoP(eff_id)[1] - cop_y_upper_bound);
+
+                    double cop_dist_to_boundary = std::min(std::min(cop_x_lower_dist, cop_x_upper_dist), std::min(cop_y_lower_dist, cop_y_upper_dist));
+
+                    if(cop_dist_to_boundary < min_cop_dist_to_boundary)
+                    {
+                        min_cop_dist_to_boundary = cop_dist_to_boundary;
+                    }
+
+                    double torque = fabs(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).endeffectorTorque(eff_id)[2]);
+
+                    if(torque > max_torque)
+                    {
+                        max_torque = torque;
+                    }
+
+                    mean_cop_dist_to_boundary += cop_dist_to_boundary;
+                    mean_torque += torque;
+                }
+            }
+        }
+
+        if(min_cop_dist_to_boundary == 9999.0 || min_force_dist_to_boundary == 9999.0 || max_force_angle == -9999.0 || max_lateral_force == -9999.0)
+        {
+            std::cout << "Bug: Wrong cop and local forces." << std::endl;
+            getchar();
+        }
+
+        force_rms = sqrt(force_rms/num_contacts);
+
+        mean_cop_dist_to_boundary /= num_contacts;
+        mean_torque /= num_contacts;
+        mean_force_dist_to_boundary /= num_solid_contacts;
+        mean_lateral_force /= num_solid_contacts;
+        mean_force_angle /= num_solid_contacts;
+
+        min_cop_dist_to_boundary_vec[time_id] = min_cop_dist_to_boundary;
+        min_force_dist_to_boundary_vec[time_id] = min_force_dist_to_boundary;
+        max_force_angle_vec[time_id] = max_force_angle;
+        max_lateral_force_vec[time_id] = max_lateral_force;
+
+        mean_cop_dist_to_boundary_vec[time_id] = mean_cop_dist_to_boundary;
+        mean_force_dist_to_boundary_vec[time_id] = mean_force_dist_to_boundary;
+        mean_force_angle_vec[time_id] = mean_force_angle;
+        mean_lateral_force_vec[time_id] = mean_lateral_force;
+        mean_torque_vec[time_id] = mean_torque;
+
+        force_rms_vec[time_id] = force_rms;
+        max_torque_vec[time_id] = max_torque;
+
+        lmom_vec.block(0,time_id,3,1) = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum();
+        amom_vec.block(0,time_id,3,1) = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum();
+        lmom_rate_vec.block(0,time_id,3,1) = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentumRate();
+        amom_rate_vec.block(0,time_id,3,1) = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentumRate();
+
+        lmom_norm_vec[time_id] = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum().norm();
+        amom_norm_vec[time_id] = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum().norm();
+        lmom_rate_norm_vec[time_id] = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentumRate().norm();
+        amom_rate_norm_vec[time_id] = dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentumRate().norm();
+    }
+
+    mean_min_cop_dist_to_boundary_ = min_cop_dist_to_boundary_vec.mean();
+    mean_min_force_dist_to_boundary_ = min_force_dist_to_boundary_vec.mean();
+    mean_max_force_angle_ = max_force_angle_vec.mean();
+    mean_max_lateral_force_ = max_lateral_force_vec.mean();
+
+    mean_mean_cop_dist_to_boundary_ = mean_cop_dist_to_boundary_vec.mean();
+    mean_mean_force_dist_to_boundary_ = mean_force_dist_to_boundary_vec.mean();
+    mean_mean_force_angle_ = mean_force_angle_vec.mean();
+    mean_mean_lateral_force_ = mean_lateral_force_vec.mean();
+
+    mean_lmom_x_ = lmom_vec.block(0,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_y_ = lmom_vec.block(1,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_z_ = lmom_vec.block(2,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_norm_ = lmom_norm_vec.mean();
+
+    mean_amom_x_ = amom_vec.block(0,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_y_ = amom_vec.block(1,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_z_ = amom_vec.block(2,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_norm_ = amom_norm_vec.mean();
+
+    mean_lmom_rate_x_ = lmom_rate_vec.block(0,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_rate_y_ = lmom_rate_vec.block(1,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_rate_z_ = lmom_rate_vec.block(2,0,1,num_timesteps).cwiseAbs().mean();
+    mean_lmom_rate_norm_ = lmom_rate_norm_vec.mean();
+
+    mean_amom_rate_x_ = amom_rate_vec.block(0,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_rate_y_ = amom_rate_vec.block(1,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_rate_z_ = amom_rate_vec.block(2,0,1,num_timesteps).cwiseAbs().mean();
+    mean_amom_rate_norm_ = amom_rate_norm_vec.mean();
+
+    mean_force_rms_ = force_rms_vec.mean();
+    mean_max_torque_ = max_torque_vec.mean();
+    mean_mean_torque_ = mean_torque_vec.mean();
 }
 
 void OptimizationInterface::dynamicsSequenceConcatenation(std::vector<momentumopt::DynamicsSequence>& dynamics_sequence_vector)

@@ -116,9 +116,12 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
     RAVELOG_INFO("Enter the exploration loop.\n");
 
+    int drawing_counter = 0;
+
     std::vector< std::tuple<int,float,float,float,int> > planning_result; // planning time, path cost, dynamics cost, step num
 
     std::vector< std::vector<std::shared_ptr<ContactState> > > all_solution_contact_paths;
+    std::vector<float> all_solution_planning_times;
 
     {
         OpenRAVE::EnvironmentMutex::scoped_lock lockenv(general_ik_interface_->env_->GetMutex());
@@ -127,6 +130,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         {
             while(!open_heap_.empty())
             {
+                // auto time_start = std::chrono::high_resolution_clock::now();
+                // std::cout << "*" << std::endl;
+
                 auto current_time = std::chrono::high_resolution_clock::now();
                 if(std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() / 1000.0 > time_limit)
                 {
@@ -160,6 +166,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     int dummy_index = 0;
                     if(!use_dynamics_planning_ && !stateFeasibilityCheck(current_state, dummy_dynamics_cost, dummy_index))
                     {
+                        // getchar();
                         current_state->explore_state_ = ExploreState::CLOSED;
                         continue;
                     }
@@ -205,8 +212,16 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                     // plotting the contact sequence so far
                     // RAVELOG_INFO("Plot the contact sequence.\n");
-                    // drawing_handler_->ClearHandler();
-                    // drawing_handler_->DrawContactPath(current_state);
+                    drawing_handler_->ClearHandler();
+                    drawing_handler_->DrawContactPath(current_state);
+                    if(drawing_counter == 10)
+                    {
+                        // drawing_handler_->ClearHandler();
+                        // drawing_handler_->DrawContactPath(current_state);
+                        drawing_counter = 0;
+                    }
+
+                    drawing_counter++;
 
                     // check if it reaches the goal
                     // RAVELOG_INFO("Check if it reaches the goal.\n");
@@ -247,6 +262,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                         float planning_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - time_before_ANA_start_planning).count() /1000.0;
 
+                        all_solution_planning_times.push_back(planning_time);
+
                         RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
 
                         // getchar();
@@ -268,7 +285,14 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     // std::cout << "CoM: " << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " " << std::endl;
 
                     // branch
+                    // auto time_before_branching = std::chrono::high_resolution_clock::now();
+
                     branchingSearchTree(current_state, branching_method);
+
+                    // auto time_after_branching = std::chrono::high_resolution_clock::now();
+                    // std::cout << "verification time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_before_branching - time_start).count()/1000.0 << " ms" << std::endl;
+                    // std::cout << "branching time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_branching - time_before_branching).count()/1000.0 << " ms" << std::endl;
+
                 }
             }
 
@@ -279,6 +303,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         }
 
+        general_ik_interface_->robot_->SetDOFValues(robot_properties_->IK_init_DOF_Values_);
     }
 
     // // store the planning result
@@ -327,44 +352,124 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         float total_learned_dynamics_cost = contact_state_path[contact_state_path.size()-1]->accumulated_dynamics_cost_;
         float total_dynamics_cost_segment_by_segment = 0;
         float total_dynamics_cost = 0;
-        if(use_dynamics_planning_)
-        {
-            // getchar();
-            kinematicsVerification_StateOnly(contact_state_path);
-            std::cout << "Predicted CoM trajectory(Red)." << std::endl;
-            // getchar();
-        }
+        // if(use_dynamics_planning_)
+        // {
+        //     kinematicsVerification_StateOnly(contact_state_path);
+        //     std::cout << "Predicted CoM trajectory(Red)." << std::endl;
+        //     // getchar();
+        // }
 
-        total_dynamics_cost_segment_by_segment = fillDynamicsSequenceSegmentBySegment(contact_state_path);
-        std::cout << "Piecewise Optimization CoM trajectory(Green)." << std::endl;
+        // total_dynamics_cost_segment_by_segment = fillDynamicsSequenceSegmentBySegment(contact_state_path);
+        // std::cout << "Piecewise Optimization CoM trajectory(Green)." << std::endl;
         // getchar();
 
         // total_dynamics_cost = fillDynamicsSequence(contact_state_path);
         // std::cout << "Whole Contact Sequence Optimization CoM trajectory(Blue)." << std::endl;
         // getchar();
 
-        std::cout << "Whole Contact Sequence Optimization CoM trajectory(Blue)." << std::endl;
+        float final_plan_planning_time = 0.0;
+        int num_contact_sequence_tried = 0;
+
+        auto time_before_dynopt = std::chrono::high_resolution_clock::now();
+
         for(int i = all_solution_contact_paths.size()-1; i >= 0; i--)
         {
+            final_plan_planning_time = all_solution_planning_times[i];
+
+            drawing_handler_->ClearHandler();
+            drawing_handler_->DrawContactPath(all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]);
             std::cout << "Solution Path " << i << ": " << std::endl;
+
+            total_learned_dynamics_cost = all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]->accumulated_dynamics_cost_;
+
+            if(use_dynamics_planning_)
+            {
+                kinematicsVerification_StateOnly(all_solution_contact_paths[i]);
+                std::cout << "Predicted CoM trajectory(Red)." << std::endl;
+                // getchar();
+            }
+
+            // total_dynamics_cost_segment_by_segment = fillDynamicsSequenceSegmentBySegment(all_solution_contact_paths[i]);
+            // std::cout << "Piecewise Optimization CoM trajectory(Green)." << std::endl;
+
             total_dynamics_cost = fillDynamicsSequence(all_solution_contact_paths[i]);
+            std::cout << "Whole Contact Sequence Optimization CoM trajectory(Blue)." << std::endl;
 
             if(total_dynamics_cost != 99999.0)
             {
                 getchar();
+                num_contact_sequence_tried = all_solution_contact_paths.size() - i;
+
+                std::ofstream planning_contact_list_fstream("contact_list.txt", std::ofstream::out);
+
+                for(auto & state : all_solution_contact_paths[i])
+                {
+                    if(!state->is_root_)
+                    {
+                        int move_manip = int(state->prev_move_manip_);
+                        planning_contact_list_fstream << move_manip << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].x_ << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].y_ << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].z_ << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].roll_ << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].pitch_ << " "
+                                                      << state->stances_vector_[0]->ee_contact_poses_[move_manip].yaw_ << " "
+                                                      << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
+                    }
+                }
+
                 break;
             }
         }
 
-
+        auto time_after_dynopt = std::chrono::high_resolution_clock::now();
 
         std::cout << planning_id_ << " " << total_learned_dynamics_cost << " "
                                             << total_dynamics_cost_segment_by_segment << " "
-                                            << total_dynamics_cost << std::endl;
+                                            << total_dynamics_cost << " "
+                                            << final_plan_planning_time << std::endl;
 
         planning_dynamics_cost_fstream << planning_id_ << " " << total_learned_dynamics_cost << " "
                                                                 << total_dynamics_cost_segment_by_segment << " "
-                                                                << total_dynamics_cost << std::endl;
+                                                                << total_dynamics_cost << " "
+                                                                << final_plan_planning_time << " "
+                                                                << num_contact_sequence_tried << " "
+                                                                << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynopt - time_before_dynopt).count()/1000000.0;
+
+
+        if(total_dynamics_cost != 99999.0)
+        {
+            planning_dynamics_cost_fstream << " ";
+            planning_dynamics_cost_fstream << dynamics_optimizer_interface_vector_[0]->mean_min_force_dist_to_boundary_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_min_cop_dist_to_boundary_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_max_force_angle_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_max_lateral_force_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_mean_force_dist_to_boundary_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_mean_cop_dist_to_boundary_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_mean_force_angle_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_mean_lateral_force_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_force_rms_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_max_torque_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_mean_torque_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_x_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_y_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_z_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_norm_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_rate_x_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_rate_y_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_rate_z_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_lmom_rate_norm_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_x_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_y_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_z_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_norm_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_rate_x_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_rate_y_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_rate_z_ << " "
+                                           << dynamics_optimizer_interface_vector_[0]->mean_amom_rate_norm_;
+        }
+
+        planning_dynamics_cost_fstream << std::endl;
 
         // getchar();
 
@@ -513,57 +618,57 @@ void ContactSpacePlanning::kinematicsVerification_StateOnly(std::vector< std::sh
     {
         if(!contact_state->is_root_)
         {
-            std::cout << "dynamics cost: "<< contact_state->accumulated_dynamics_cost_ - contact_state->parent_->accumulated_dynamics_cost_ << std::endl;
+            // std::cout << "dynamics cost: "<< contact_state->accumulated_dynamics_cost_ - contact_state->parent_->accumulated_dynamics_cost_ << std::endl;
             drawing_handler_->DrawLineSegment(contact_state->parent_->com_, contact_state->com_, {1,0,0,1});
         }
-        std::cout << "com: " << contact_state->com_[0] << " " << contact_state->com_[1] << " " << contact_state->com_[2] << std::endl;
-        std::cout << "com_dot: " << contact_state->com_dot_[0] << " " << contact_state->com_dot_[1] << " " << contact_state->com_dot_[2] << std::endl;
+        // std::cout << "com: " << contact_state->com_[0] << " " << contact_state->com_[1] << " " << contact_state->com_[2] << std::endl;
+        // std::cout << "com_dot: " << contact_state->com_dot_[0] << " " << contact_state->com_dot_[1] << " " << contact_state->com_dot_[2] << std::endl;
         drawing_handler_->DrawLocation(contact_state->com_, Vector3D(1,0,0));
         drawing_handler_->DrawArrow(contact_state->com_, contact_state->com_dot_, Vector3D(1,0,0));
     }
 
-    // reachability check
-    general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
-    general_ik_interface_->returnClosest() = true;
-    general_ik_interface_->exactCoM() = true;
-    general_ik_interface_->noRotation() = false;
-    general_ik_interface_->executeMotion() = true;
-    general_ik_interface_->robot_->SetDOFValues(robot_properties_->IK_init_DOF_Values_);
-    general_ik_interface_->robot_->GetActiveDOFValues(general_ik_interface_->q0());
-    std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
-    int state_id = 1;
-    for(auto & contact_state : contact_state_path)
-    {
-        general_ik_interface_->resetContactStateRelatedParameters();
+    // // reachability check
+    // general_ik_interface_->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
+    // general_ik_interface_->returnClosest() = true;
+    // general_ik_interface_->exactCoM() = true;
+    // general_ik_interface_->noRotation() = false;
+    // general_ik_interface_->executeMotion() = true;
+    // general_ik_interface_->robot_->SetDOFValues(robot_properties_->IK_init_DOF_Values_);
+    // general_ik_interface_->robot_->GetActiveDOFValues(general_ik_interface_->q0());
+    // std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result;
+    // int state_id = 1;
+    // for(auto & contact_state : contact_state_path)
+    // {
+    //     general_ik_interface_->resetContactStateRelatedParameters();
 
-        // get the pose of contacting end-effectors
-        for(auto & manip : ALL_MANIPULATORS)
-        {
-            if(contact_state->stances_vector_[0]->ee_contact_status_[manip])
-            {
-                std::cout << robot_properties_->manipulator_name_map_[manip] << ": "
-                          << contact_state->stances_vector_[0]->ee_contact_poses_[manip].x_ << " "
-                          << contact_state->stances_vector_[0]->ee_contact_poses_[manip].y_ << " "
-                          << contact_state->stances_vector_[0]->ee_contact_poses_[manip].z_ << std::endl;
+    //     // get the pose of contacting end-effectors
+    //     for(auto & manip : ALL_MANIPULATORS)
+    //     {
+    //         if(contact_state->stances_vector_[0]->ee_contact_status_[manip])
+    //         {
+    //             std::cout << robot_properties_->manipulator_name_map_[manip] << ": "
+    //                       << contact_state->stances_vector_[0]->ee_contact_poses_[manip].x_ << " "
+    //                       << contact_state->stances_vector_[0]->ee_contact_poses_[manip].y_ << " "
+    //                       << contact_state->stances_vector_[0]->ee_contact_poses_[manip].z_ << std::endl;
 
-                general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], contact_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform());
-                general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
-            }
-        }
+    //             general_ik_interface_->addNewManipPose(robot_properties_->manipulator_name_map_[manip], contact_state->stances_vector_[0]->ee_contact_poses_[manip].GetRaveTransform());
+    //             general_ik_interface_->addNewContactManip(robot_properties_->manipulator_name_map_[manip], MU);
+    //         }
+    //     }
 
-        // get the CoM and transform it from SL frame to OpenRAVE frame
-        Translation3D com = contact_state->com_;
-        general_ik_interface_->CenterOfMass()[0] = com[0];
-        general_ik_interface_->CenterOfMass()[1] = com[1];
-        general_ik_interface_->CenterOfMass()[2] = com[2];
-        ik_result = general_ik_interface_->solve();
-        general_ik_interface_->q0() = ik_result.second;
+    //     // get the CoM and transform it from SL frame to OpenRAVE frame
+    //     Translation3D com = contact_state->com_;
+    //     general_ik_interface_->CenterOfMass()[0] = com[0];
+    //     general_ik_interface_->CenterOfMass()[1] = com[1];
+    //     general_ik_interface_->CenterOfMass()[2] = com[2];
+    //     ik_result = general_ik_interface_->solve();
+    //     general_ik_interface_->q0() = ik_result.second;
 
-        std::cout << "com: " << com[0] << ", " << com[1] << ", " << com[2] << std::endl;
-        std::cout << "result: " << ik_result.first << std::endl;
+    //     std::cout << "com: " << com[0] << ", " << com[1] << ", " << com[2] << std::endl;
+    //     std::cout << "result: " << ik_result.first << std::endl;
 
-        // getchar();
-    }
+    //     // getchar();
+    // }
 }
 
 void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path)
@@ -591,16 +696,16 @@ void ContactSpacePlanning::kinematicsVerification(std::vector< std::shared_ptr<C
     }
 
     /*********************************FAILED ATTEMPT TO USE KINEMATICS SOLVER BASED ON SL*********************************/
-    std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
-    std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    // std::shared_ptr<OptimizationInterface> kinematics_optimization_interface =
+    // std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
 
-    kinematics_optimization_interface->updateContactSequence(contact_state_path);
-    kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
+    // kinematics_optimization_interface->updateContactSequence(contact_state_path);
+    // kinematics_optimization_interface->dynamicsSequenceConcatenation(dynamics_sequence_vector);
 
-    // // kinematics optimization
-    // std::cout << "Start the Kinematics Optimization." << std::endl;
-    // kinematics_optimization_interface->simplifiedKinematicsOptimization();
-    // std::cout << "Finished the Kinematics Optimization." << std::endl;
+    // // // kinematics optimization
+    // // std::cout << "Start the Kinematics Optimization." << std::endl;
+    // // kinematics_optimization_interface->simplifiedKinematicsOptimization();
+    // // std::cout << "Finished the Kinematics Optimization." << std::endl;
     /*********************************FAILED ATTEMPT TO USE KINEMATICS SOLVER BASED ON SL*********************************/
 
     // reachability check
@@ -786,6 +891,7 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
     // IK solver check
     // call generalIK
     if(!use_dynamics_planning_ && !current_state->is_root_)
+    // if(false)
     {
         // reachability check
         std::shared_ptr<GeneralIKInterface> general_ik_interface = general_ik_interface_vector_[index];
@@ -1616,17 +1722,20 @@ void ContactSpacePlanning::updateExploreStatesAndOpenHeap()
 bool ContactSpacePlanning::isReachedGoal(std::shared_ptr<ContactState> current_state)
 {
     // return std::sqrt(std::pow(goal_[0]-current_state->com_(0), 2) + std::pow(goal_[1]-current_state->com_(1), 2)) <= goal_radius_;
-    // return std::sqrt(std::pow(goal_[0]-current_state->mean_feet_position_[0], 2) + std::pow(goal_[1]-current_state->mean_feet_position_[1], 2)) <= goal_radius_;
+    return std::sqrt(std::pow(goal_[0]-current_state->mean_feet_position_[0], 2) + std::pow(goal_[1]-current_state->mean_feet_position_[1], 2)) <= goal_radius_;
     // return current_state->mean_feet_position_[0] > goal_[0]-goal_radius_;
-    return current_state->max_manip_x_ > (goal_[0] - goal_radius_);
+    // return current_state->max_manip_x_ > (goal_[0] - goal_radius_);
 }
 
 void ContactSpacePlanning::storeSLEnvironment()
 {
-    std::array<float,2> foot_erosion = {0.11, 0.055};
-    std::array<float,2> hand_erosion = {0.045, 0.045};
+    // std::array<float,2> foot_erosion = {0.11, 0.055};
+    // std::array<float,2> hand_erosion = {0.045, 0.045};
 
-    std::ofstream SL_region_list_fstream("SL_region_list.txt", std::ofstream::out);
+    std::array<float,2> foot_erosion = {0.0, 0.0};
+    std::array<float,2> hand_erosion = {0.0, 0.0};
+
+    std::ofstream SL_region_list_fstream("SL_region_list_" + std::to_string(planning_id_) + ".txt", std::ofstream::out);
 
     SL_region_list_fstream << "num_regions: " << structures_.size() << std::endl;
     for(unsigned int i = 0; i < structures_.size(); i++)
