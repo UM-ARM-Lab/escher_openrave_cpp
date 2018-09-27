@@ -20,11 +20,14 @@ public:
     float y_;
     int ix_;
     int iy_;
-    
+
     float height_;
 
     std::pair<bool, std::shared_ptr<TrimeshSurface> > foot_ground_projection_;
     std::vector< std::shared_ptr<TrimeshSurface> > all_ground_structures_;
+
+    inline GridIndices2D getIndices() {return {ix_, iy_};}
+    inline GridPositions2D getPositions() {return {x_, y_};}
 
 };
 
@@ -35,7 +38,10 @@ public:
     MapCell2D(_x, _y, _ix, _iy),
     theta_(_theta),
     itheta_(_itheta),
-    parent_indices_({-99,-99,-99})
+    parent_indices_({-99,-99,-99}),
+    g_(999.0),
+    h_(0.0),
+    terrain_type_(TerrainType::SOLID)
     {};
 
     std::array<int,3> parent_indices_;
@@ -55,9 +61,21 @@ public:
 
     bool near_obstacle_;
 
+    TerrainType terrain_type_;
+
     std::array<float,4> hand_contact_env_feature_;
 
-    inline float getF() {return (g_ + h_);}
+    inline const float getF() const {return (g_ + h_);}
+    inline bool operator<(const MapCell3D& other) const {return (this->getF() < other.getF());}
+
+    struct pointer_less
+    {
+        template <typename T>
+        bool operator()(const T& lhs, const T& rhs) const
+        {
+            return *lhs < *rhs;
+        }
+    };
 
     int getTravelDirection(MapCell3D goal_cell);
 
@@ -78,7 +96,7 @@ public:
     GridPositions2D indicesToPositionsXY(GridIndices2D xy_indices);
     float indicesToPositionsTheta(int theta_index);
     GridPositions3D indicesToPositions(GridIndices3D indices);
-    
+
     inline std::array<int,2> getXYDimensions(){return {dim_x_, dim_y_};}
     inline int getThetaDimensions(){return dim_theta_;}
     inline std::array<int,3> getDimensions(){return {dim_x_, dim_y_, dim_theta_};}
@@ -88,9 +106,12 @@ public:
     inline bool insideGrid(GridPositions3D positions){return (positions[0] >= min_x_ && positions[0] < max_x_ && positions[1] >= min_y_ && positions[1] < max_y_ && positions[2] >= min_theta_ && positions[2] < max_theta_);}
     inline bool insideGrid(GridIndices3D indices){return (indices[0] >= 0 && indices[0] < dim_x_ && indices[1] >= 0 && indices[1] < dim_y_ && indices[2] >= 0 && indices[2] < dim_theta_);}
 
+    void obstacleAndGapMapping(std::vector< std::shared_ptr<TrimeshSurface> > structures);
+    void generateDijkstrHeuristics(MapCell3D goal_cell);
+
     const float xy_resolution_;
     const float theta_resolution_;
-    
+
     const int dim_x_;
     const int dim_y_;
     const int dim_theta_;

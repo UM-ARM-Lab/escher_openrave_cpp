@@ -66,6 +66,8 @@ dim_theta_(360/TORSO_GRID_ANGULAR_RESOLUTION)
         cell_3D_list_.push_back(tmp_cell_3D_list_2);
     }
 
+    // std::cout << "dim: " << dim_x_ << " " << dim_y_ << " " << dim_theta_ << std::endl;
+
 }
 
 GridIndices2D MapGrid::positionsToIndicesXY(GridPositions2D xy_position)
@@ -139,4 +141,90 @@ GridPositions3D MapGrid::indicesToPositions(GridIndices3D indices)
     float theta_position = indicesToPositionsTheta(indices[2]);
 
     return {xy_positions[0], xy_positions[1], theta_position};
+}
+
+void MapGrid::obstacleAndGapMapping(std::vector< std::shared_ptr<TrimeshSurface> > structures)
+{
+    // only do gap mapping now
+    Translation3D projection_ray(0,0,-1);
+    for(int ix = 0; ix < dim_x_; ix++)
+    {
+        for(int iy = 0; iy < dim_y_; iy++)
+        {
+            GridPositions2D cell_position = cell_2D_list_[ix][iy].getPositions();
+            Translation3D projection_start_point(cell_position[0], cell_position[1], 99.0);
+            bool has_projection = false;
+            for(auto structure : structures)
+            {
+                if(structure->insidePolygon(structure->projectionGlobalFrame(projection_start_point, projection_ray)))
+                {
+                    has_projection = true;
+                    break;
+                }
+            }
+
+            if(!has_projection)
+            {
+                for(int itheta = 0; itheta < dim_theta_; itheta++)
+                {
+                    cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::GAP;
+                }
+                // std::cout << "0 ";
+            }
+            else
+            {
+                // std::cout << "1 ";
+            }
+        }
+
+        // std::cout << std::endl;
+    }
+}
+
+void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
+{
+    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, MapCell3D::pointer_less > open_heap;
+    goal_cell.g_ = 0;
+
+    open_heap.push(&goal_cell);
+
+    // assume 8-connected transition model
+    while(!open_heap.empty())
+    {
+        MapCell3D* current_cell = open_heap.top();
+
+        GridIndices3D current_cell_indices = current_cell->getIndices();
+
+        for(int ix = -1; ix <= 1; ix++)
+        {
+            for(int iy = -1; iy <= 1; iy++)
+            {
+                for(int itheta = -1; itheta <= 1; itheta++)
+                {
+                    if(ix != 0 || iy !=0 || itheta != 0)
+                    {
+                        GridIndices3D new_cell_indices = {current_cell_indices[0]+ix, current_cell_indices[1]+iy, (current_cell_indices[2]+itheta)%dim_theta_};
+
+                        if(insideGrid(new_cell_indices))
+                        {
+                            MapCell3D* cell_ptr = &cell_3D_list_[new_cell_indices[0]][new_cell_indices[1]][new_cell_indices[2]];
+                            // if(cell_ptr->terrain_type_ == TerrainType::SOLID)
+                            if(true)
+                            {
+                                float edge_cost = std::sqrt(ix*ix*1.0 + iy*iy*1.0) * xy_resolution_;
+                                if(current_cell->getF() + edge_cost < cell_ptr->getF())
+                                {
+                                    cell_ptr->g_ = current_cell->g_ + edge_cost;
+                                    cell_ptr->parent_indices_ = current_cell_indices;
+                                    open_heap.push(cell_ptr);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        open_heap.pop();
+    }
 }

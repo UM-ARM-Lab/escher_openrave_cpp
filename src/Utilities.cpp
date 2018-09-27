@@ -14,7 +14,7 @@ float euclideanDistance3D(const Translation3D& q, const Translation3D& p)
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23)
 {
     TransformationMatrix T;
-    
+
     T(0,0) = m00; T(0,1) = m01; T(0,2) = m02; T(0,3) = m03;
     T(1,0) = m10; T(1,1) = m11; T(1,2) = m12; T(1,3) = m13;
     T(2,0) = m20; T(2,1) = m21; T(2,2) = m22; T(2,3) = m23;
@@ -74,19 +74,146 @@ TransformationMatrix XYZRPYToSE3(const RPYTF& e)
 	float pitch_in_rad = e.pitch_ * DEG2RAD;
 	float yaw_in_rad = e.yaw_ * DEG2RAD;
 
-	float roll_x = cos(roll_in_rad);
-	float roll_y = sin(roll_in_rad);
+	float roll_cos = cos(roll_in_rad);
+	float roll_sin = sin(roll_in_rad);
 
-	float pitch_x = cos(pitch_in_rad);
-	float pitch_y = sin(pitch_in_rad);
+	float pitch_cos = cos(pitch_in_rad);
+	float pitch_sin = sin(pitch_in_rad);
 
-	float yaw_x = cos(yaw_in_rad);
-	float yaw_y = sin(yaw_in_rad);
+	float yaw_cos = cos(yaw_in_rad);
+	float yaw_sin = sin(yaw_in_rad);
 
-	return constructTransformationMatrix(pitch_x * yaw_x, -pitch_x * yaw_y, pitch_y, e.x_,
-	                                     roll_x * yaw_y + yaw_x * roll_y * pitch_y, roll_x * yaw_x - roll_y * pitch_y * yaw_y, -pitch_x * roll_y, e.y_,
-									     roll_y * yaw_y - roll_x * yaw_x * pitch_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, yaw_x * roll_y + roll_x * pitch_y * yaw_y, e.z_);
+	return constructTransformationMatrix(                                pitch_cos * yaw_cos,                                -pitch_cos * yaw_sin,             pitch_sin, e.x_,
+	                                     roll_cos * yaw_sin + yaw_cos * roll_sin * pitch_sin, roll_cos * yaw_cos - roll_sin * pitch_sin * yaw_sin, -pitch_cos * roll_sin, e.y_,
+									     roll_sin * yaw_sin - roll_cos * yaw_cos * pitch_sin, yaw_cos * roll_sin + roll_cos * pitch_sin * yaw_sin,  roll_cos * pitch_cos, e.z_);
 
+}
+
+RPYTF SO3ToRPY(const RotationMatrix& R)
+{
+	float epsilon = 0.0001;
+	float roll, pitch, yaw;
+
+    if(std::fabs(R(0,0)) > epsilon and std::fabs(R(2,2)) > epsilon)
+	{
+        roll = std::atan2(-R(1,2),R(2,2)) * RAD2DEG;
+        pitch = std::atan2(R(0,2),std::sqrt(R(1,2)*R(1,2)+R(2,2)*R(2,2))) * RAD2DEG;
+        yaw = std::atan2(-R(0,1),R(0,0)) * RAD2DEG;
+	}
+    else if(std::fabs(R(0,0)) > epsilon and std::fabs(R(2,2)) <= epsilon)
+	{
+        pitch = std::atan2(R(0,2),std::sqrt(R(1,2)*R(1,2)+R(2,2)*R(2,2))) * RAD2DEG;
+        yaw = std::atan2(-R(0,1),R(0,0)) * RAD2DEG;
+
+        float yaw_rad = yaw * DEG2RAD;
+
+        if(std::fabs(std::cos(yaw_rad)) > std::fabs(std::sin(yaw_rad)))
+		{
+            if(R(2,1) / std::cos(yaw_rad) > 0)
+                roll = 90;
+            else
+                roll = -90;
+		}
+		else
+		{
+            if(R(2,0) / std::sin(yaw_rad) > 0)
+                roll = 90;
+            else
+                roll = -90;
+		}
+	}
+    else if(std::fabs(R(0,0)) <= epsilon and std::fabs(R(2,2)) > epsilon)
+	{
+        roll = std::atan2(-R(1,2),R(2,2)) * RAD2DEG;
+        pitch = std::atan2(R(0,2),std::sqrt(R(1,2)*R(1,2)+R(2,2)*R(2,2))) * RAD2DEG;
+
+        float roll_rad = roll * DEG2RAD;
+
+        if(std::fabs(std::cos(roll_rad)) > std::fabs(std::sin(roll_rad)))
+		{
+            if(R(1,0) / std::cos(roll_rad) > 0)
+                yaw = 90;
+            else
+                yaw = -90;
+		}
+		else
+		{
+            if(R(2,0) / std::sin(roll_rad) > 0)
+                yaw = 90;
+            else
+                yaw = -90;
+		}
+	}
+    else if(std::fabs(R(0,0)) <= epsilon and std::fabs(R(2,2)) <= epsilon)
+	{
+        if(std::fabs(R(0,2))-1 <= epsilon)
+		{
+            if(R(0,2) > 0)
+                pitch = 90;
+            else
+                pitch = -90;
+
+            if(std::fabs(R(1,0)) > epsilon)
+			{
+                roll = std::atan2(R(2,0),R(1,0)) * RAD2DEG;
+				double R_1_0 = R(1,0);
+                yaw = std::asin(std::max(std::min(R_1_0/std::cos(roll*DEG2RAD),1.0),-1.0)) * RAD2DEG;
+			}
+			else
+			{
+                if(pitch == 90)
+				{
+                    if(R(2,0) < R(1,1))
+					{
+                        roll = -90;
+                        yaw = 90;
+					}
+					else
+					{
+                        roll = 90;
+                        yaw = 90;
+					}
+				}
+				else
+				{
+                    if(R(2,0) > 0)
+					{
+                        roll = 90;
+                        yaw = 90;
+					}
+                    else
+					{
+                        roll = -90;
+                        yaw = 90;
+					}
+				}
+			}
+		}
+        else
+		{
+            pitch = -std::asin(R(1,1)/R(2,0)) * RAD2DEG;
+            roll = -std::asin(R(1,2)/std::cos(pitch*DEG2RAD)) * RAD2DEG;
+            yaw = -std::asin(R(0,1)/std::cos(pitch*DEG2RAD)) * RAD2DEG;
+		}
+	}
+
+	return RPYTF(0, 0, 0, roll, pitch, yaw);
+}
+
+Quaternion RPYToQuaternion(const RPYTF& e)
+{
+	return Quaternion(Eigen::AngleAxisf(e.roll_ * DEG2RAD, Eigen::Vector3f::UnitX()) *
+			     	  Eigen::AngleAxisf(e.pitch_ * DEG2RAD, Eigen::Vector3f::UnitY()) *
+                      Eigen::AngleAxisf(e.yaw_ * DEG2RAD, Eigen::Vector3f::UnitZ()));
+}
+
+RPYTF SE3ToXYZRPY(const TransformationMatrix& T)
+{
+	RotationMatrix R = T.block(0,0,3,3);
+
+	RPYTF rpy = SO3ToRPY(R);
+
+	return RPYTF(T(0,3), T(1,3), T(2,3), rpy.roll_, rpy.pitch_, rpy.yaw_);
 }
 
 Translation2D gridPositions2DToTranslation2D(GridPositions2D positions)
@@ -97,6 +224,45 @@ Translation2D gridPositions2DToTranslation2D(GridPositions2D positions)
 GridPositions2D translation2DToGridPositions2D(Translation2D positions)
 {
 	return {positions[0],positions[1]};
+}
+
+float getFirstTerminalAngle(float angle)
+{
+	float result_angle = angle;
+    while(result_angle < -180 or result_angle >= 180)
+	{
+		if(result_angle < -180)
+		{
+			result_angle += 360;
+		}
+		else if(result_angle >= 180)
+		{
+			result_angle -= 360;
+		}
+	}
+
+    return result_angle;
+}
+
+float getAngleDifference(float angle1, float angle2)
+{
+	return getFirstTerminalAngle(angle1 - angle2);
+}
+
+float getAngleMean(float angle1, float angle2)
+{
+	// return the closest mean angle in -180 ~ 180
+	float mean1 = (angle1+angle2)/2.0;
+	float mean2 = mean1 + 180;
+
+	if(std::fabs(getAngleDifference(mean1,angle1)) < std::fabs(getAngleDifference(mean2,angle1)))
+	{
+		return getFirstTerminalAngle(mean1);
+	}
+	else
+	{
+		return getFirstTerminalAngle(mean2);
+	}
 }
 
 std::array<float,4> HSVToRGB(std::array<float,4> hsv)
@@ -157,7 +323,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv)
 			std::cout << "Impossible" << std::endl;
 			break;
 	}
-	
+
 
 	rgb[3] = hsv[3];
 
@@ -186,4 +352,147 @@ bool isValidPosition(Translation3D p)
 	{
 		return true;
 	}
+}
+
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
+{
+    RPYTF transformed_e(0, 0, 0, 0, 0, 0);
+    RotationMatrix R = RPYToSO3(e);
+
+    // float foot_position_offset = 0.035;
+	float foot_position_offset = 0.0;
+    transformed_e.x_ = e.x_ - foot_position_offset * R(0,0);
+    transformed_e.y_ = e.y_ - foot_position_offset * R(1,0);
+    transformed_e.z_ = e.z_ - foot_position_offset * R(2,0);
+
+    TransformationMatrix SL_openrave_transform;
+    RotationMatrix SL_openrave_rotation;
+    SL_openrave_transform << 0, -1, 0, 0,
+                             1,  0, 0, 0,
+                             0,  0, 1, -1.05,
+                             0, 0, 0, 1;
+    SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
+
+    Translation3D transformed_position = (SL_openrave_transform * Translation3D(transformed_e.x_, transformed_e.y_, transformed_e.z_).homogeneous()).block(0,0,3,1);
+    transformed_e.x_ = transformed_position[0];
+    transformed_e.y_ = transformed_position[1];
+    transformed_e.z_ = transformed_position[2];
+
+    RPYTF rpy = SO3ToRPY(SL_openrave_rotation * RPYToSO3(e) * SL_openrave_rotation.transpose());
+    transformed_e.roll_ = rpy.roll_;
+    transformed_e.pitch_ = rpy.pitch_;
+    transformed_e.yaw_ = rpy.yaw_;
+
+    return transformed_e;
+}
+
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_transform)
+{
+    RPYTF transformed_e(0, 0, 0, 0, 0, 0);
+    RotationMatrix R = RPYToSO3(e);
+	Translation3D  t = Translation3D(e.x_, e.y_, e.z_);
+
+	RotationMatrix R_offset = offset_transform.block(0,0,3,3);
+	Translation3D  t_offset = offset_transform.block(0,3,3,1);
+
+    TransformationMatrix SL_openrave_transform;
+    RotationMatrix SL_openrave_rotation;
+    SL_openrave_transform << 0, -1, 0, 0,
+                             1,  0, 0, 0,
+                             0,  0, 1, -1.05,
+                             0, 0, 0, 1;
+    SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
+
+    Translation3D transformed_position = (SL_openrave_transform * (R*t_offset+t).homogeneous()).block(0,0,3,1);
+    transformed_e.x_ = transformed_position[0];
+    transformed_e.y_ = transformed_position[1];
+    transformed_e.z_ = transformed_position[2];
+
+    RPYTF rpy = SO3ToRPY(SL_openrave_rotation * R * R_offset * SL_openrave_rotation.transpose());
+    transformed_e.roll_ = rpy.roll_;
+    transformed_e.pitch_ = rpy.pitch_;
+    transformed_e.yaw_ = rpy.yaw_;
+
+    return transformed_e;
+}
+
+// RPYTF transformPoseFromSLToOpenrave(RPYTF& e)
+// {
+//     RPYTF transformed_e(e.x_, e.y_0, e.z_, 0, 0, 0);
+
+//     TransformationMatrix openrave_SL_transform;
+//     RotationMatrix openrave_SL_rotation;
+//     openrave_SL_transform << 0, 1, 0, 0,
+//                              -1, 0, 0, 0,
+//                              0,  0, 1, 1.05,
+//                              0, 0, 0, 1;
+//     openrave_SL_rotation = openrave_SL_transform.block(0,0,3,3);
+
+//     Translation3D transformed_position = (openrave_SL_transform * Translation3D(transformed_e.x_, transformed_e.y_, transformed_e.z_).homogeneous()).block(0,0,3,1);
+//     transformed_e.x_ = transformed_position[0];
+//     transformed_e.y_ = transformed_position[1];
+//     transformed_e.z_ = transformed_position[2];
+
+//     RPYTF rpy = SO3ToRPY(openrave_SL_rotation * RPYToSO3(e) * openrave_SL_rotation.transpose());
+//     transformed_e.roll_ = rpy.roll_;
+//     transformed_e.pitch_ = rpy.pitch_;
+//     transformed_e.yaw_ = rpy.yaw_;
+
+// 	RotationMatrix R = RPYToSO3(transformed_e);
+//     float foot_position_offset = 0.035;
+//     transformed_e.x_ = transformed_e.x_ + foot_position_offset * R(0,0);
+//     transformed_e.y_ = transformed_e.y_ + foot_position_offset * R(1,0);
+//     transformed_e.z_ = transformed_e.z_ + foot_position_offset * R(2,0);
+
+//     return transformed_e;
+// }
+
+Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t)
+{
+    RotationMatrix SL_openrave_rotation;
+    SL_openrave_rotation << 0, -1, 0,
+                             1,  0, 0,
+                             0,  0, 1;
+
+    Eigen::Vector3d rotated_vector = (SL_openrave_rotation * t).cast<double>();
+
+    return rotated_vector;
+}
+
+Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t)
+{
+    RotationMatrix openrave_SL_rotation;
+    openrave_SL_rotation <<  0,  1, 0,
+                             -1, 0, 0,
+                             0,  0, 1;
+
+    Vector3D rotated_vector = (openrave_SL_rotation * t.cast<float>());
+
+    return rotated_vector;
+}
+
+Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t)
+{
+    TransformationMatrix SL_openrave_transform;
+    SL_openrave_transform << 0, -1, 0, 0,
+                             1,  0, 0, 0,
+                             0,  0, 1, -1.05,
+                             0, 0, 0, 1;
+
+    Eigen::Vector3d transformed_position = (SL_openrave_transform * t.homogeneous()).block(0,0,3,1).cast<double>();
+
+    return transformed_position;
+}
+
+Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t)
+{
+    TransformationMatrix openrave_SL_transform;
+    openrave_SL_transform <<  0, 1, 0, 0,
+                             -1, 0, 0, 0,
+                              0, 0, 1, 1.05,
+                              0, 0, 0, 1;
+
+    Translation3D transformed_position = (openrave_SL_transform * t.cast<float>().homogeneous()).block(0,0,3,1);
+
+    return transformed_position;
 }

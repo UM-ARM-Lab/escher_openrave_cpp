@@ -16,125 +16,149 @@ class escher_openrave_cpp_wrapper(object):
     """
 
     def __init__(self, env):
-
         self.module = rave.RaveCreateModule(env,'EscherMotionPlanning')
         env.AddModule(self.module,'')
         self.env = env
 
-        # rave.RaveInitialize()
-        # rave.RaveLoadPlugin('')
-        # EscherMotionPlanning = rave.RaveCreateModule(env,'EscherMotionPlanning')
+    def AppendStructuresCommand(self,cmd,structures):
+        cmd.append('structures')
+        cmd.append(len(structures))
 
-        # # Build a mapping for manipulators to manipulator indices
-        # self.manip_indices = {}
-        # for index, manip in enumerate(env.GetRobot(robotname).GetManipulators()):
-        #     self.manip_indices[manip] = index
-        #     self.manip_indices[manip.GetName()] = index
+        for struct in structures:
+            cmd.append(struct.geometry)
+            cmd.append(struct.kinbody.GetName())
+            cmd.append(struct.id)
 
-    # def load_robot(env, urdf_path=None, srdf_path=None):
-    #     if(not urdf_path):
-    #         urdf_path = urdf
+            if(struct.geometry == 'trimesh'):
+                # plane parameters
+                cmd.extend((struct.nx,struct.ny,struct.nz,struct.c))
 
-    #     if(not srdf_path):
-    #         srdf_path = srdf
+                # vertices
+                cmd.append(len(struct.vertices))
 
+                for vertex in struct.vertices:
+                    cmd.extend(vertex)
 
-    #     rave.RaveLoadPlugin('../or_urdf/build/devel/lib/openrave-0.9/or_urdf_plugin')
-    #     module = rave.RaveCreateModule(env, 'urdf')
-    #     robot_name = module.SendCommand('load {} {}'.format(urdf_path, srdf_path))
-    #     robot = env.GetRobot(robot_name)
+                # boundaries
+                cmd.append(len(struct.boundaries))
 
-    #     robot.GetManipulator('l_arm').SetLocalToolDirection(np.array([1, 0, 0]))
-    #     robot.GetManipulator('l_arm').SetLocalToolTransform(np.array([
-    #         [0,  1, 0, 0.18],
-    #         [ -1, 0, 0, -0.025],
-    #         [ 0,  0, 1, 0],
-    #         [ 0,  0, 0, 1]])
-    #     )
+                for edge in struct.boundaries:
+                    cmd.extend(edge)
 
-    #     robot.GetManipulator('r_arm').SetLocalToolDirection(np.array([1, 0, 0]))
-    #     robot.GetManipulator('r_arm').SetLocalToolTransform(np.array([
-    #         [ 0,  -1, 0, 0.18],
-    #         [ 1,  0, 0, 0.025],
-    #         [ 0,  0, 1, 0],
-    #         [ 0,  0, 0, 1]])
-    #     )
+                # trimesh types
+                cmd.append(struct.type)
 
-    #     robot.GetManipulator('l_leg').SetLocalToolDirection(np.array([0, 0, -1]))
-    #     robot.GetManipulator('r_leg').SetLocalToolDirection(np.array([0, 0, -1]))
+            elif(struct.geometry == 'box'):
+                print('Warning: Sent box structures, but is ignored.')
+                continue
 
-    #     return robot
+    def AppendMapGridDimCommand(self,cmd,dh_grid):
+        cmd.append('map_grid')
+        cmd.append(dh_grid.min_x)
+        cmd.append(dh_grid.max_x)
+        cmd.append(dh_grid.min_y)
+        cmd.append(dh_grid.max_y)
+        cmd.append(dh_grid.resolution)
 
-    # OpenRave C++ plugin is called by sending string command. We can add parameters in this function to construct the command, and decode in C++ side.
-    # For example, I can add an option whether to turn on the parallelization or not
-    def SendStartPlanningCommand(self,robotname=None,goal=None,parallelization=None):
-        cmd = ['StartPlanning']
+    def AppendMapGridCommand(self,cmd,dh_grid):
+        cmd.append('map_grid')
+        cmd.append(dh_grid.min_x)
+        cmd.append(dh_grid.max_x)
+        cmd.append(dh_grid.min_y)
+        cmd.append(dh_grid.max_y)
+        cmd.append(dh_grid.resolution)
 
-        cmd.append('robotname')
-        cmd.append(robotname)
+        for i in range(dh_grid.dim_x):
+            for j in range(dh_grid.dim_y):
 
-        cmd.append('goal')
+                cmd.append(dh_grid.cell_2D_list[i][j].height)
 
-        for g in goal:
-            cmd.append(g)
+                if(dh_grid.cell_2D_list[i][j].foot_ground_projection[0]):
+                    cmd.append(1)
+                else:
+                    cmd.append(0)
 
-        if(parallelization is not None):
-            cmd.append('parallelization')
+                if(dh_grid.cell_2D_list[i][j].foot_ground_projection[1] is None):
+                    cmd.append(-99)
+                else:
+                    cmd.append(dh_grid.cell_2D_list[i][j].foot_ground_projection[1])
 
-            if(parallelization):
-                cmd.append(1)
-            else:
-                cmd.append(0)
+                cmd.append(len(dh_grid.cell_2D_list[i][j].all_ground_structures))
+                cmd.extend(dh_grid.cell_2D_list[i][j].all_ground_structures)
 
-        cmd_str = " ".join(str(item) for item in cmd)
+                for k in range(dh_grid.dim_theta):
+                    if(dh_grid.cell_3D_list[i][j][k].parent is not None):
+                        cmd.extend(dh_grid.cell_3D_list[i][j][k].parent.get_indices())
+                    else:
+                        cmd.extend((-99,-99,-99))
+                    cmd.append(dh_grid.cell_3D_list[i][j][k].g)
+                    cmd.append(dh_grid.cell_3D_list[i][j][k].h)
 
-        result_str = self.module.SendCommand(cmd_str)
+                    cmd.append(len(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index))
+                    cmd.extend(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index)
+                    cmd.append(len(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index))
+                    cmd.extend(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index)
 
-        print("Output message received in Python:")
-        print(result_str)
+        # import IPython; IPython.embed()
+        for key,window in dh_grid.left_foot_neighbor_window.iteritems():
+            cmd.append(len(window))
+            for cell in window:
+                cmd.extend(cell)
 
-        return
+        for key,window in dh_grid.right_foot_neighbor_window.iteritems():
+            cmd.append(len(window))
+            for cell in window:
+                cmd.extend(cell)
 
-    def SendStartCalculatingTraversabilityCommand(self, structures=None,  footstep_windows_legs_only=None, footstep_windows=None, torso_transitions=None, footstep_window_grid_resolution=None, 
-                                                dh_grid=None, hand_transition_model=None, parallelization=None, printing=False):
+        for key,window in dh_grid.chest_neighbor_window.iteritems():
+            cmd.append(len(window))
+            for cell in window:
+                cmd.extend(cell)
+
+    def AppendHandTransitionModelCommand(self,cmd,hand_transition_model):
+        cmd.append('hand_transition_model')
+        cmd.append(len(hand_transition_model))
+
+        for hand_transition in hand_transition_model:
+            cmd.extend(hand_transition)
+
+    def AppendFootTransitionModelCommand(self,cmd,foot_transition_model):
+        cmd.append('foot_transition_model')
+        cmd.append(len(foot_transition_model))
+
+        for foot_transition in foot_transition_model:
+            cmd.extend(foot_transition)
+
+    def AppendRobotPropertiesCommand(self,cmd,escher):
+        cmd.append('robot_properties')
+        for v in escher.OriginalDOFValues:
+            cmd.append(v)
+        for v in escher.GazeboOriginalDOFValues:
+            cmd.append(v)
+
+        cmd.append(escher.foot_h)
+        cmd.append(escher.foot_w)
+        cmd.append(escher.hand_h)
+        cmd.append(escher.hand_w)
+        cmd.append(escher.robot_z)
+        cmd.append(escher.top_z)
+        cmd.append(escher.shoulder_z)
+        cmd.append(escher.shoulder_w)
+        cmd.append(escher.max_arm_length)
+        cmd.append(escher.min_arm_length)
+        cmd.append(escher.max_stride)
+
+    def SendStartCalculatingTraversabilityCommand(self,structures=None,footstep_windows_legs_only=None,footstep_windows=None,torso_transitions=None,footstep_window_grid_resolution=None,
+                                                  dh_grid=None,hand_transition_model=None,parallelization=None,printing=False):
         start = time.time()
-        
+
         cmd = ['StartCalculatingTraversability']
 
         if(printing):
             cmd.append('printing')
 
         if(structures is not None):
-            cmd.append('structures')
-            cmd.append(len(structures))
-
-            for struct in structures:
-                cmd.append(struct.geometry)
-                cmd.append(struct.kinbody.GetName())
-                cmd.append(struct.id)
-
-                if(struct.geometry == 'trimesh'):
-                    # plane parameters
-                    cmd.extend((struct.nx,struct.ny,struct.nz,struct.c))
-
-                    # vertices
-                    cmd.append(len(struct.vertices))
-
-                    for vertex in struct.vertices:
-                        cmd.extend(vertex)
-
-                    # boundaries
-                    cmd.append(len(struct.boundaries))
-
-                    for edge in struct.boundaries:
-                        cmd.extend(edge)
-
-                    # trimesh types
-                    cmd.append(struct.type)
-
-                elif(struct.geometry == 'box'):
-                    print('Warning: Sent box structures, but is ignored.')
-                    continue
+            self.AppendStructuresCommand(cmd, structures)
 
         if(footstep_windows_legs_only is not None):
             cmd.append('transition_footstep_window_cells_legs_only')
@@ -178,66 +202,10 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append(footstep_window_grid_resolution)
 
         if(dh_grid is not None):
-            cmd.append('map_grid')
-            cmd.append(dh_grid.min_x)
-            cmd.append(dh_grid.max_x)
-            cmd.append(dh_grid.min_y)
-            cmd.append(dh_grid.max_y)
-            cmd.append(dh_grid.resolution)
-
-            for i in range(dh_grid.dim_x):
-                for j in range(dh_grid.dim_y):
-                    
-                    cmd.append(dh_grid.cell_2D_list[i][j].height)
-
-                    if(dh_grid.cell_2D_list[i][j].foot_ground_projection[0]):
-                        cmd.append(1)
-                    else:
-                        cmd.append(0)
-
-                    if(dh_grid.cell_2D_list[i][j].foot_ground_projection[1] is None):
-                        cmd.append(-99)
-                    else:
-                        cmd.append(dh_grid.cell_2D_list[i][j].foot_ground_projection[1])
-
-                    cmd.append(len(dh_grid.cell_2D_list[i][j].all_ground_structures))
-                    cmd.extend(dh_grid.cell_2D_list[i][j].all_ground_structures)
-
-                    for k in range(dh_grid.dim_theta):
-                        if(dh_grid.cell_3D_list[i][j][k].parent is not None):
-                            cmd.extend(dh_grid.cell_3D_list[i][j][k].parent.get_indices())
-                        else:
-                            cmd.extend((-99,-99,-99))
-                        cmd.append(dh_grid.cell_3D_list[i][j][k].g)
-                        cmd.append(dh_grid.cell_3D_list[i][j][k].h)
-
-                        cmd.append(len(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index))
-                        cmd.extend(dh_grid.cell_3D_list[i][j][k].left_hand_checking_surface_index)
-                        cmd.append(len(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index))
-                        cmd.extend(dh_grid.cell_3D_list[i][j][k].right_hand_checking_surface_index)
-
-            # import IPython; IPython.embed()
-            for key,window in dh_grid.left_foot_neighbor_window.iteritems():
-                cmd.append(len(window))
-                for cell in window:
-                    cmd.extend(cell)
-            
-            for key,window in dh_grid.right_foot_neighbor_window.iteritems():
-                cmd.append(len(window))
-                for cell in window:
-                    cmd.extend(cell)
-
-            for key,window in dh_grid.chest_neighbor_window.iteritems():
-                cmd.append(len(window))
-                for cell in window:
-                    cmd.extend(cell)
+            self.AppendMapGridCommand(cmd, dh_grid)
 
         if(hand_transition_model is not None):
-            cmd.append('hand_transition_model')
-            cmd.append(len(hand_transition_model))
-
-            for hand_transition in hand_transition_model:
-                cmd.extend(hand_transition)
+            self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
 
         if(parallelization is not None):
             cmd.append('parallelization')
@@ -290,13 +258,13 @@ class escher_openrave_cpp_wrapper(object):
         print('Calculation Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
         print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
 
-        return (footstep_transition_traversability_legs_only,footstep_transition_traversability,hand_transition_traversability)
+        return (footstep_transition_traversability_legs_only, footstep_transition_traversability, hand_transition_traversability)
 
-    
-    def SendStartConstructingContactRegions(self, structures=None, printing=False, structures_id=None):
-        
+
+    def SendStartConstructingContactRegions(self,structures=None,printing=False,structures_id=None):
+
         start = time.time()
-        
+
         cmd = ['StartConstructingContactRegions']
 
         if(printing):
@@ -334,7 +302,7 @@ class escher_openrave_cpp_wrapper(object):
                     print('Warning: Sent box structures, but is ignored.')
                     continue
 
-        if structures_id is not None:
+        if structures_id is not None: # specify the structures id of interest in extracting contact regions
             cmd.append('structures_id')
             cmd.append(len(structures_id))
             for s_id in structures_id:
@@ -366,7 +334,7 @@ class escher_openrave_cpp_wrapper(object):
         for i in range(contact_regions_num):
             contact_regions_values[i] = result[counter:counter+7]
             counter += 7
-        
+
 
         # print("Output message received in Python:")
         # print(result_str)
@@ -379,48 +347,197 @@ class escher_openrave_cpp_wrapper(object):
 
         return (contact_points_values,contact_regions_values)
 
-# def main():
-#     env = rave.Environment()
-#     env.SetViewer('qtcoin')
-#     env.Reset()
+    def SendStartTestingDynamicsOptimization(self,initial_state, initial_state_com, initial_state_com_dot, second_state):
 
-#     ## load the Escher robot
-#     urdf = 'file://escher_model/escher_cpp.urdf'
-#     srdf = 'file://escher_model/escher_cpp.srdf'
+        cmd = ['StartTestingTransitionDynamicsOptimization']
 
-#     robot = load_robot(env, urdf_path=urdf, srdf_path=srdf)
+        if initial_state is not None:
+            cmd.append('initial_state')
 
-#     ### INITIALIZE PLUGIN ###
-#     rave.RaveInitialize()
-#     rave.RaveLoadPlugin('build/escher_motion_planning')
-#     EscherMotionPlanning = rave.RaveCreateModule(env,'EscherMotionPlanning')
-#     ### END INITIALIZING PLUGIN ###
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
+                for v in pose:
+                    cmd.append(v)
 
-#     # print("python env pointer: " + RaveGetEnvironment())
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
 
-#     SendStartPlanningCommand(EscherMotionPlanning,robotname=robot.GetName(),goal=[2.5,0.5,0.0],parallelization=True)
+                if pose[0] == -99.0:
+                    cmd.append(0)
+                else:
+                    cmd.append(1)
 
-#     raw_input("Press enter to exit...")
-#     # import IPython; IPython.embe        
+            cmd.extend(initial_state_com)
+            cmd.extend(initial_state_com_dot)
 
-        # print("Output message received in Python:")
-        # print(result_str)
+        if second_state is not None:
+            cmd.append('second_state')
+
+            for i in range(4):
+                pose = second_state.get_manip_pose(i)
+                for v in pose:
+                    cmd.append(v)
+
+            for i in range(4):
+                pose = second_state.get_manip_pose(i)
+
+                if pose[0] == -99.0:
+                    cmd.append(0)
+                else:
+                    cmd.append(1)
+
+            cmd.extend([0,0,0])
+            cmd.extend([0,0,0])
+
+        cmd_str = " ".join(str(item) for item in cmd)
+
+        result_str = self.module.SendCommand(cmd_str)
+
+    def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
+                                     structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',dh_grid=None,
+                                     output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
+                                     use_learned_dynamics_model=False,enforce_stop_in_the_end=False,
+                                     thread_num=None,branching_method=None,planning_id=None,printing=None):
+
+        start = time.time()
+
+        cmd = ['StartPlanningFromScratch']
+
+        if printing:
+            cmd.append('printing')
+
+        if robot_name is not None:
+            cmd.append('robot_name')
+            cmd.append(robot_name)
+        else:
+            print('robot name is required for planning. Abort.')
+            return
+
+        if (initial_state is not None) and (escher is not None):
+            cmd.append('initial_state')
+
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
+                for v in pose:
+                    cmd.append(v)
+
+            for i in range(4):
+                pose = initial_state.get_manip_pose(i)
+
+                if pose[0] == -99.0:
+                    cmd.append(0)
+                else:
+                    cmd.append(1)
+
+            mean_feet_xyzrpy = initial_state.get_mean_feet_xyzrpy()
+
+            cmd.append(mean_feet_xyzrpy[0])
+            cmd.append(mean_feet_xyzrpy[1])
+            cmd.append(mean_feet_xyzrpy[2] + escher.robot_z)
+            cmd.extend([0, 0, 0])
+
+        else:
+            print('initial state and robot properties(escher) is required for planning. Abort.')
+            return
+
+        if goal is not None:
+            cmd.append('goal')
+            for g in goal:
+                cmd.append(g)
+        else:
+            print('goal is required for planning. Abort.')
+            return
+
+        if escher is not None:
+            self.AppendRobotPropertiesCommand(cmd, escher)
+        else:
+            print('robot properties(escher) is required for planning. Abort.')
+            return
+
+        if structures is not None:
+            self.AppendStructuresCommand(cmd, structures)
+        else:
+            print('structures are required for planning. Abort.')
+            return
+
+        if foot_transition_model is not None:
+            self.AppendFootTransitionModelCommand(cmd, foot_transition_model)
+        else:
+            print('foot transition model is required for planning. Abort.')
+            return
+
+        if hand_transition_model is not None:
+            self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
+
+        if dh_grid is not None:
+            self.AppendMapGridDimCommand(cmd, dh_grid)
+
+        if (goal_radius is not None) and (time_limit is not None) and (epsilon is not None):
+            cmd.append('planning_parameters')
+            cmd.append(goal_radius)
+            cmd.append(time_limit)
+            cmd.append(epsilon)
+
+            if planning_heuristics == 'euclidean' or planning_heuristics == 'dijkstra':
+                cmd.append(planning_heuristics)
+            else:
+                print('Unknown planning heuristics type %s. Abort.'%(planning_heuristics))
+                return
+
+            if output_first_solution:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if goal_as_exact_poses:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if use_dynamics_planning:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if use_learned_dynamics_model:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+
+            if enforce_stop_in_the_end:
+                cmd.append(1)
+            else:
+                cmd.append(0)
+        else:
+            print('goal radius, time limit, and epsilon are required for planning. Abort.')
+            return
+
+        if thread_num is not None:
+            cmd.append('thread_num')
+            cmd.append(thread_num)
+
+        if branching_method is not None:
+            cmd.append('branching_method')
+            cmd.append(branching_method)
+
+        if planning_id is not None:
+            cmd.append('planning_id')
+            cmd.append(planning_id)
+
+        cmd_str = " ".join(str(item) for item in cmd)
+
+        after_constructing_command = time.time()
+
+        result_str = self.module.SendCommand(cmd_str)
+
+        after_calculation = time.time()
+
+        # result = [float(x) for x in result_str.split()]
+
+        # parsing the outputs
 
         after_parsing_output = time.time()
 
         print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
-        print('Calculation Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
+        print('Planning Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
         print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
-
-        return (footstep_transition_traversability,hand_transition_traversability)
-
-# def main():
-#     env = rave.Environment()d();
-
-#     return
-
-
-
-# if __name__ == "__main__":
-#     main()
-    

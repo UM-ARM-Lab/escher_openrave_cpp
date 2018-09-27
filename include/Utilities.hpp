@@ -8,21 +8,25 @@
 #include <cmath>
 #include <functional>
 #include <iostream>
+#include <fstream>
 #include <iterator>
 #include <limits>
 #include <map>
 #include <numeric>
 #include <queue>
+#include <random>
 #include <sstream>
 #include <string>
 #include <set>
 #include <unistd.h>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Eigen
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Geometry>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 // Boost
 #include <boost/bind.hpp>
@@ -31,11 +35,25 @@
 #include <rave/rave.h>
 #include <openrave/planningutils.h>
 
+// NEWMAT
+#include <newmat/newmatap.h>
+#include <newmat/newmatio.h>
 
-typedef Eigen::Matrix4f TransformationMatrix;
-typedef Eigen::Matrix3f RotationMatrix;
-typedef Eigen::Vector2f Translation2D;
-typedef Eigen::Vector3f Translation3D;
+// frugally deep
+#include <fdeep/fdeep.hpp>
+
+// cddlib
+#define GMPRATIONAL 1
+#include <cdd/setoper.h>
+#include <cdd/cdd.h>
+
+typedef Eigen::Matrix4f          TransformationMatrix;
+typedef Eigen::Matrix3f          RotationMatrix;
+typedef Eigen::Vector2f          Translation2D;
+typedef Eigen::Vector3f          Translation3D;
+typedef Eigen::Vector2f          Vector2D;
+typedef Eigen::Vector3f          Vector3D;
+typedef Eigen::Quaternion<float> Quaternion;
 
 typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
@@ -59,6 +77,7 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
+const float STEP_TRANSITION_TIME = 1.0;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
@@ -73,7 +92,8 @@ enum ContactManipulator
     L_LEG,
     R_LEG,
     L_ARM,
-    R_ARM
+    R_ARM,
+    MANIP_NUM
 };
 
 enum ContactType
@@ -88,45 +108,134 @@ enum TrimeshType
     OTHERS
 };
 
-const std::vector<ContactManipulator> ARM_MANIPULATORS = {ContactManipulator::L_ARM,ContactManipulator::R_ARM};
-const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_LEG,ContactManipulator::R_LEG};
+enum PlanningHeuristicsType
+{
+    EUCLIDEAN,
+    DIJKSTRA
+};
+
+enum ExploreState
+{
+    OPEN,
+    EXPLORED,
+    CLOSED,
+    REOPEN
+};
+
+enum TerrainType
+{
+    SOLID,
+    GAP,
+    OBSTACLE
+};
+
+enum BranchingMethod
+{
+    CONTACT_PROJECTION,
+    CONTACT_OPTIMIZATION
+};
+
+enum ContactTransitionCode
+{
+    FEET_ONLY_MOVE_FOOT,                // 0
+    FEET_ONLY_ADD_HAND,                 // 1
+    FEET_AND_ONE_HAND_MOVE_INNER_FOOT,  // 2
+    FEET_AND_ONE_HAND_MOVE_OUTER_FOOT,  // 3
+    FEET_AND_ONE_HAND_BREAK_HAND,       // 4
+    FEET_AND_ONE_HAND_MOVE_HAND,        // 5
+    FEET_AND_ONE_HAND_ADD_HAND,         // 6
+    FEET_AND_TWO_HANDS_MOVE_FOOT,        // 7
+    FEET_AND_TWO_HANDS_BREAK_HAND,       // 8
+    FEET_AND_TWO_HANDS_MOVE_HAND         // 9
+};
+
+struct EnumClassHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        return static_cast<std::size_t>(t);
+    }
+};
+
+const std::vector<ContactManipulator> ALL_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG, ContactManipulator::L_ARM, ContactManipulator::R_ARM};
+const std::vector<ContactManipulator> ARM_MANIPULATORS = {ContactManipulator::L_ARM, ContactManipulator::R_ARM};
+const std::vector<ContactManipulator> LEG_MANIPULATORS = {ContactManipulator::L_LEG, ContactManipulator::R_LEG};
 
 class RPYTF
 {
-public:
-	RPYTF(std::array<float,6> xyzrpy)
-	{
-		x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
-		y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
-		z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
-		roll_ = round(xyzrpy[3] * 10.0) / 10.0;
-		pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
-		yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
-	}
+    public:
+        RPYTF(){};
+        RPYTF(std::array<float,6> xyzrpy)
+        {
+            x_ = round(xyzrpy[0] * 1000.0) / 1000.0;
+            y_ = round(xyzrpy[1] * 1000.0) / 1000.0;
+            z_ = round(xyzrpy[2] * 1000.0) / 1000.0;
+            roll_ = round(xyzrpy[3] * 10.0) / 10.0;
+            pitch_ = round(xyzrpy[4] * 10.0) / 10.0;
+            yaw_ = round(xyzrpy[5] * 10.0) / 10.0;
+        }
 
-	RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
-	{
-		x_ = round(_x * 1000.0) / 1000.0;
-		y_ = round(_y * 1000.0) / 1000.0;
-		z_ = round(_z * 1000.0) / 1000.0;
-		roll_ = round(_roll * 10.0) / 10.0;
-		pitch_ = round(_pitch * 10.0) / 10.0;
-		yaw_ = round(_yaw * 10.0) / 10.0;
-	}
+        RPYTF(float _x, float _y, float _z, float _roll, float _pitch, float _yaw)
+        {
+            x_ = round(_x * 1000.0) / 1000.0;
+            y_ = round(_y * 1000.0) / 1000.0;
+            z_ = round(_z * 1000.0) / 1000.0;
+            roll_ = round(_roll * 10.0) / 10.0;
+            pitch_ = round(_pitch * 10.0) / 10.0;
+            yaw_ = round(_yaw * 10.0) / 10.0;
+        }
 
-    inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
-                                                        (this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
-    inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
-                                                        (this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
-    
-	inline std::array<float,6> getXYZRPY() {return std::array<float,6>({x_,y_,z_,roll_,pitch_,yaw_});}
-	
-	float x_; // meters
-    float y_; // meters
-    float z_; // meters
-    float roll_; // degrees
-    float pitch_; // degrees
-    float yaw_; // degrees
+        inline bool operator==(const RPYTF& other) const{ return ((this->x_ == other.x_) && (this->y_ == other.y_) && (this->z_ == other.z_) &&
+                                                            (this->roll_ == other.roll_) && (this->pitch_ == other.pitch_) && (this->yaw_ == other.yaw_));}
+        inline bool operator!=(const RPYTF& other) const{ return ((this->x_ != other.x_) || (this->y_ != other.y_) || (this->z_ != other.z_) ||
+                                                            (this->roll_ != other.roll_) || (this->pitch_ != other.pitch_) || (this->yaw_ != other.yaw_));}
+
+        inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
+        inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+
+        inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
+
+        float x_; // meters
+        float y_; // meters
+        float z_; // meters
+        float roll_; // degrees
+        float pitch_; // degrees
+        float yaw_; // degrees
+
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> GetRaveTransformMatrix() const
+        {
+            OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+
+            OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+
+            OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix = OpenRAVE::geometry::matrixFromAxisAngle(x_axis_angle) *
+                                                                              OpenRAVE::geometry::matrixFromAxisAngle(y_axis_angle) *
+                                                                              OpenRAVE::geometry::matrixFromAxisAngle(z_axis_angle);
+            transform_matrix.trans = translation;
+
+            return transform_matrix;
+        }
+
+        OpenRAVE::Transform GetRaveTransform() const
+        {
+            OpenRAVE::RaveVector<OpenRAVE::dReal> x_axis_angle(roll_ * DEG2RAD, 0, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> y_axis_angle(0, pitch_ * DEG2RAD, 0);
+            OpenRAVE::RaveVector<OpenRAVE::dReal> z_axis_angle(0, 0, yaw_ * DEG2RAD);
+
+            OpenRAVE::RaveVector<OpenRAVE::dReal> translation(x_, y_, z_);
+
+            OpenRAVE::Transform transform = OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(x_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
+                                            OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(y_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0)) *
+                                            OpenRAVE::Transform(OpenRAVE::geometry::quatFromAxisAngle(z_axis_angle), OpenRAVE::RaveVector<OpenRAVE::dReal>(0,0,0));
+            transform.trans = translation;
+
+            return transform;
+        }
+
+
 };
 
 // Distance
@@ -138,6 +247,16 @@ TransformationMatrix constructTransformationMatrix(float m00, float m01, float m
 TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
+RPYTF SE3ToXYZRPY(const TransformationMatrix& T);
+RPYTF SO3ToRPY(const RotationMatrix& R);
+Quaternion RPYToQuaternion(const RPYTF& e);
+// Quaternion SO3ToQuaternion(const );
+// RotationMatrix QauternionToSO3();
+
+// Manipulate the angle differences
+float getFirstTerminalAngle(float angle);
+float getAngleDifference(float angle1, float angle2);
+float getAngleMean(float angle1, float angle2);
 
 // Data structure translation
 Translation2D gridPositions2DToTranslation2D(GridPositions2D positions);
@@ -147,11 +266,21 @@ GridPositions2D translation2DToGridPositions2D(Translation2D positions);
 bool isValidPosition(Translation3D p);
 bool isValidPosition(Translation2D p);
 
+// Transform pose and position from OpenRAVE to SL
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e);
+RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_transform);
+Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t);
+Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t);
+Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
+Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
+
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 
-
+#include "GIWC.hpp"
+#include "GeneralIKInterface.hpp"
 #include "Drawing.hpp"
+#include "RobotProperties.hpp"
 #include "Structure.hpp"
 #include "ContactPoint.hpp"
 #include "ContactRegion.hpp"
@@ -161,6 +290,8 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "TrimeshSurface.hpp"
 #include "MapGrid.hpp"
 #include "ContactState.hpp"
+#include "OptimizationInterface.hpp"
+#include "NeuralNetworkInterface.hpp"
 #include "ContactSpacePlanning.hpp"
 #include "EscherMotionPlanning.hpp"
 #include "Boundary.hpp"
