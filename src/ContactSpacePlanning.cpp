@@ -77,6 +77,13 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 {
     RAVELOG_INFO("Start ANA* planning.\n");
 
+    if(!feetReprojection(initial_state))
+    {
+        RAVELOG_INFO("The initial state is not feasible. Abort contact planning.\n");
+        std::vector< std::shared_ptr<ContactState> > empty_path;
+        return empty_path;
+    }
+
     // initialize parameters
     G_ = 999999.0;
     E_ = G_;
@@ -1525,6 +1532,42 @@ bool ContactSpacePlanning::handProjection(ContactManipulator& contact_manipulato
     }
 
     return found_projection_surface;
+}
+
+bool ContactSpacePlanning::feetReprojection(std::shared_ptr<ContactState> state)
+{
+    std::shared_ptr<Stance> current_stance = state->stances_vector_[0];
+    bool has_projection = true;
+    std::array<RPYTF,ContactManipulator::MANIP_NUM> reprojected_ee_contact_poses = current_stance->ee_contact_poses_;
+
+    for(int i = 0; i < ContactManipulator::MANIP_NUM; i++)
+    {
+        ContactManipulator move_manip = (ContactManipulator)i;
+        if(current_stance->ee_contact_status_[i] &&
+           (move_manip == ContactManipulator::L_LEG || move_manip == ContactManipulator::R_LEG))
+        {
+            reprojected_ee_contact_poses[i].z_ = 99.0;
+            has_projection = footProjection(move_manip, reprojected_ee_contact_poses[i]);
+
+            if(!has_projection)
+            {
+                break;
+            }
+        }
+    }
+
+    if(has_projection)
+    {
+        std::shared_ptr<Stance> reprojected_stance = std::make_shared<Stance>(reprojected_ee_contact_poses[0],
+                                                                              reprojected_ee_contact_poses[1],
+                                                                              reprojected_ee_contact_poses[2],
+                                                                              reprojected_ee_contact_poses[3],
+                                                                              current_stance->ee_contact_status_);
+        state->stances_vector_.clear();
+        state->stances_vector_.push_back(reprojected_stance);
+    }
+
+    return has_projection;
 }
 
 void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost)

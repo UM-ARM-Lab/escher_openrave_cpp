@@ -106,6 +106,7 @@ class ContactSpacePlanning
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         bool footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose);
         bool handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_point, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
+        bool feetReprojection(std::shared_ptr<ContactState> state);
 
         void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost);
 

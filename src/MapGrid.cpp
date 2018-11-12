@@ -143,41 +143,72 @@ GridPositions3D MapGrid::indicesToPositions(GridIndices3D indices)
     return {xy_positions[0], xy_positions[1], theta_position};
 }
 
-void MapGrid::obstacleAndGapMapping(std::vector< std::shared_ptr<TrimeshSurface> > structures)
+void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vector< std::shared_ptr<TrimeshSurface> > structures)
 {
-    // only do gap mapping now
-    Translation3D projection_ray(0,0,-1);
-    for(int ix = 0; ix < dim_x_; ix++)
+    // gap mapping and obstacle mapping
+    OpenRAVE::KinBodyPtr body_collision_box = env->GetKinBody("body_collision_box");
+    OpenRAVE::Transform out_of_env_transform = body_collision_box->GetTransform();
+
     {
-        for(int iy = 0; iy < dim_y_; iy++)
+        OpenRAVE::EnvironmentMutex::scoped_lock lockenv(env->GetMutex());
+
+        Translation3D projection_ray(0,0,-1);
+        for(int ix = 0; ix < dim_x_; ix++)
         {
-            GridPositions2D cell_position = cell_2D_list_[ix][iy].getPositions();
-            Translation3D projection_start_point(cell_position[0], cell_position[1], 99.0);
-            bool has_projection = false;
-            for(auto structure : structures)
+            for(int iy = 0; iy < dim_y_; iy++)
             {
-                if(structure->insidePolygon(structure->projectionGlobalFrame(projection_start_point, projection_ray)))
+                GridPositions2D cell_position = cell_2D_list_[ix][iy].getPositions();
+                Translation3D projection_start_point(cell_position[0], cell_position[1], 99.0);
+                bool has_projection = false;
+                float height = -99.0;
+                for(auto structure : structures)
                 {
-                    has_projection = true;
-                    break;
+                    Translation3D projected_point = structure->projectionGlobalFrame(projection_start_point, projection_ray);
+                    if(structure->insidePolygon(projected_point))
+                    {
+                        has_projection = true;
+                        height = projected_point[2] > height ? projected_point[2] : height;
+                    }
                 }
-            }
 
-            if(!has_projection)
-            {
-                for(int itheta = 0; itheta < dim_theta_; itheta++)
+                cell_2D_list_[ix][iy].height_ = height;
+
+                if(!has_projection)
                 {
-                    cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::GAP;
+                    // std::cout << "0 ";
+                    for(int itheta = 0; itheta < dim_theta_; itheta++)
+                    {
+                        cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::GAP;
+                    }
                 }
-                // std::cout << "0 ";
+                else
+                {
+                    // std::cout << "1 ";
+                    for(int itheta = 0; itheta < dim_theta_; itheta++)
+                    {
+                        GridPositions3D cell_3d_position = cell_3D_list_[ix][iy][itheta].getPositions();
+                        RPYTF body_collision_box_transform(cell_3d_position[0], cell_3d_position[1], height, 0, 0, cell_3d_position[2]);
+                        body_collision_box->SetTransform(body_collision_box_transform.GetRaveTransform());
+                        bool in_collision = false;
+
+                        for(auto structure : structures)
+                        {
+                            if(env->CheckCollision(body_collision_box, structure->getKinbody()))
+                            {
+                                in_collision = true;
+                                break;
+                            }
+                        }
+
+                        if(in_collision)
+                        {
+                            cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::OBSTACLE;
+                        }
+                    }
+                }
             }
-            else
-            {
-                // std::cout << "1 ";
-            }
+            // std::cout << std::endl;
         }
-
-        // std::cout << std::endl;
     }
 }
 

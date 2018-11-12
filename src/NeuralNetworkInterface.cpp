@@ -237,7 +237,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     //     dynamics_feasibility = true;
     // }
 
-    dynamics_feasibility = true;
+    // dynamics_feasibility = true;
 
     if(dynamics_feasibility)
     {

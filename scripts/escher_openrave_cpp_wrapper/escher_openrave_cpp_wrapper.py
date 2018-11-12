@@ -394,7 +394,7 @@ class escher_openrave_cpp_wrapper(object):
         result_str = self.module.SendCommand(cmd_str)
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
-                                     structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',dh_grid=None,
+                                     structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',map_grid=None,map_grid_dim=None,
                                      output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
                                      use_learned_dynamics_model=False,enforce_stop_in_the_end=False,
                                      thread_num=None,branching_method=None,planning_id=None,printing=None):
@@ -469,8 +469,10 @@ class escher_openrave_cpp_wrapper(object):
         if hand_transition_model is not None:
             self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
 
-        if dh_grid is not None:
-            self.AppendMapGridDimCommand(cmd, dh_grid)
+        if map_grid is not None:
+            self.AppendMapGridDimCommand(cmd, map_grid)
+        elif map_grid_dim is not None:
+            self.AppendMapGridDimCommand(cmd, map_grid_dim)
 
         if (goal_radius is not None) and (time_limit is not None) and (epsilon is not None):
             cmd.append('planning_parameters')
