@@ -14,9 +14,10 @@
 class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
 {
     public:
-        ContactPlanFromContactSequence(std::vector< std::shared_ptr<ContactState> > _input_contact_state_sequence, float _step_transition_time):
+        ContactPlanFromContactSequence(std::vector< std::shared_ptr<ContactState> > _input_contact_state_sequence, float _step_transition_time,  float _support_phase_time):
         input_contact_state_sequence_(_input_contact_state_sequence),
         step_transition_time_(_step_transition_time),
+        support_phase_time_(_support_phase_time),
         timer_(0.0) {};
 
         ContactPlanFromContactSequence() {}
@@ -33,6 +34,7 @@ class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
         momentumopt::DynamicsState dummy_ini_state_;
         momentumopt::DynamicsSequence dummy_dyn_seq_;
         float step_transition_time_;
+        float support_phase_time_;
         float timer_;
         Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> contacts_per_endeff_;
 };
@@ -56,7 +58,7 @@ class DummyKinematicsInterface : public virtual momentumopt::KinematicsInterface
 class OptimizationInterface
 {
     public:
-        OptimizationInterface(float _step_transition_time, std::string _cfg_file);
+        OptimizationInterface(float _step_transition_time, float _support_phase_time, std::string _cfg_file);
 
         // initialization functions
         // void initializeKinematicsInterface();
@@ -92,6 +94,9 @@ class OptimizationInterface
 
         void recordDynamicsMetrics();
 
+        float step_transition_time_;
+        float support_phase_time_;
+
         // dynamics metrics
         double mean_min_force_dist_to_boundary_, mean_min_cop_dist_to_boundary_, mean_max_force_angle_, mean_max_lateral_force_, \
                mean_mean_cop_dist_to_boundary_, mean_mean_force_dist_to_boundary_, mean_mean_force_angle_, mean_mean_lateral_force_, \
@@ -112,7 +117,6 @@ class OptimizationInterface
         momentumopt::KinematicsOptimizer        kinematics_optimizer_;
         momentumopt::DynamicsSequence           reference_dynamics_sequence_;
 
-        const float step_transition_time_;
         std::vector< std::shared_ptr<ContactState> > contact_state_sequence_;
 
         // std::ofstream dynopt_result_digest_;

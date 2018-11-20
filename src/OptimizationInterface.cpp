@@ -88,7 +88,10 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         }
         else
         {
-            this->timer_ += 0.6;
+            this->timer_ += support_phase_time_;
+
+            // 0_6_0_4 legacy code
+            // this->timer_ += 0.6;
 
             ContactManipulator moving_manip = contact_state->prev_move_manip_;
             eff_id = contact_manipulator_id_map_.find(moving_manip)->second;
@@ -120,7 +123,8 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 eff_final_in_contact[eff_id] = false;
             }
 
-            this->timer_ += 0.4;
+            // 0_6_0_4 legacy code
+            // this->timer_ += 0.4;
 
             // std::cout << "$$$$$$$$$$$$$" << std::endl;
             // for(auto & manip : ALL_MANIPULATORS)
@@ -166,33 +170,34 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         // }
     }
 
-    std::vector<std::string> eff_name = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
-    std::ofstream eff_cnt_fstream("eff_cnt_list.txt", std::ofstream::out);
-    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
-    {
-        eff_cnt_fstream << eff_name[eff_id] << ":" << std::endl;
-        for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
-        {
-            eff_cnt_fstream << "cnt" << cnt_id << ":" << "["
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[0] << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[1] << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[2] << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().w() << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().x() << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().y() << ", "
-                            << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().z() << ", "
-                            << float(this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactType()) << ", "
-                            << -1.0
-                            << "]" << std::endl;
-        }
-    }
+    // std::vector<std::string> eff_name = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    // std::ofstream eff_cnt_fstream("eff_cnt_list.txt", std::ofstream::out);
+    // for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    // {
+    //     eff_cnt_fstream << eff_name[eff_id] << ":" << std::endl;
+    //     for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
+    //     {
+    //         eff_cnt_fstream << "cnt" << cnt_id << ":" << "["
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[0] << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[1] << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[2] << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().w() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().x() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().y() << ", "
+    //                         << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactOrientation().z() << ", "
+    //                         << float(this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactType()) << ", "
+    //                         << -1.0
+    //                         << "]" << std::endl;
+    //     }
+    // }
 }
 
 
-OptimizationInterface::OptimizationInterface(float _step_transition_time, std::string _cfg_file):
-step_transition_time_(_step_transition_time)
+OptimizationInterface::OptimizationInterface(float _step_transition_time, float _support_phase_time, std::string _cfg_file):
+step_transition_time_(_step_transition_time),
+support_phase_time_(_support_phase_time)
 // kinematics_interface_(momentumopt_sl::KinematicsInterfaceSl(5.0)),
 // dynopt_result_digest_("dynopt_result_digest.txt", std::ofstream::app),
 // simplified_dynopt_result_digest_("simplified_dynopt_result_digest.txt",std::ofstream::app) {loadDynamicsOptimizerSetting(_cfg_file);}
@@ -234,7 +239,7 @@ void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<C
 {
     this->contact_state_sequence_.resize(new_contact_state_sequence.size());
     this->contact_state_sequence_ = new_contact_state_sequence;
-    this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_, this->step_transition_time_);
+    this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_, this->step_transition_time_, this->support_phase_time_);
     this->updateContactSequenceRelatedDynamicsOptimizerSetting();
 }
 
@@ -265,12 +270,19 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         }
         else
         {
-            total_time += (time_step*3);
+            total_time += this->support_phase_time_;
 
             total_time += this->step_transition_time_;
             active_eff_set.insert(int(contact_state->prev_move_manip_));
 
-            total_time += (time_step*2);
+
+            // 0_6_0_4 legacy code
+            // total_time += (time_step*3);
+
+            // total_time += this->step_transition_time_;
+            // active_eff_set.insert(int(contact_state->prev_move_manip_));
+
+            // total_time += (time_step*2);
         }
 
         state_counter++;
@@ -455,7 +467,7 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
 
     if(int(solver_exitcode) <= 1)
     {
-        recordDynamicsMetrics();
+        // recordDynamicsMetrics();
         return true;
     }
     else
@@ -934,7 +946,10 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
             dynopt_result_fstream << transformed_current_com[0] << " " << transformed_current_com[1] << " " << transformed_current_com[2] << " ";
             dynopt_result_fstream << transformed_current_com_dot[0] << " " << transformed_current_com_dot[1] << " " << transformed_current_com_dot[2] << " ";
 
-            dynopt_result_fstream << dynamics_cost;
+            dynopt_result_fstream << dynamics_cost << " ";
+
+            dynopt_result_fstream << step_transition_time_ << " ";
+            dynopt_result_fstream << support_phase_time_;
 
             dynopt_result_fstream << std::endl;
         }
@@ -966,6 +981,9 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
 
             dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
             dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+
+            dynopt_result_fstream << step_transition_time_ << " ";
+            dynopt_result_fstream << support_phase_time_;
 
             dynopt_result_fstream << std::endl;
         }

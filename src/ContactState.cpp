@@ -173,7 +173,18 @@ float ContactState::getRightHorizontalYaw()
 
 float ContactState::getFeetMeanHorizontalYaw()
 {
-    return getAngleMean(this->getLeftHorizontalYaw(), this->getRightHorizontalYaw());
+    if(stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG] && stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    {
+        return getAngleMean(this->getLeftHorizontalYaw(), this->getRightHorizontalYaw());
+    }
+    else if(stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG])
+    {
+        return this->getLeftHorizontalYaw();
+    }
+    else if(stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    {
+        return this->getRightHorizontalYaw();
+    }
 }
 
 TransformationMatrix ContactState::getFeetMeanTransform()
