@@ -52,7 +52,7 @@ general_ik_interface_(_general_ik_interface)
 
     for(unsigned int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
     {
-        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
     }
 
     if(!use_dynamics_planning_)
@@ -1072,24 +1072,42 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
         else
         {
             // update the state cost and CoM
-            std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
+            dynamics_cost = std::numeric_limits<float>::max();
+            std::shared_ptr<ContactState> tmp_current_state = std::make_shared<ContactState>(*current_state);
+            std::shared_ptr<ContactState> tmp_prev_state = std::make_shared<ContactState>(*tmp_current_state->parent_);
+            tmp_current_state->parent_ = tmp_prev_state;
+            std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {tmp_current_state->parent_, tmp_current_state};
+            dynamically_feasible = false;
 
-            dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
-
-            // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
-            dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
-
-            if(dynamically_feasible)
+            for(float transition_time = 0.6; transition_time < 1.5; transition_time += 0.2)
             {
-                // update com, com_dot, and parent edge dynamics sequence of the current_state
-                dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
-                dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+                float tmp_dynamics_cost;
+                dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
+                dynamics_optimizer_interface_vector_[index]->step_transition_time_ = transition_time;
+                dynamics_optimizer_interface_vector_[index]->support_phase_time_ = transition_time;
+
+                // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+                bool tmp_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(tmp_dynamics_cost);
+
+                if(tmp_dynamically_feasible)
+                {
+                    // update com, com_dot, and parent edge dynamics sequence of the current_state
+                    dynamics_optimizer_interface_vector_[index]->updateStateCoM(tmp_current_state);
+                    dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(tmp_current_state);
+
+                    dynamically_feasible = true;
+                    if(tmp_dynamics_cost < dynamics_cost)
+                    {
+                        dynamics_cost = tmp_dynamics_cost;
+                        dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
+                        dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+                    }
+                }
+
+                dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(tmp_current_state, dynamics_cost, dynamically_feasible, planning_id_);
             }
 
-            dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(current_state, dynamics_cost, dynamically_feasible, planning_id_);
         }
-
-
 
         // std::cout << "Dynamically feasible: " << dynamically_feasible << std::endl;
 

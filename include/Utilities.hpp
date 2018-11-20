@@ -78,6 +78,7 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
 const float STEP_TRANSITION_TIME = 1.0;
+const float SUPPORT_PHASE_TIME = 1.0;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 

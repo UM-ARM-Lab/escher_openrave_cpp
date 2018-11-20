@@ -1717,7 +1717,7 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
     //     }
     // }
 
-    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
 
     float dynamics_cost = 0.0;
     bool dynamically_feasible;
@@ -2024,6 +2024,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     RAVELOG_INFO("Command Parsing Done. \n");
 
     map_grid_->obstacleAndGapMapping(penv_, structures_);
+    RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
+
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
     map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
