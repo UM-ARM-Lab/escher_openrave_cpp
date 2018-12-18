@@ -17,6 +17,9 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
 
     RegisterCommand("StartConstructingContactRegions",boost::bind(&EscherMotionPlanning::constructContactRegions,this,_1,_2),
                     "Start constructing contact regions.");
+
+    RegisterCommand("StartCollectDynamicsOptimizationData",boost::bind(&EscherMotionPlanning::startCollectDynamicsOptimizationData,this,_1,_2),
+                    "Start collecting dynamics optimization results.");
 }
 
 void EscherMotionPlanning::parseStructuresCommand(std::istream& sinput)
@@ -1799,6 +1802,79 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
     //     RAVELOG_ERROR("Dynamically infeasible.\n");
     // }
 
+}
+
+bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& sout, std::istream& sinput)
+{
+    penv_ = GetEnv();
+
+    std::string robot_name;
+    std::string param;
+
+    int thread_num = 1;
+    int planning_id = 0;
+
+    // read the transition models
+    while(!sinput.eof())
+    {
+        sinput >> param;
+        if(!sinput)
+        {
+            break;
+        }
+
+        if(strcmp(param.c_str(), "robot_name") == 0)
+        {
+            sinput >> robot_name;
+            SetActiveRobot(robot_name);
+        }
+
+        else if(strcmp(param.c_str(), "thread_num") == 0)
+        {
+            sinput >> thread_num;
+        }
+
+        else if(strcmp(param.c_str(), "robot_properties") == 0)
+        {
+            parseRobotPropertiesCommand(sinput);
+        }
+
+        else if(strcmp(param.c_str(), "foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput);
+        }
+
+        else if(strcmp(param.c_str(), "hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput);
+        }
+
+        else if(strcmp(param.c_str(), "planning_id") == 0)
+        {
+            sinput >> planning_id;
+        }
+    }
+
+    RAVELOG_INFO("Thread Number = %d.\n",thread_num);
+
+    drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
+
+    RAVELOG_INFO("Command Parsing Done. \n");
+
+    general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+
+    // enumerate all the initial states
+    std::vector<std::shared_ptr<ContactState> > initial_states;
+    std::vector<std::pair<RPYTF, RPYTF> > initial_feet_pose_pairs;
+
+
+    // get all the branches, and
+
+    ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model_, hand_transition_model_,
+                                              structures_, structures_dict_, NULL, general_ik_interface_, 1,
+                                              thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
+                                              PlanningApplication::COLLECT_DATA);
+
 
 }
 
@@ -2032,12 +2108,26 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_,
-                                               general_ik_interface_, 1, thread_num, drawing_handler_, planning_id, use_dynamics_planning);
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
+                                               structures_, structures_dict_, map_grid_,
+                                               general_ik_interface_, 1, thread_num, drawing_handler_,
+                                               planning_id, use_dynamics_planning, disturbance_samples_);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
     contact_space_planner.storeSLEnvironment();
+
+    // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
+
+    // RPYTF initial_torso_pose(0, 0, 1.2, 0, 0, 0);
+    // RPYTF goal_torso_pose(1.3, 0, -3.1, 0, 0, 0);
+    // // RPYTF goal_torso_pose(2.6, 0, 1.2, 0, 0, 0);
+    // auto initial_torso_pose_state = std::make_shared<TorsoPoseState>(initial_torso_pose);
+
+    // RPYTF far_away_pose(99.0, 99.0, 99.0, 0, 0, 0);
+    // probot_->SetTransform(far_away_pose.GetRaveTransform());
+
+    // std::vector< std::shared_ptr<TorsoPoseState> > torso_path = torso_path_planner.AStarPlanning(initial_torso_pose_state, goal_torso_pose, time_limit);
 
     // getchar();
 

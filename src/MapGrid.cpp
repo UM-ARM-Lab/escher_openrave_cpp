@@ -214,7 +214,7 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
 
 void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
 {
-    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, MapCell3D::pointer_less > open_heap;
+    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, pointer_less > open_heap;
     goal_cell.g_ = 0;
 
     open_heap.push(&goal_cell);

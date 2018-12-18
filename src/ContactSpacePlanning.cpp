@@ -12,7 +12,9 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            int _thread_num,
                                            std::shared_ptr< DrawingHandler > _drawing_handler,
                                            int _planning_id,
-                                           bool _use_dynamics_planning):
+                                           bool _use_dynamics_planning,
+                                           std::vector<std::pair<Vector3D, float> > _disturbance_samples,
+                                           PlanningApplication _planning_application):
 robot_properties_(_robot_properties),
 foot_transition_model_(_foot_transition_model),
 hand_transition_model_(_hand_transition_model),
@@ -24,7 +26,9 @@ thread_num_(_thread_num),
 drawing_handler_(_drawing_handler),
 planning_id_(_planning_id),
 use_dynamics_planning_(_use_dynamics_planning),
-general_ik_interface_(_general_ik_interface)
+general_ik_interface_(_general_ik_interface),
+disturbance_samples_(_disturbance_samples),
+planning_application_(_planning_application)
 {
     for(auto & structure : structures_)
     {
@@ -44,7 +48,7 @@ general_ik_interface_(_general_ik_interface)
 
     for(unsigned int i = 0; i < neural_network_interface_vector_.size(); i++)
     {
-        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("dynopt_result/objective_regression_nn_models/", "dynopt_result/feasibility_classification_nn_models/");
+        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/objective_regression_nn_models/", "../data/dynopt_result/feasibility_classification_nn_models/");
     }
 
     RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
@@ -52,7 +56,14 @@ general_ik_interface_(_general_ik_interface)
 
     for(unsigned int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
     {
-        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "../data/SL_optim_config_template/cfg_kdopt_demo.yaml");
+    }
+
+    capturability_dynamics_optimizer_interface_vector_.resize(2 * std::max(foot_transition_model_.size(), hand_transition_model_.size()));
+
+    for(unsigned int i = 0; i < capturability_dynamics_optimizer_interface_vector_.size(); i++)
+    {
+        capturability_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml");
     }
 
     if(!use_dynamics_planning_)
@@ -65,6 +76,15 @@ general_ik_interface_(_general_ik_interface)
             // general_ik_interface_vector_[i] = std::make_shared<GeneralIKInterface>(cloned_env, cloned_env->GetRobot(general_ik_interface_->robot_->GetName()));
             general_ik_interface_vector_[i] = general_ik_interface_;
         }
+    }
+
+    if(disturbance_samples_.empty())
+    {
+        consider_disturbance_ = false;
+    }
+    else
+    {
+        consider_disturbance_ = true;
     }
 }
 
@@ -95,12 +115,10 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     use_learned_dynamics_model_ = use_learned_dynamics_model;
     enforce_stop_in_the_end_ = enforce_stop_in_the_end;
 
-    // Initialize the random number sampler
-    std::mt19937_64 rng;
     // initialize the random number generator with time-dependent seed
     uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     std::seed_seq ss{uint32_t(timeSeed & 0xffffffff), uint32_t(timeSeed>>32)};
-    rng.seed(ss);
+    rng_.seed(ss);
     // initialize a uniform distribution between 0 and 1
     std::uniform_real_distribution<double> double_unif(0, 1);
 
@@ -149,7 +167,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 }
                 // get the state in the top of the heap
                 std::shared_ptr<ContactState> current_state;
-                if(double_unif(rng) >= epsilon_) // explore the top of the heap
+                if(double_unif(rng_) >= epsilon_) // explore the top of the heap
                 {
                     current_state = open_heap_.top();
                     open_heap_.pop();
@@ -157,7 +175,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 else // randomly explore (* uniform random in the heap, not uniform random over the search space)
                 {
                     std::uniform_int_distribution<> int_unif(0, contact_states_map_.size()-1);
-                    auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng));
+                    auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng_));
                     current_state = random_it->second;
                 }
 
@@ -1072,40 +1090,88 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
         else
         {
             // update the state cost and CoM
-            dynamics_cost = std::numeric_limits<float>::max();
-            std::shared_ptr<ContactState> tmp_current_state = std::make_shared<ContactState>(*current_state);
-            std::shared_ptr<ContactState> tmp_prev_state = std::make_shared<ContactState>(*tmp_current_state->parent_);
-            tmp_current_state->parent_ = tmp_prev_state;
-            std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {tmp_current_state->parent_, tmp_current_state};
-            dynamically_feasible = false;
 
-            for(float transition_time = 0.6; transition_time < 1.5; transition_time += 0.2)
+            dynamics_optimizer_interface_vector_[index]->step_transition_time_ = 0.5;
+            dynamics_optimizer_interface_vector_[index]->support_phase_time_ = 0.5;
+            std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
+            dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
+
+            // float desired_speed = static_cast <float> (rand()) / static_cast <float> (RAND_MAX); // random from 0 to 1 m/s
+            // get the fake CoM translation
+            // current state
+            // double total_weight = 0.8;
+            // Translation3D fake_next_com = 0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+            //                               0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ();
+
+            // if(current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM])
+            // {
+            //     total_weight += 0.1;
+            //     fake_next_com = fake_next_com +  0.1 * current_state->stances_vector_[0]->left_hand_pose_.getXYZ();
+            // }
+
+            // if(current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_ARM])
+            // {
+            //     total_weight += 0.1;
+            //     fake_next_com = fake_next_com +  0.1 * current_state->stances_vector_[0]->right_hand_pose_.getXYZ();
+            // }
+
+            // fake_next_com /= total_weight;
+
+            // Translation3D com_translation(fake_next_com[0]-current_state->parent_->com_[0],fake_next_com[1]-current_state->parent_->com_[1],0);
+
+            // dynamics_optimizer_interface_vector_[index]->updateReferenceDynamicsSequence(com_translation, desired_speed);
+
+            dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(dynamics_cost);
+
+            if(dynamically_feasible)
             {
-                float tmp_dynamics_cost;
-                dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
-                dynamics_optimizer_interface_vector_[index]->step_transition_time_ = transition_time;
-                dynamics_optimizer_interface_vector_[index]->support_phase_time_ = transition_time;
+                // update com, com_dot, and parent edge dynamics sequence of the current_state
+                dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
+                dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
 
-                // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
-                bool tmp_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(tmp_dynamics_cost);
-
-                if(tmp_dynamically_feasible)
-                {
-                    // update com, com_dot, and parent edge dynamics sequence of the current_state
-                    dynamics_optimizer_interface_vector_[index]->updateStateCoM(tmp_current_state);
-                    dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(tmp_current_state);
-
-                    dynamically_feasible = true;
-                    if(tmp_dynamics_cost < dynamics_cost)
-                    {
-                        dynamics_cost = tmp_dynamics_cost;
-                        dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
-                        dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
-                    }
-                }
-
-                dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(tmp_current_state, dynamics_cost, dynamically_feasible, planning_id_);
+                // std::cout << " " << dynamics_cost << std::endl;
+                // getchar();
             }
+
+            dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(current_state, dynamics_cost, dynamically_feasible, planning_id_);
+
+            // dynamics_cost = std::numeric_limits<float>::max();
+            // std::shared_ptr<ContactState> tmp_current_state = std::make_shared<ContactState>(*current_state);
+            // std::shared_ptr<ContactState> tmp_prev_state = std::make_shared<ContactState>(*tmp_current_state->parent_);
+            // tmp_current_state->parent_ = tmp_prev_state;
+            // std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {tmp_current_state->parent_, tmp_current_state};
+            // dynamically_feasible = false;
+
+            // for(float transition_time = 0.6; transition_time < 1.5; transition_time += 0.2)
+            // {
+            //     float tmp_dynamics_cost;
+            //     dynamics_optimizer_interface_vector_[index]->step_transition_time_ = transition_time;
+            //     dynamics_optimizer_interface_vector_[index]->support_phase_time_ = transition_time;
+            //     dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
+
+            //     // bool dynamically_feasible = dynamics_optimizer_interface_vector_[index]->simplifiedDynamicsOptimization(dynamics_cost);
+            //     bool tmp_dynamically_feasible = dynamics_optimizer_interface_vector_[index]->dynamicsOptimization(tmp_dynamics_cost);
+
+            //     if(tmp_dynamically_feasible)
+            //     {
+            //         std::cout << dynamics_optimizer_interface_vector_[index]->step_transition_time_ << " " << dynamics_optimizer_interface_vector_[index]->support_phase_time_ << " " << tmp_dynamics_cost << std::endl;
+            //         getchar();
+
+            //         // update com, com_dot, and parent edge dynamics sequence of the current_state
+            //         dynamics_optimizer_interface_vector_[index]->updateStateCoM(tmp_current_state);
+            //         dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(tmp_current_state);
+
+            //         dynamically_feasible = true;
+            //         if(tmp_dynamics_cost < dynamics_cost)
+            //         {
+            //             dynamics_cost = tmp_dynamics_cost;
+            //             dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
+            //             dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
+            //         }
+            //     }
+
+            //     dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(tmp_current_state, tmp_dynamics_cost, tmp_dynamically_feasible, planning_id_);
+            // }
 
         }
 
@@ -1143,6 +1209,12 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
 
         // for sampling contact transition mode 2 3 4 5 6
         // if(!current_state->is_root_ && ((left_hand_in_contact && right_hand_in_contact) || (!left_hand_in_contact && !right_hand_in_contact)))
+        // {
+        //     return false;
+        // }
+
+        // for sampling contact transition mode 6 7 8 9
+        // if(!current_state->is_root_ && !current_state->parent_->is_root_ && (!left_hand_in_contact || !right_hand_in_contact))
         // {
         //     return false;
         // }
@@ -1189,6 +1261,264 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
 
     }
 }
+
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
+{
+    const float l_leg_horizontal_yaw = current_state->getLeftHorizontalYaw();
+    const float r_leg_horizontal_yaw = current_state->getRightHorizontalYaw();
+    const float mean_hotizontal_yaw = current_state->getFeetMeanHorizontalYaw();
+    const RotationMatrix robot_yaw_rotation = RPYToSO3(RPYTF(0, 0, 0, 0, 0, mean_hotizontal_yaw));
+
+    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
+    RPYTF current_left_foot_pose = current_stance->left_foot_pose_;
+    RPYTF current_right_foot_pose = current_stance->right_foot_pose_;
+    RPYTF current_left_hand_pose = current_stance->left_hand_pose_;
+    RPYTF current_right_hand_pose = current_stance->right_hand_pose_;
+    std::array<bool,ContactManipulator::MANIP_NUM> current_ee_contact_status = current_stance->ee_contact_status_;
+
+    float current_height = (current_stance->left_foot_pose_.z_ + current_stance->right_foot_pose_.z_) / 2.0;
+    std::uniform_real_distribution<float> projection_height_unif(current_height - 0.15, current_height + 0.15);
+
+    std::vector< std::shared_ptr<ContactState> > branching_states;
+    std::vector< std::vector<std::shared_ptr<ContactState> > > branching_states_by_move_manip(ContactManipulator::MANIP_NUM);
+
+    // get all the possible branching states of the current state
+    for(auto & move_manip : branching_manips)
+    {
+        if(move_manip == ContactManipulator::L_LEG || move_manip == ContactManipulator::R_LEG)
+        {
+            for(auto & step : foot_transition_model_)
+            {
+                std::array<float,6> l_foot_xyzrpy = current_stance->left_foot_pose_.getXYZRPY();
+                std::array<float,6> r_foot_xyzrpy = current_stance->right_foot_pose_.getXYZRPY();
+
+                if(move_manip == ContactManipulator::L_LEG)
+                {
+                    l_foot_xyzrpy[0] = r_foot_xyzrpy[0] + std::cos(r_leg_horizontal_yaw*DEG2RAD) * step[0] - std::sin(r_leg_horizontal_yaw*DEG2RAD) * step[1]; // x
+                    l_foot_xyzrpy[1] = r_foot_xyzrpy[1] + std::sin(r_leg_horizontal_yaw*DEG2RAD) * step[0] + std::cos(r_leg_horizontal_yaw*DEG2RAD) * step[1]; // y
+                    l_foot_xyzrpy[2] = 99.0; // z
+                    l_foot_xyzrpy[3] = 0; // roll
+                    l_foot_xyzrpy[4] = 0; // pitch
+                    l_foot_xyzrpy[5] = r_leg_horizontal_yaw + step[2]; // yaw
+                }
+                else if(move_manip == ContactManipulator::R_LEG)
+                {
+                    r_foot_xyzrpy[0] = l_foot_xyzrpy[0] + std::cos(l_leg_horizontal_yaw*DEG2RAD) * step[0] - std::sin(l_leg_horizontal_yaw*DEG2RAD) * (-step[1]); // x
+                    r_foot_xyzrpy[1] = l_foot_xyzrpy[1] + std::sin(l_leg_horizontal_yaw*DEG2RAD) * step[0] + std::cos(l_leg_horizontal_yaw*DEG2RAD) * (-step[1]); // y
+                    r_foot_xyzrpy[2] = 99.0; // z
+                    r_foot_xyzrpy[3] = 0; // roll
+                    r_foot_xyzrpy[4] = 0; // pitch
+                    r_foot_xyzrpy[5] = l_leg_horizontal_yaw - step[2]; // yaw
+                }
+
+                RPYTF new_left_foot_pose = RPYTF(l_foot_xyzrpy);
+                RPYTF new_right_foot_pose = RPYTF(r_foot_xyzrpy);
+
+                bool projection_is_successful;
+                // RAVELOG_INFO("foot projection.\n");
+
+                // do projection to find the projected feet poses
+                if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
+                {
+                    if(move_manip == ContactManipulator::L_LEG)
+                    {
+                        projection_is_successful = footProjection(move_manip, new_left_foot_pose);
+                    }
+                    else if(move_manip == ContactManipulator::R_LEG)
+                    {
+                        projection_is_successful = footProjection(move_manip, new_right_foot_pose);
+                    }
+                }
+                else if(planning_application_ == PlanningApplication::COLLECT_DATA)
+                {
+                    float projection_height = projection_height_unif(rng_);
+                    if(move_manip == ContactManipulator::L_LEG)
+                    {
+                        projection_is_successful = footPoseSampling(move_manip, new_left_foot_pose, projection_height);
+                    }
+                    else if(move_manip == ContactManipulator::R_LEG)
+                    {
+                        projection_is_successful = footPoseSampling(move_manip, new_right_foot_pose, projection_height);
+                    }
+                }
+
+                if(projection_is_successful)
+                {
+                    // RAVELOG_INFO("construct state.\n");
+                    // construct the new state
+                    std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(new_left_foot_pose, new_right_foot_pose, current_left_hand_pose, current_right_hand_pose, current_ee_contact_status);
+                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
+                    branching_states.push_back(new_contact_state);
+                    branching_states_by_move_manip[move_manip].push_back(new_contact_state);
+                }
+            }
+        }
+        else if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
+        {
+            Translation3D relative_shoulder_position;
+            Translation3D global_left_shoulder_position, global_right_shoulder_position;
+
+            if(move_manip == ContactManipulator::L_ARM)
+            {
+                relative_shoulder_position[0] = 0;
+                relative_shoulder_position[1] = robot_properties_->shoulder_w_/2.0;
+                relative_shoulder_position[2] = robot_properties_->shoulder_z_;
+                global_left_shoulder_position = robot_yaw_rotation * relative_shoulder_position + current_state->mean_feet_position_;
+            }
+            else if(move_manip == ContactManipulator::R_ARM)
+            {
+                relative_shoulder_position[0] = 0;
+                relative_shoulder_position[1] = -robot_properties_->shoulder_w_/2.0;
+                relative_shoulder_position[2] = robot_properties_->shoulder_z_;
+                global_right_shoulder_position = robot_yaw_rotation * relative_shoulder_position + current_state->mean_feet_position_;
+            }
+
+            // iterate through the arm transition model
+            for(auto & arm_orientation : hand_transition_model_)
+            {
+                std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_ee_contact_status;
+                RPYTF new_left_hand_pose, new_right_hand_pose;
+                bool projection_is_successful = false;
+
+                if(arm_orientation[0] != -99.0) // making contact
+                {
+                    std::array<float,2> global_arm_orientation;
+
+                    if(move_manip == ContactManipulator::L_ARM)
+                    {
+                        global_arm_orientation[0] = mean_hotizontal_yaw + 90.0 - arm_orientation[0];
+                        global_arm_orientation[1] = arm_orientation[1];
+                    }
+                    else if(move_manip == ContactManipulator::R_ARM)
+                    {
+                        global_arm_orientation[0] = mean_hotizontal_yaw - 90.0 + arm_orientation[0];
+                        global_arm_orientation[1] = arm_orientation[1];
+                    }
+
+                    new_left_hand_pose = current_stance->left_hand_pose_;
+                    new_right_hand_pose = current_stance->right_hand_pose_;
+
+                    if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
+                    {
+                        if(move_manip == ContactManipulator::L_ARM)
+                        {
+                            projection_is_successful = handProjection(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                        }
+                        else if(move_manip == ContactManipulator::R_ARM)
+                        {
+                            projection_is_successful = handProjection(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                        }
+                    }
+                    else if(planning_application_ == PlanningApplication::COLLECT_DATA)
+                    {
+                        if(move_manip == ContactManipulator::L_ARM)
+                        {
+                            projection_is_successful = handPoseSampling(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                        }
+                        else if(move_manip == ContactManipulator::R_ARM)
+                        {
+                            projection_is_successful = handPoseSampling(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                        }
+                    }
+
+                    new_ee_contact_status[move_manip] = true;
+                }
+                else // breaking contact
+                {
+                    projection_is_successful = true;
+                    new_ee_contact_status[move_manip] = false;
+
+                    if(move_manip == ContactManipulator::L_ARM)
+                    {
+                        new_left_hand_pose = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+                    }
+                    else if(move_manip == ContactManipulator::R_ARM)
+                    {
+                        new_right_hand_pose = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+                    }
+                }
+
+                if(projection_is_successful)
+                {
+                    // construct the new state
+                    std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(current_left_foot_pose, current_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status);
+                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
+                    branching_states.push_back(new_contact_state);
+                    branching_states_by_move_manip[move_manip].push_back(new_contact_state);
+                }
+            }
+        }
+    }
+
+    // Find the forces rejected by each category of the moving manipulator
+    std::vector< std::unordered_set<int> > rejected_disturbances_by_manip(ContactManipulator::MANIP_NUM);
+    if(consider_disturbance_)
+    {
+        for(auto & move_manip : branching_manips)
+        {
+            // get the initial state for this move_manip
+            std::unordered_set<int> rejected_disturbances_;
+            for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+            {
+                auto disturbance = disturbance_samples_[disturb_id];
+                Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first;
+                Translation3D initial_com = current_state->com_;
+                for(int i = 0; i < branching_states.size(); i++)
+                {
+                    std::shared_ptr<ContactState> branching_state = branching_states[i];
+
+                    capturability_dynamics_optimizer_interface_vector_[i]->updateContactSequence(branching_state, initial_com, post_impact_com_dot);
+
+                    float dummy_dynamics_cost = 0.0;
+                    bool dynamically_feasible = capturability_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(dummy_dynamics_cost);
+
+                    if(dynamically_feasible)
+                    {
+                        rejected_disturbances_.insert(disturb_id);
+                        break;
+                    }
+                }
+            }
+
+            rejected_disturbances_by_manip[move_manip] = rejected_disturbances_;
+        }
+    }
+
+
+    // Find the dynamics cost and capturability cost
+    std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_states.size());
+
+    for(int i = 0; i < branching_states.size(); i++)
+    {
+        std::shared_ptr<ContactState> branching_state = branching_states[i];
+        float dynamics_cost = 0.0;
+        if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+        {
+            state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost);
+        }
+        else
+        {
+            state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost);
+        }
+    }
+
+    for(auto & check_result : state_feasibility_check_result)
+    {
+        bool pass_state_feasibility_check = std::get<0>(check_result);
+        std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
+        float dynamics_cost = std::get<2>(check_result);
+
+        if(pass_state_feasibility_check)
+        {
+            insertState(branching_state, dynamics_cost);
+        }
+    }
+}
+
+
+/***************************************************************************************************************/
+
+
 
 void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
 {
@@ -1244,6 +1574,9 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
     RPYTF new_right_hand_pose = current_stance->right_hand_pose_;
     const std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_stance->ee_contact_status_;
 
+    float current_height = (current_stance->left_foot_pose_.z_ + current_stance->right_foot_pose_.z_) / 2.0;
+    std::uniform_real_distribution<float> projection_height_unif(current_height - 0.15, current_height + 0.15);
+
     // RAVELOG_INFO("Total thread number: %d.\n",thread_num_);
 
     // #pragma omp parallel num_threads(thread_num_) shared (branching_feet_combination, state_feasibility_check_result)
@@ -1266,13 +1599,28 @@ void ContactSpacePlanning::branchingFootContacts(std::shared_ptr<ContactState> c
             // RAVELOG_INFO("foot projection.\n");
 
             // do projection to find the projected feet poses
-            if(move_manip == ContactManipulator::L_LEG)
+            if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
             {
-                projection_is_successful = footProjection(move_manip, new_left_foot_pose);
+                if(move_manip == ContactManipulator::L_LEG)
+                {
+                    projection_is_successful = footProjection(move_manip, new_left_foot_pose);
+                }
+                else if(move_manip == ContactManipulator::R_LEG)
+                {
+                    projection_is_successful = footProjection(move_manip, new_right_foot_pose);
+                }
             }
-            else if(move_manip == ContactManipulator::R_LEG)
+            else if(planning_application_ == PlanningApplication::COLLECT_DATA)
             {
-                projection_is_successful = footProjection(move_manip, new_right_foot_pose);
+                float projection_height = projection_height_unif(rng_);
+                if(move_manip == ContactManipulator::L_LEG)
+                {
+                    projection_is_successful = footPoseSampling(move_manip, new_left_foot_pose, projection_height);
+                }
+                else if(move_manip == ContactManipulator::R_LEG)
+                {
+                    projection_is_successful = footPoseSampling(move_manip, new_right_foot_pose, projection_height);
+                }
             }
 
             if(projection_is_successful)
@@ -1404,13 +1752,27 @@ void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> c
 
             if(global_arm_orientation[0] != -99.0)
             {
-                if(move_manip == ContactManipulator::L_ARM)
+                if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
                 {
-                    projection_is_successful = handProjection(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                    if(move_manip == ContactManipulator::L_ARM)
+                    {
+                        projection_is_successful = handProjection(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                    }
+                    else if(move_manip == ContactManipulator::R_ARM)
+                    {
+                        projection_is_successful = handProjection(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                    }
                 }
-                else if(move_manip == ContactManipulator::R_ARM)
+                else if(planning_application_ == PlanningApplication::COLLECT_DATA)
                 {
-                    projection_is_successful = handProjection(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                    if(move_manip == ContactManipulator::L_ARM)
+                    {
+                        projection_is_successful = handPoseSampling(move_manip, global_left_shoulder_position, global_arm_orientation, new_left_hand_pose);
+                    }
+                    else if(move_manip == ContactManipulator::R_ARM)
+                    {
+                        projection_is_successful = handPoseSampling(move_manip, global_right_shoulder_position, global_arm_orientation, new_right_hand_pose);
+                    }
                 }
 
                 new_ee_contact_status[move_manip] = true;
@@ -1438,6 +1800,7 @@ void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> c
                 std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
 
                 float dynamics_cost = 0.0;
+                float capturability_cost = 0.0;
                 if(!use_dynamics_planning_ || stateFeasibilityCheck(new_contact_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
                 {
                     state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
@@ -1466,8 +1829,6 @@ void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> c
             insertState(new_contact_state, dynamics_cost);
         }
     }
-
-
 }
 
 bool ContactSpacePlanning::footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose)
@@ -1512,6 +1873,42 @@ bool ContactSpacePlanning::footProjection(ContactManipulator& contact_manipulato
     return found_projection_surface;
 }
 
+bool ContactSpacePlanning::footPoseSampling(ContactManipulator& contact_manipulator, RPYTF& projection_pose, double height)
+{
+    const Translation3D projection_origin = projection_pose.getXYZ();
+    const Translation3D projection_ray(0, 0, -1);
+    float contact_projection_yaw = projection_pose.yaw_;
+
+    TransformationMatrix highest_projection_transformation_matrix;
+
+    std::uniform_real_distribution<double> double_unif(-20 * DEG2RAD, 20 * DEG2RAD);
+
+    float normal_roll = double_unif(rng_);
+    float normal_pitch = double_unif(rng_);
+
+    float sin_roll = std::sin(normal_roll);
+    float cos_roll = std::cos(normal_roll);
+    float sin_pitch = std::sin(normal_pitch);
+    float cos_pitch = std::cos(normal_pitch);
+
+    std::shared_ptr<TrimeshSurface> projected_surface = std::make_shared<TrimeshSurface>(Translation3D(projection_origin[0], projection_origin[1], height),
+                                                                                         Vector3D(sin_pitch, -cos_pitch*sin_roll, cos_pitch*cos_roll),
+                                                                                         TrimeshType::GROUND);
+
+    TransformationMatrix projection_transformation_matrix;
+    bool valid_contact = true;
+    projection_transformation_matrix = projected_surface->projection(projection_origin,
+                                                                     projection_ray,
+                                                                     contact_projection_yaw,
+                                                                     contact_manipulator,
+                                                                     robot_properties_,
+                                                                     valid_contact);
+
+    projection_pose = SE3ToXYZRPY(projection_transformation_matrix);
+
+    return true;
+}
+
 
 bool ContactSpacePlanning::handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose)
 {
@@ -1550,6 +1947,58 @@ bool ContactSpacePlanning::handProjection(ContactManipulator& contact_manipulato
     }
 
     return found_projection_surface;
+}
+
+bool ContactSpacePlanning::handPoseSampling(ContactManipulator& contact_manipulator,
+                                            Translation3D& shoulder_position,
+                                            std::array<float,2>& arm_orientation,
+                                            RPYTF& projection_pose)
+{
+    std::uniform_real_distribution<double> arm_length_unif(robot_properties_->min_arm_length_, robot_properties_->max_arm_length_);
+
+    float arm_length = arm_length_unif(rng_);
+    Vector3D arm_projection_ray(std::cos(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
+                                std::sin(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
+                                std::sin(arm_orientation[1] * DEG2RAD));
+
+    std::uniform_real_distribution<double> orientation_unif(-20 * DEG2RAD, 20 * DEG2RAD);
+
+    float normal_roll = orientation_unif(rng_);
+    float normal_pitch = orientation_unif(rng_);
+
+    float sin_roll = std::sin(normal_roll);
+    float cos_roll = std::cos(normal_roll);
+    float sin_pitch = std::sin(normal_pitch);
+    float cos_pitch = std::cos(normal_pitch);
+
+    Vector3D normal(sin_pitch, -cos_pitch*sin_roll, cos_pitch*cos_roll);
+
+    if(contact_manipulator == ContactManipulator::L_ARM)
+    {
+        normal = Vector3D(normal[0], normal[2], -normal[1]);
+    }
+    else if(contact_manipulator == ContactManipulator::R_ARM)
+    {
+        normal = Vector3D(normal[0], -normal[2], normal[1]);
+    }
+
+    std::shared_ptr<TrimeshSurface> projected_surface = std::make_shared<TrimeshSurface>(shoulder_position + arm_length * arm_projection_ray,
+                                                                                         normal,
+                                                                                         TrimeshType::OTHERS);
+    TransformationMatrix projection_transformation_matrix;
+
+    bool valid_contact = true;
+    projection_transformation_matrix = projected_surface->projection(shoulder_position,
+                                                                     arm_projection_ray,
+                                                                     0.0,
+                                                                     contact_manipulator,
+                                                                     robot_properties_,
+                                                                     valid_contact);
+
+    projection_pose = SE3ToXYZRPY(projection_transformation_matrix);
+
+    return true;
+
 }
 
 bool ContactSpacePlanning::feetReprojection(std::shared_ptr<ContactState> state)

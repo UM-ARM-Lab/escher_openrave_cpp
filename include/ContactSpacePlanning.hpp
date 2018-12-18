@@ -17,7 +17,9 @@ class ContactSpacePlanning
                              int _thread_num,
                              std::shared_ptr<DrawingHandler> _drawing_handler,
                              int _planning_id,
-                             bool _use_dynamics_planning);
+                             bool _use_dynamics_planning,
+                             std::vector<std::pair<Vector3D, float> > _disturbance_samples,
+                             PlanningApplication _planning_application = PlanningApplication::PLAN_IN_ENV);
 
         std::vector< std::shared_ptr<ContactState> > ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
                                                                      float goal_radius, PlanningHeuristicsType heuristics_type,
@@ -28,8 +30,8 @@ class ContactSpacePlanning
         void storeSLEnvironment();
 
     private:
-        // std::set< std::shared_ptr<ContactState>, ContactState::pointer_less > openHeap;
-        std::priority_queue< std::shared_ptr<ContactState>, std::vector< std::shared_ptr<ContactState> >, ContactState::pointer_less > open_heap_;
+        // std::set< std::shared_ptr<ContactState>, pointer_less > openHeap;
+        std::priority_queue< std::shared_ptr<ContactState>, std::vector< std::shared_ptr<ContactState> >, pointer_less > open_heap_;
 
         // the vector of ContactStates
         std::unordered_map<std::size_t, std::shared_ptr<ContactState> > contact_states_map_;
@@ -50,10 +52,15 @@ class ContactSpacePlanning
         bool enforce_stop_in_the_end_;
         PlanningHeuristicsType heuristics_type_;
         int num_stance_in_state_;
+        bool planning_application_;
 
         // transition models
         const std::vector< std::array<float,3> > foot_transition_model_;
         const std::vector< std::array<float,2> > hand_transition_model_;
+
+        // disturbance samples
+        std::vector<std::pair<Vector3D, float> > disturbance_samples_;
+        bool consider_disturbance_ = false;
 
         // cost parameters
         // const float step_cost_weight_ = 10.0;
@@ -62,6 +69,7 @@ class ContactSpacePlanning
         // const float dynamics_cost_weight_ = 1.0; // simplified
 
         // random parameters
+        std::mt19937_64 rng_;
         float epsilon_;
 
         // thread number for OpenMP
@@ -84,6 +92,7 @@ class ContactSpacePlanning
 
         // the dynamics optimizer interface
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
+        std::vector< std::shared_ptr<OptimizationInterface> > capturability_dynamics_optimizer_interface_vector_;
 
         // the dynamics prediciton neural network interface
         std::vector< std::shared_ptr<NeuralNetworkInterface> > neural_network_interface_vector_;
@@ -104,9 +113,12 @@ class ContactSpacePlanning
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
+        void branchingContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         bool footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose);
         bool handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_point, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
         bool feetReprojection(std::shared_ptr<ContactState> state);
+        bool footPoseSampling(ContactManipulator& contact_manipulator, RPYTF& projection_pose, double height);
+        bool handPoseSampling(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
 
         void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost);
 

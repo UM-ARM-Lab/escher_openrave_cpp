@@ -22,6 +22,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         bool startPlanningFromScratch(std::ostream& sout, std::istream& sinput);
 
+        bool startCollectDynamicsOptimizationData(std::ostream& sout, std::istream& sinput);
+
     private:
         void constructContactPointGrid();
         void constructGroundContactPointGrid();
@@ -66,6 +68,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         // the general_ik interface
         std::shared_ptr<GeneralIKInterface> general_ik_interface_;
+
+        std::vector< std::pair<Vector3D, float> > disturbance_samples_;
 
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
         bool printing_ = false;

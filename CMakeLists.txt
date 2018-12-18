@@ -48,6 +48,7 @@ openrave_plugin("${PROJECT_NAME}_plugin"
     src/SurfaceContactPointGrid.cpp
     src/MapGrid.cpp
     src/ContactState.cpp
+    src/TorsoPathPlanning.cpp
     src/EscherMotionPlanning.cpp
     src/Drawing.cpp
     src/Boundary.cpp

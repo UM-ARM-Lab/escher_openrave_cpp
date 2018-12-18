@@ -11,6 +11,25 @@ float euclideanDistance3D(const Translation3D& q, const Translation3D& p)
 	return (q-p).norm();
 }
 
+float orientationDistance(const Vector3D& q, const Vector3D& p)
+{
+	RPYTF q_rpytf = RPYTF(0, 0, 0, q[0], q[1], q[2]);
+	RPYTF p_rpytf = RPYTF(0, 0, 0, p[0], p[1], p[2]);
+	return orientationDistance(q_rpytf, p_rpytf);
+}
+
+float orientationDistance(const RPYTF& q, const RPYTF& p)
+{
+	Quaternion q_quat = RPYToQuaternion(q);
+	Quaternion p_quat = RPYToQuaternion(p);
+	return orientationDistance(q_quat, p_quat);
+}
+
+float orientationDistance(const Quaternion& q, const Quaternion& p)
+{
+	return (1 - q.w()*p.w() - q.x()*p.x() - q.y()*p.y() - q.z()*p.z());
+}
+
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23)
 {
     TransformationMatrix T;

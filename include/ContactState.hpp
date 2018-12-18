@@ -67,20 +67,22 @@ class ContactState
 
         inline bool operator<(const ContactState& other) const {return (this->priority_value_ < other.priority_value_);}
 
-        struct pointer_less
-        {
-            template <typename T>
-            bool operator()(const T& lhs, const T& rhs) const
-            {
-                return *lhs < *rhs;
-            }
-        };
+        // struct pointer_less
+        // {
+        //     template <typename T>
+        //     bool operator()(const T& lhs, const T& rhs) const
+        //     {
+        //         return *lhs < *rhs;
+        //     }
+        // };
 
         // inline std::shared_ptr<ContactState> getParent() {return parent_;}
         inline const float getF() const {return (g_ + h_);}
 
         std::shared_ptr<ContactState> getMirrorState(TransformationMatrix& reference_frame);
         std::pair<ContactTransitionCode, std::vector<RPYTF> > getTransitionCodeAndPoses();
+        std::pair<OneStepCaptureCode, std::vector<RPYTF> > getOneStepCapturabilityCodeAndPoses();
+        // std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();
 
     private:
 

@@ -455,6 +455,19 @@ TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _k
     contact_point_grid_->initializeParameters(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION);
 }
 
+TrimeshSurface::TrimeshSurface(Translation3D _contact_point, Vector3D _normal, TrimeshType _type):
+                               Structure(NULL, -1),
+                               contact_point_grid_(NULL),
+                               type_(_type),
+                               nx_(_normal[0]),
+                               ny_(_normal[1]),
+                               nz_(_normal[2])
+{
+    c_ = -_contact_point[0] * nx_ -_contact_point[1] * ny_ -_contact_point[2] * nz_;
+
+    // all the vertices and edges are not initialized. This trimesh surface can only be used as a projection surface
+}
+
 // OpenRAVE::TriMesh TrimeshSurface::get_openrave_trimesh() const
 // {
 // 	OpenRAVE::TriMesh ret_tm;

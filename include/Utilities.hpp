@@ -77,8 +77,8 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
-const float STEP_TRANSITION_TIME = 1.0;
-const float SUPPORT_PHASE_TIME = 1.0;
+const float STEP_TRANSITION_TIME = 0.5;
+const float SUPPORT_PHASE_TIME = 0.5;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
@@ -150,12 +150,71 @@ enum ContactTransitionCode
     FEET_AND_TWO_HANDS_MOVE_HAND         // 9
 };
 
+enum ZeroStepCaptureCode
+{
+    ONE_FOOT,                   // 0
+    TWO_FEET,                   // 1
+    ONE_FOOT_AND_INNER_HAND,    // 2
+    ONE_FOOT_AND_OUTER_HAND,    // 3
+    FEET_AND_ONE_HAND           // 4
+};
+
+enum OneStepCaptureCode
+{
+    ONE_FOOT_ADD_FOOT,                  // 0
+    ONE_FOOT_ADD_INNER_HAND,            // 1
+    ONE_FOOT_ADD_OUTER_HAND,            // 2
+    TWO_FEET_ADD_HAND,                  // 3
+    ONE_FOOT_AND_INNER_HAND_ADD_FOOT,   // 4
+    ONE_FOOT_AND_INNER_HAND_ADD_HAND,   // 5
+    ONE_FOOT_AND_OUTER_HAND_ADD_FOOT,   // 6
+    ONE_FOOT_AND_OUTER_HAND_ADD_HAND,   // 7
+    TWO_FEET_AND_ONE_HAND_ADD_HAND      // 8
+};
+
+enum DynOptApplication
+{
+    CONTACT_TRANSITION_DYNOPT,
+    ZERO_STEP_CAPTURABILITY_DYNOPT,
+    ONE_STEP_CAPTURABILITY_DYNOPT
+};
+
+enum PlanningApplication
+{
+    COLLECT_DATA,
+    PLAN_IN_ENV
+};
+
 struct EnumClassHash
 {
     template <typename T>
     std::size_t operator()(T t) const
     {
         return static_cast<std::size_t>(t);
+    }
+};
+
+struct EigenVectorHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        std::size_t hash_number = 0;
+        for(int i = 0; i < t.rows(); i++)
+        {
+            hash_number ^= hash<float>()(t[i]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+        }
+
+        return hash_number;
+    }
+};
+
+struct pointer_less
+{
+    template <typename T>
+    bool operator()(const T& lhs, const T& rhs) const
+    {
+        return *lhs < *rhs;
     }
 };
 
@@ -194,6 +253,7 @@ class RPYTF
 
         inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
         inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+        inline Vector3D getRPY() const {return Vector3D(roll_, pitch_, yaw_);}
 
         inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
 
@@ -235,13 +295,36 @@ class RPYTF
 
             return transform;
         }
-
-
 };
+
+namespace std
+{
+    template <>
+    class hash<RPYTF>{
+        public:
+            size_t operator()(const RPYTF &tf) const
+            {
+                size_t hash_number = 0;
+
+                hash_number ^= hash<float>()(tf.x_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.y_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.z_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.roll_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.pitch_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.yaw_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+
+                return hash_number;
+            }
+    };
+}
 
 // Distance
 float euclideanDistance2D(const Translation2D& q, const Translation2D& p); // euclidean distance btwn two points in a 2D coordinate system
 float euclideanDistance3D(const Translation3D& q, const Translation3D& p); // euclidean distance btwn two points in a 3D coordinate system
+
+float orientationDistance(const Vector3D& q, const Vector3D& p);
+float orientationDistance(const RPYTF& q, const RPYTF& p);
+float orientationDistance(const Quaternion& q, const Quaternion& p);
 
 // Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
@@ -290,6 +373,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "GroundContactPointGrid.hpp"
 #include "TrimeshSurface.hpp"
 #include "MapGrid.hpp"
+#include "TorsoPathPlanning.hpp"
 #include "ContactState.hpp"
 #include "OptimizationInterface.hpp"
 #include "NeuralNetworkInterface.hpp"

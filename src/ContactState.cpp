@@ -189,12 +189,39 @@ float ContactState::getFeetMeanHorizontalYaw()
 
 TransformationMatrix ContactState::getFeetMeanTransform()
 {
-    float feet_mean_x = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    float feet_mean_y = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    float feet_mean_z = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
-    float feet_mean_roll = 0;
-    float feet_mean_pitch = 0;
-    float feet_mean_yaw = this->getFeetMeanHorizontalYaw();
+    float feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw;
+    if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG] && this->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    {
+        feet_mean_x = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
+        feet_mean_y = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
+        feet_mean_z = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
+        feet_mean_roll = 0;
+        feet_mean_pitch = 0;
+        feet_mean_yaw = this->getFeetMeanHorizontalYaw();
+    }
+    else if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG])
+    {
+        feet_mean_x = this->stances_vector_[0]->left_foot_pose_.x_;
+        feet_mean_y = this->stances_vector_[0]->left_foot_pose_.y_;
+        feet_mean_z = this->stances_vector_[0]->left_foot_pose_.z_;
+        feet_mean_roll = 0;
+        feet_mean_pitch = 0;
+        feet_mean_yaw = this->getLeftHorizontalYaw();
+    }
+    else if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    {
+        feet_mean_x = this->stances_vector_[0]->right_foot_pose_.x_;
+        feet_mean_y = this->stances_vector_[0]->right_foot_pose_.y_;
+        feet_mean_z = this->stances_vector_[0]->right_foot_pose_.z_;
+        feet_mean_roll = 0;
+        feet_mean_pitch = 0;
+        feet_mean_yaw = this->getRightHorizontalYaw();
+    }
+    else
+    {
+        RAVELOG_ERROR("Try to getFeetMeanTransform from a state without both foot contact. Error!");
+        getchar();
+    }
 
     return XYZRPYToSE3(RPYTF(feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw));
 }
@@ -354,4 +381,132 @@ std::pair<ContactTransitionCode, std::vector<RPYTF> > ContactState::getTransitio
     }
 
     return std::make_pair(contact_transition_code, contact_manip_pose_vec);
+}
+
+std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCapturabilityCodeAndPoses()
+{
+    std::shared_ptr<ContactState> prev_state = parent_;
+    std::shared_ptr<Stance> current_stance = stances_vector_[0];
+    std::shared_ptr<Stance> prev_stance = prev_state->stances_vector_[0];
+
+    OneStepCaptureCode one_step_capture_code;
+
+    std::vector<RPYTF> contact_manip_pose_vec;
+
+    // {L_LEG, R_LEG, L_ARM, R_ARM}
+    // enum OneStepCaptureCode
+    // {
+    //     ONE_FOOT_ADD_FOOT,                  // 0
+    //     ONE_FOOT_ADD_INNER_HAND,            // 1
+    //     ONE_FOOT_ADD_OUTER_HAND,            // 2
+    //     TWO_FEET_ADD_HAND,                  // 3
+    //     ONE_FOOT_AND_INNER_HAND_ADD_FOOT,   // 4
+    //     ONE_FOOT_AND_INNER_HAND_ADD_HAND,   // 5
+    //     ONE_FOOT_AND_OUTER_HAND_ADD_FOOT,   // 6
+    //     ONE_FOOT_AND_OUTER_HAND_ADD_HAND,   // 7
+    //     TWO_FEET_AND_ONE_HAND_ADD_HAND      // 8
+    // };
+
+    const std::array<bool,ContactManipulator::MANIP_NUM> only_left_foot = {true,false,false,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> only_right_foot = {false,true,false,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> both_feet = {true,true,false,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
+    const std::array<bool,ContactManipulator::MANIP_NUM> left_foot_and_right_hand = {true,false,false,true};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
+
+    // one foot contact
+    if(prev_stance->ee_contact_status_ == only_left_foot || prev_stance->ee_contact_status_ == only_right_foot)
+    {
+        if(prev_stance->ee_contact_status_[ContactManipulator::R_LEG] && prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_FOOT;
+        }
+        else if(prev_stance->ee_contact_status_[ContactManipulator::L_LEG] && prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_INNER_HAND;
+        }
+        else if(prev_stance->ee_contact_status_[ContactManipulator::R_LEG] && prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_OUTER_HAND;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
+    else if(prev_stance->ee_contact_status_ == both_feet)
+    {
+        if(prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::TWO_FEET_ADD_HAND;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
+    else if(prev_stance->ee_contact_status_ == right_foot_and_right_hand)
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_AND_INNER_HAND_ADD_FOOT;
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_AND_INNER_HAND_ADD_HAND;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
+    else if(prev_stance->ee_contact_status_ == left_foot_and_right_hand|| prev_stance->ee_contact_status_ == right_foot_and_left_hand)
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_AND_OUTER_HAND_ADD_FOOT;
+        }
+        else if(prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_AND_OUTER_HAND_ADD_HAND;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
+    else if(prev_stance->ee_contact_status_ == both_feet_and_right_hand)
+    {
+        if(prev_move_manip_ == ContactManipulator::L_ARM)
+        {
+            one_step_capture_code = OneStepCaptureCode::TWO_FEET_AND_ONE_HAND_ADD_HAND;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
+    else
+    {
+        RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+        getchar();
+    }
+
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        if(prev_stance->ee_contact_status_[manip])
+        {
+            contact_manip_pose_vec.push_back(prev_stance->ee_contact_poses_[manip]);
+        }
+    }
+    contact_manip_pose_vec.push_back(current_stance->ee_contact_poses_[prev_move_manip_]);
+
+    return std::make_pair(one_step_capture_code, contact_manip_pose_vec);
+
 }

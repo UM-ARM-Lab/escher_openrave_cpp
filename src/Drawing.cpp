@@ -70,6 +70,23 @@ void DrawingHandler::DrawContactPath(std::shared_ptr<ContactState> current_state
     }
 }
 
+void DrawingHandler::DrawTorsoPath(std::shared_ptr<TorsoPoseState> current_state)
+{
+    std::shared_ptr<TorsoPoseState> c = current_state;
+
+    while(true)
+    {
+        if(c->is_root_)
+        {
+            break;
+        }
+
+        DrawLineSegment(c->pose_.getXYZ(), c->parent_->pose_.getXYZ(), {1,0,0,1});
+
+        c = c->parent_;
+    }
+}
+
 void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) // Draw the contacts of one node(DrawStance)
 {
 
