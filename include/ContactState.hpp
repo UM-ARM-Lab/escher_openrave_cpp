@@ -79,10 +79,12 @@ class ContactState
         // inline std::shared_ptr<ContactState> getParent() {return parent_;}
         inline const float getF() const {return (g_ + h_);}
 
+        bool manip_in_contact(ContactManipulator manip) {return stances_vector_[0]->ee_contact_status_[manip];}
+
         std::shared_ptr<ContactState> getMirrorState(TransformationMatrix& reference_frame);
         std::pair<ContactTransitionCode, std::vector<RPYTF> > getTransitionCodeAndPoses();
         std::pair<OneStepCaptureCode, std::vector<RPYTF> > getOneStepCapturabilityCodeAndPoses();
-        // std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();
+        std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();
 
     private:
 

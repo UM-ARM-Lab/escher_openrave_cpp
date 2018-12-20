@@ -257,55 +257,13 @@ dynamics_optimizer_application_(_dynamics_optimizer_application)
 
 void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)
 {
-    if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
-    {
-        this->contact_state_sequence_.resize(new_contact_state_sequence.size());
-        this->contact_state_sequence_ = new_contact_state_sequence;
-        this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_,
-                                                                             this->step_transition_time_,
-                                                                             this->support_phase_time_,
-                                                                             dynamics_optimizer_application_);
-        this->updateContactSequenceRelatedDynamicsOptimizerSetting();
-    }
-    else
-    {
-        RAVELOG_ERROR("Wrong dynamics optimizer application. Expecting DynOptApplication::CONTACT_TRANSITION_DYNOPT.");
-        getchar();
-    }
-}
-
-void OptimizationInterface::updateContactSequence(std::shared_ptr<ContactState> input_capture_contact_state, Translation3D initial_com, Vector3D initial_com_dot)
-{
-    if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
-    {
-        std::shared_ptr<ContactState> capture_contact_state = std::make_shared<ContactState>(*input_capture_contact_state);
-
-        // construct the state for the floating moving end-effector
-        std::array<bool,ContactManipulator::MANIP_NUM> prev_ee_contact_status = capture_contact_state->stances_vector_[0]->ee_contact_status_;
-        prev_ee_contact_status[capture_contact_state->prev_move_manip_] = 0;
-        std::array<RPYTF, ContactManipulator::MANIP_NUM> prev_ee_contact_poses = capture_contact_state->stances_vector_[0]->ee_contact_poses_;
-        prev_ee_contact_poses[capture_contact_state->prev_move_manip_] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
-
-        std::shared_ptr<Stance> prev_stance = std::make_shared<Stance>(prev_ee_contact_poses[0], prev_ee_contact_poses[1],
-                                                                       prev_ee_contact_poses[2], prev_ee_contact_poses[3],
-                                                                       prev_ee_contact_status);
-
-        std::shared_ptr<ContactState> prev_state = std::make_shared<ContactState>(prev_stance, initial_com, initial_com_dot, 1);
-        capture_contact_state->parent_ = prev_state;
-
-        this->contact_state_sequence_ = {prev_state, capture_contact_state};
-
-        this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_,
-                                                                             this->step_transition_time_,
-                                                                             this->support_phase_time_,
-                                                                             dynamics_optimizer_application_);
-        this->updateContactSequenceRelatedDynamicsOptimizerSetting();
-    }
-    else
-    {
-        RAVELOG_ERROR("Wrong dynamics optimizer application. Expecting DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT.");
-        getchar();
-    }
+    this->contact_state_sequence_.resize(new_contact_state_sequence.size());
+    this->contact_state_sequence_ = new_contact_state_sequence;
+    this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_,
+                                                                            this->step_transition_time_,
+                                                                            this->support_phase_time_,
+                                                                            dynamics_optimizer_application_);
+    this->updateContactSequenceRelatedDynamicsOptimizerSetting();
 }
 
 void OptimizationInterface::loadDynamicsOptimizerSetting(std::string _cfg_file)
@@ -981,43 +939,82 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
 void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id)
 {
     // mirror the data if the robot is using the right side of the manipulators
-    std::shared_ptr<ContactState> current_state = std::make_shared<ContactState>(*input_current_state);
-    std::shared_ptr<ContactState> prev_state = std::make_shared<ContactState>(*input_current_state->parent_);
+    std::shared_ptr<ContactState> current_state, prev_state;
+    TransformationMatrix inv_prev_mean_feet_transform;
+    RotationMatrix inv_prev_mean_feet_rotation;
 
-    if(current_state->prev_move_manip_ == ContactManipulator::R_LEG || current_state->prev_move_manip_ == ContactManipulator::R_ARM)
+    if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT ||
+       dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
     {
-        TransformationMatrix reference_frame = prev_state->getFeetMeanTransform();
-        current_state = current_state->getMirrorState(reference_frame);
-        prev_state = prev_state->getMirrorState(reference_frame);
+        current_state = std::make_shared<ContactState>(*input_current_state);
+        prev_state = std::make_shared<ContactState>(*input_current_state->parent_);
+
+        if(current_state->prev_move_manip_ == ContactManipulator::R_LEG || current_state->prev_move_manip_ == ContactManipulator::R_ARM)
+        {
+            TransformationMatrix reference_frame = prev_state->getFeetMeanTransform();
+            current_state = current_state->getMirrorState(reference_frame);
+            prev_state = prev_state->getMirrorState(reference_frame);
+        }
+
+        current_state->parent_ = prev_state;
+
+        inv_prev_mean_feet_transform = inverseTransformationMatrix(prev_state->getFeetMeanTransform());
+        inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
+
+        if(current_state->prev_move_manip_ != ContactManipulator::L_LEG && current_state->prev_move_manip_ != ContactManipulator::L_ARM)
+        {
+            RAVELOG_ERROR("Recording a motion which moves right hand side of the robot. This should not happen.\n");
+            getchar();
+        }
     }
-
-    current_state->parent_ = prev_state;
-    std::shared_ptr<Stance> prev_stance = prev_state->stances_vector_[0];
-    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
-
-    TransformationMatrix inv_prev_mean_feet_transform = inverseTransformationMatrix(prev_state->getFeetMeanTransform());
-    RotationMatrix inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
-
-    if(current_state->prev_move_manip_ != ContactManipulator::L_LEG && current_state->prev_move_manip_ != ContactManipulator::L_ARM)
+    else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
     {
-        RAVELOG_ERROR("Recording a motion which moves right hand side of the robot. This should not happen.\n");
-        getchar();
+        // const std::array<bool,ContactManipulator::MANIP_NUM> only_right_foot = {false,true,false,false};
+        // const std::array<bool,ContactManipulator::MANIP_NUM> both_feet = {true,true,false,false};
+        // const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
+        // const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
+        // const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
+
+        current_state = std::make_shared<ContactState>(*input_current_state);
+
+        if((current_state->manip_in_contact(ContactManipulator::L_LEG) && !current_state->manip_in_contact(ContactManipulator::R_LEG)) ||
+           (current_state->manip_in_contact(ContactManipulator::L_LEG) && current_state->manip_in_contact(ContactManipulator::R_LEG) && current_state->manip_in_contact(ContactManipulator::L_ARM)))
+        {
+            TransformationMatrix reference_frame = current_state->getFeetMeanTransform();
+            current_state = current_state->getMirrorState(reference_frame);
+        }
+
+        inv_prev_mean_feet_transform = inverseTransformationMatrix(current_state->getFeetMeanTransform());
+        inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
     }
 
     int motion_code;
     std::vector<RPYTF> contact_manip_pose_vec;
+    std::string feasible_record_file_name, infeasible_record_file_name;
 
     if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
     {
         auto transition_code_poses_pair = current_state->getTransitionCodeAndPoses();
         motion_code = int(transition_code_poses_pair.first);
         contact_manip_pose_vec = transition_code_poses_pair.second;
+        feasible_record_file_name = "dynopt_result/transition_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "dynopt_result/transition_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
     else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
     {
         auto capturability_code_poses_pair = current_state->getOneStepCapturabilityCodeAndPoses();
         motion_code = int(capturability_code_poses_pair.first);
         contact_manip_pose_vec = capturability_code_poses_pair.second;
+        feasible_record_file_name = "dynopt_result/one_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "dynopt_result/one_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
+    }
+    else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+    {
+        auto capturability_code_poses_pair = current_state->getZeroStepCapturabilityCodeAndPoses();
+        motion_code = int(capturability_code_poses_pair.first);
+        contact_manip_pose_vec = capturability_code_poses_pair.second;
+        feasible_record_file_name = "dynopt_result/zero_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "dynopt_result/zero_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
 
     std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_manip_pose_vec.size());
@@ -1058,28 +1055,21 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     std::vector<RPYTF> contact_pose_combination_placeholder(possible_contact_pose_representation.size());
     getAllContactPoseCombinations(all_contact_pose_combinations, possible_contact_pose_representation, 0, contact_pose_combination_placeholder);
 
-    std::string feasible_record_file_name, infeasible_record_file_name;
-
-    if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
-    {
-        feasible_record_file_name = "dynopt_result/transition_dynopt_result_" + std::to_string(planning_id) + ".txt";
-        infeasible_record_file_name = "dynopt_result/transition_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
-    }
-    else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
-    {
-        feasible_record_file_name = "dynopt_result/capturability_dynopt_result_" + std::to_string(planning_id) + ".txt";
-        infeasible_record_file_name = "dynopt_result/capturability_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
-    }
 
     if(dynamically_feasible)
     {
         std::ofstream dynopt_result_fstream(feasible_record_file_name, std::ofstream::app);
+        Translation3D transformed_prev_com, transformed_current_com;
+        Vector3D transformed_prev_com_dot, transformed_current_com_dot;
 
-        Translation3D transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
-        Vector3D transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        {
+            transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
+            transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+        }
 
-        Translation3D transformed_current_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
-        Vector3D transformed_current_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
+        transformed_current_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
+        transformed_current_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
 
         double motion_duration = 0;
         for(int i = 0; i < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps); i++)
@@ -1103,8 +1093,11 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
                                         << transformed_pose.yaw_ * DEG2RAD << " ";
             }
 
-            dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
-            dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+            if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+            {
+                dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
+                dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+            }
 
             // dynopt_result_fstream << reference_dynamics_sequence_.dynamicsState(0).linearMomentum()[0] << " "
             //                       << reference_dynamics_sequence_.dynamicsState(0).linearMomentum()[1] << " "
@@ -1126,8 +1119,18 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     {
         std::ofstream dynopt_result_fstream(infeasible_record_file_name, std::ofstream::app);
 
-        Translation3D transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
-        Vector3D transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+        Translation3D transformed_com, transformed_com_dot;
+
+        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        {
+            transformed_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
+            transformed_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
+        }
+        else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+        {
+            transformed_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
+            transformed_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
+        }
 
         for(auto & contact_pose_combination : all_contact_pose_combinations)
         {
@@ -1145,8 +1148,8 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
                                         << transformed_pose.yaw_ * DEG2RAD << " ";
             }
 
-            dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
-            dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+            dynopt_result_fstream << transformed_com[0] << " " << transformed_com[1] << " " << transformed_com[2] << " ";
+            dynopt_result_fstream << transformed_com_dot[0] << " " << transformed_com_dot[1] << " " << transformed_com_dot[2] << " ";
 
             dynopt_result_fstream << std::endl;
         }

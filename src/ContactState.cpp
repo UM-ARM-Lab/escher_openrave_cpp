@@ -464,7 +464,7 @@ std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCaptu
             getchar();
         }
     }
-    else if(prev_stance->ee_contact_status_ == left_foot_and_right_hand|| prev_stance->ee_contact_status_ == right_foot_and_left_hand)
+    else if(prev_stance->ee_contact_status_ == left_foot_and_right_hand || prev_stance->ee_contact_status_ == right_foot_and_left_hand)
     {
         if(prev_move_manip_ == ContactManipulator::L_LEG)
         {
@@ -508,5 +508,66 @@ std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCaptu
     contact_manip_pose_vec.push_back(current_stance->ee_contact_poses_[prev_move_manip_]);
 
     return std::make_pair(one_step_capture_code, contact_manip_pose_vec);
+}
 
+std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > ContactState::getZeroStepCapturabilityCodeAndPoses()
+{
+    std::shared_ptr<Stance> current_stance = stances_vector_[0];
+
+    ZeroStepCaptureCode zero_step_capture_code;
+
+    std::vector<RPYTF> contact_manip_pose_vec;
+
+    // {L_LEG, R_LEG, L_ARM, R_ARM}
+    // enum ZeroStepCaptureCode
+    // {
+    //     ONE_FOOT,                   // 0
+    //     TWO_FEET,                   // 1
+    //     ONE_FOOT_AND_INNER_HAND,    // 2
+    //     ONE_FOOT_AND_OUTER_HAND,    // 3
+    //     FEET_AND_ONE_HAND           // 4
+    // };
+
+    const std::array<bool,ContactManipulator::MANIP_NUM> only_right_foot = {false,true,false,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> both_feet = {true,true,false,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
+
+    // one foot contact
+    if(current_stance->ee_contact_status_ == only_right_foot)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::ONE_FOOT;
+    }
+    else if(current_stance->ee_contact_status_ == both_feet)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::TWO_FEET;
+    }
+    else if(current_stance->ee_contact_status_ == right_foot_and_right_hand)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::ONE_FOOT_AND_INNER_HAND;
+    }
+    else if(current_stance->ee_contact_status_ == right_foot_and_left_hand)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::ONE_FOOT_AND_OUTER_HAND;
+    }
+    else if(current_stance->ee_contact_status_ == both_feet_and_right_hand)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::FEET_AND_ONE_HAND;
+    }
+    else
+    {
+        RAVELOG_ERROR("Unknown Zero Step Capture Case.\n");
+        getchar();
+    }
+
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        if(current_stance->ee_contact_status_[manip])
+        {
+            contact_manip_pose_vec.push_back(current_stance->ee_contact_poses_[manip]);
+        }
+    }
+
+    return std::make_pair(zero_step_capture_code, contact_manip_pose_vec);
 }

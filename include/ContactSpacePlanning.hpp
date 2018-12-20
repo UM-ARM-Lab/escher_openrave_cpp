@@ -29,6 +29,8 @@ class ContactSpacePlanning
                                                                      bool use_learned_dynamics_model, bool enforce_stop_in_the_end);
         void storeSLEnvironment();
 
+        void collectTrainingData();
+
     private:
         // std::set< std::shared_ptr<ContactState>, pointer_less > openHeap;
         std::priority_queue< std::shared_ptr<ContactState>, std::vector< std::shared_ptr<ContactState> >, pointer_less > open_heap_;
@@ -92,7 +94,8 @@ class ContactSpacePlanning
 
         // the dynamics optimizer interface
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;
-        std::vector< std::shared_ptr<OptimizationInterface> > capturability_dynamics_optimizer_interface_vector_;
+        std::vector< std::shared_ptr<OptimizationInterface> > one_step_capture_dynamics_optimizer_interface_vector_;
+        std::vector< std::shared_ptr<OptimizationInterface> > zero_step_capture_dynamics_optimizer_interface_vector_;
 
         // the dynamics prediciton neural network interface
         std::vector< std::shared_ptr<NeuralNetworkInterface> > neural_network_interface_vector_;

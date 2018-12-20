@@ -410,7 +410,7 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
     }
 
     std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
-    auto state = std::make_shared<ContactState>(stance, com, com_dot, 1);
+    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance, com, com_dot, 1);
 
     return state;
 }
@@ -1864,18 +1864,16 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
     // enumerate all the initial states
-    std::vector<std::shared_ptr<ContactState> > initial_states;
-    std::vector<std::pair<RPYTF, RPYTF> > initial_feet_pose_pairs;
-
-
-    // get all the branches, and
-
+    disturbance_samples_.push_back(std::make_pair(Vector3D(0,0,0), 1.0));
     ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model_, hand_transition_model_,
                                               structures_, structures_dict_, NULL, general_ik_interface_, 1,
                                               thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
                                               PlanningApplication::COLLECT_DATA);
 
-
+    for(int i = 0; i < 100; i++)
+    {
+        contact_pose_sampler.collectTrainingData();
+    }
 }
 
 bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)

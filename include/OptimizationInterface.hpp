@@ -105,7 +105,6 @@ class OptimizationInterface
 
         // helper functions to load parameters from planner information (Input: Planner --> Optimizer)
         void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence);
-        void updateContactSequence(std::shared_ptr<ContactState> input_capture_contact_state, Translation3D initial_com, Vector3D initial_com_dot);
         void updateContactSequenceRelatedDynamicsOptimizerSetting();
         void updateReferenceDynamicsSequence(Translation3D com_translation, float desired_speed);
         void fillInitialRobotState();

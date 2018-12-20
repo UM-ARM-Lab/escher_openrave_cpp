@@ -393,6 +393,64 @@ class escher_openrave_cpp_wrapper(object):
 
         result_str = self.module.SendCommand(cmd_str)
 
+    def SendStartCollectDynamicsOptimizationData(self,robot_name=None,escher=None,foot_transition_model=None,hand_transition_model=None,
+                                                 thread_num=None,planning_id=None,printing=None):
+
+        start = time.time()
+
+        cmd = ['StartCollectDynamicsOptimizationData']
+
+        if printing:
+            cmd.append('printing')
+
+        if robot_name is not None:
+            cmd.append('robot_name')
+            cmd.append(robot_name)
+        else:
+            print('robot name is required for planning. Abort.')
+            return
+
+        if escher is not None:
+            self.AppendRobotPropertiesCommand(cmd, escher)
+        else:
+            print('robot properties(escher) is required for planning. Abort.')
+            return
+
+        if foot_transition_model is not None:
+            self.AppendFootTransitionModelCommand(cmd, foot_transition_model)
+        else:
+            print('foot transition model is required for planning. Abort.')
+            return
+
+        if hand_transition_model is not None:
+            self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
+
+        if thread_num is not None:
+            cmd.append('thread_num')
+            cmd.append(thread_num)
+
+        if planning_id is not None:
+            cmd.append('planning_id')
+            cmd.append(planning_id)
+
+        cmd_str = " ".join(str(item) for item in cmd)
+
+        after_constructing_command = time.time()
+
+        result_str = self.module.SendCommand(cmd_str)
+
+        after_calculation = time.time()
+
+        # result = [float(x) for x in result_str.split()]
+
+        # parsing the outputs
+
+        after_parsing_output = time.time()
+
+        print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
+        print('Planning Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
+        print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
+
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',map_grid=None,map_grid_dim=None,
                                      output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
