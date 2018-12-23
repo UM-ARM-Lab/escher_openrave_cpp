@@ -2432,9 +2432,16 @@ void ContactSpacePlanning::collectTrainingData()
     right_relative_shoulder_position[0] = 0;
     right_relative_shoulder_position[1] = -robot_properties_->shoulder_w_/2.0;
     right_relative_shoulder_position[2] = robot_properties_->shoulder_z_;
+    
+    // sample 3 feet stances
+    std::uniform_int_distribution<unsigned int> foot_transition_size_unif(0, foot_transition_model_.size()-1);
 
-    for(auto & foot_transition : foot_transition_model_)
+    for(int i = 0; i < 3; i++)
     {
+        unsigned int foot_transition_index = foot_transition_size_unif(rng_);
+
+        auto foot_transition = foot_transition_model_[foot_transition_index];
+
         int invalid_sampling_counter = 0;
 
         std::array<float,6> l_foot_xyzrpy, r_foot_xyzrpy;

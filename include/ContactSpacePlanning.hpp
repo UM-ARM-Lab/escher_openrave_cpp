@@ -48,13 +48,13 @@ class ContactSpacePlanning
         std::shared_ptr<RobotProperties> robot_properties_;
 
         // planner options
-        bool use_dynamics_planning_;
-        bool goal_as_exact_poses_;
-        bool use_learned_dynamics_model_;
-        bool enforce_stop_in_the_end_;
+        bool use_dynamics_planning_ = false;
+        bool goal_as_exact_poses_ = false;
+        bool use_learned_dynamics_model_ = false;
+        bool enforce_stop_in_the_end_ = false;
         PlanningHeuristicsType heuristics_type_;
         int num_stance_in_state_;
-        bool planning_application_;
+        PlanningApplication planning_application_;
 
         // transition models
         const std::vector< std::array<float,3> > foot_transition_model_;

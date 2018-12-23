@@ -45,25 +45,13 @@ def main(start_env_id=0,
         print("FCL Not installed, falling back to ode")
         env.SetCollisionChecker(rave.RaveCreateCollisionChecker(env, "ode"))
 
-    # ### Construct the hand transition model
-    # hand_transition_model = []
-    # # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
-    # # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
-    # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
-    # # hand_yaw = [0.0]
-    # hand_yaw = [-20.0,0.0,20.0]
-    # for pitch in hand_pitch:
-    #     for yaw in hand_yaw:
-    #         hand_transition_model.append((pitch,yaw))
-    # hand_transition_model.append((-99.0,-99.0))
-
     ### Construct the hand transition model
     hand_transition_model = []
     # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
     # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
-    hand_pitch = [10.0,20.0,30.0]
-    hand_yaw = [0.0]
-    # hand_yaw = [-20.0,0.0,20.0]
+    hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # hand_yaw = [0.0]
+    hand_yaw = [-20.0,0.0,20.0]
     for pitch in hand_pitch:
         for yaw in hand_yaw:
             hand_transition_model.append((pitch,yaw))
@@ -74,8 +62,8 @@ def main(start_env_id=0,
         print('Load step_transition_model...', end='')
         # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
-        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
-        f = open(escher_planning_data_path + 'step_transition_model_test.txt','r')
+        f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_test.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_dynopt_test.txt','r')
