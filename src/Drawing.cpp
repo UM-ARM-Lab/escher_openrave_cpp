@@ -93,31 +93,38 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
     std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
 
     // draw left foot pose
-    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = current_stance->left_foot_pose_.GetRaveTransformMatrix();
-
-    std::vector< OpenRAVE::RaveVector<float> > transformed_left_foot_corners(5);
-
-    for(unsigned int i = 0; i < transformed_left_foot_corners.size(); i++)
+    if(current_stance->ee_contact_status_[ContactManipulator::L_LEG])
     {
-        // std::cout << foot_corners[i][0] << " " << foot_corners[i][1] << " " << foot_corners[i][2] << std::endl;
-        transformed_left_foot_corners[i] = left_foot_transform * foot_corners[i%4];
-    }
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> left_foot_transform = current_stance->left_foot_pose_.GetRaveTransformMatrix();
 
-    graphptrs.push_back(penv->drawlinestrip(&(transformed_left_foot_corners[0].x), transformed_left_foot_corners.size(), sizeof(transformed_left_foot_corners[0]), 5, OpenRAVE::RaveVector<float>(1,0,0,1)));
+        std::vector< OpenRAVE::RaveVector<float> > transformed_left_foot_corners(5);
+
+        for(unsigned int i = 0; i < transformed_left_foot_corners.size(); i++)
+        {
+            // std::cout << foot_corners[i][0] << " " << foot_corners[i][1] << " " << foot_corners[i][2] << std::endl;
+            transformed_left_foot_corners[i] = left_foot_transform * foot_corners[i%4];
+        }
+
+        graphptrs.push_back(penv->drawlinestrip(&(transformed_left_foot_corners[0].x), transformed_left_foot_corners.size(), sizeof(transformed_left_foot_corners[0]), 5, OpenRAVE::RaveVector<float>(1,0,0,1)));
+        // DrawTransform(OpenRAVE::RaveTransform(left_foot_transform));
+    }
 
 
     // draw right foot pose
-    OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_foot_transform = current_stance->right_foot_pose_.GetRaveTransformMatrix();
-
-    std::vector< OpenRAVE::RaveVector<float> > transformed_right_foot_corners(5);
-
-    for(unsigned int i = 0; i < transformed_right_foot_corners.size(); i++)
+    if(current_stance->ee_contact_status_[ContactManipulator::R_LEG])
     {
-        transformed_right_foot_corners[i] = right_foot_transform * foot_corners[i%4];
+        OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> right_foot_transform = current_stance->right_foot_pose_.GetRaveTransformMatrix();
+
+        std::vector< OpenRAVE::RaveVector<float> > transformed_right_foot_corners(5);
+
+        for(unsigned int i = 0; i < transformed_right_foot_corners.size(); i++)
+        {
+            transformed_right_foot_corners[i] = right_foot_transform * foot_corners[i%4];
+        }
+
+        graphptrs.push_back(penv->drawlinestrip(&(transformed_right_foot_corners[0].x), transformed_right_foot_corners.size(), sizeof(transformed_right_foot_corners[0]), 5, OpenRAVE::RaveVector<float>(0,1,0,1)));
+        // DrawTransform(OpenRAVE::RaveTransform(right_foot_transform));
     }
-
-    graphptrs.push_back(penv->drawlinestrip(&(transformed_right_foot_corners[0].x), transformed_right_foot_corners.size(), sizeof(transformed_right_foot_corners[0]), 5, OpenRAVE::RaveVector<float>(0,1,0,1)));
-
 
     // draw left hand pose
     if(current_stance->ee_contact_status_[ContactManipulator::L_ARM])
@@ -132,6 +139,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
         }
 
         graphptrs.push_back(penv->drawlinestrip(&(transformed_left_hand_corners[0].x), transformed_left_hand_corners.size(), sizeof(transformed_left_hand_corners[0]), 5, OpenRAVE::RaveVector<float>(0,0,1,1)));
+        // DrawTransform(OpenRAVE::RaveTransform(left_hand_transform));
     }
 
 
@@ -148,6 +156,7 @@ void DrawingHandler::DrawContacts(std::shared_ptr<ContactState> current_state) /
         }
 
         graphptrs.push_back(penv->drawlinestrip(&(transformed_right_hand_corners[0].x), transformed_right_hand_corners.size(), sizeof(transformed_right_hand_corners[0]), 5, OpenRAVE::RaveVector<float>(1,1,0,1)));
+        // DrawTransform(OpenRAVE::RaveTransform(right_hand_transform));
     }
 }
 

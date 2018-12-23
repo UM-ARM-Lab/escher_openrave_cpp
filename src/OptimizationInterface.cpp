@@ -183,8 +183,11 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         }
         // for(int cnt_id = 0; cnt_id < this->contacts_per_endeff_[eff_id]; cnt_id++)
         // {
-        //     std::cout << "eff_id: " << eff_id << ", cnt_id: " << cnt_id << "(" << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime()
-        //     << "," << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << ")" << std::endl;
+        //     std::cout << "eff_id: " << eff_id << ", cnt_id: " << cnt_id << ", (" << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime()
+        //     << "," << this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() << "), Position: (" <<
+        //     this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[0] << ", " <<
+        //     this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[1] << ", " <<
+        //     this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition()[2] << ")" << std::endl;
         // }
     }
 
@@ -260,9 +263,9 @@ void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<C
     this->contact_state_sequence_.resize(new_contact_state_sequence.size());
     this->contact_state_sequence_ = new_contact_state_sequence;
     this->contact_sequence_interpreter_ = ContactPlanFromContactSequence(this->contact_state_sequence_,
-                                                                            this->step_transition_time_,
-                                                                            this->support_phase_time_,
-                                                                            dynamics_optimizer_application_);
+                                                                         this->step_transition_time_,
+                                                                         this->support_phase_time_,
+                                                                         dynamics_optimizer_application_);
     this->updateContactSequenceRelatedDynamicsOptimizerSetting();
 }
 
@@ -298,7 +301,7 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
         }
         else
         {
-            // the result is the same, but we keep then separated for highlighting the underlying motion sequence
+            // the result is the same, but we keep them separated for highlighting the underlying motion sequence
             if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
             {
                 total_time += this->support_phase_time_;
@@ -331,10 +334,10 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
     optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step + 0.001));
 
-    // Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
-    // optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
-    // reference_dynamics_sequence_.clean();
-    // reference_dynamics_sequence_.resize(optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
+    Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
+    optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
+    reference_dynamics_sequence_.clean();
+    reference_dynamics_sequence_.resize(optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps));
 }
 
 void OptimizationInterface::updateReferenceDynamicsSequence(Translation3D com_translation, float desired_speed)
@@ -497,40 +500,6 @@ bool OptimizationInterface::simplifiedDynamicsOptimization(float& dynamics_cost)
         return false;
     }
 }
-
-// bool OptimizationInterface::checkCapturability()
-// {
-//     this->initializeDynamicsOptimizer();
-//     this->fillInitialRobotState();
-//     this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
-
-//     // std::cout << "TimeHorizon: " << optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) << std::endl;
-//     // std::cout << "TimeStep: " << optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep) << std::endl;
-//     // std::cout << "NumTimeSteps: " << optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
-
-//     // optimize a motion
-//     solver::ExitCode solver_exitcode = dynamics_optimizer_.optimize(initial_state_, reference_dynamics_sequence_);
-
-//     dynamics_cost = dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_PrimalCost);
-
-//     int final_time_id = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
-//     // std::cout << "Total Timesteps: " << optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
-//     // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
-
-//     // storeResultDigest(solver_exitcode, dynopt_result_digest_);
-
-//     // getchar();
-
-//     if(int(solver_exitcode) <= 1)
-//     {
-//         // recordDynamicsMetrics();
-//         return true;
-//     }
-//     else
-//     {
-//         return false;
-//     }
-// }
 
 bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
 {
@@ -997,24 +966,24 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
         auto transition_code_poses_pair = current_state->getTransitionCodeAndPoses();
         motion_code = int(transition_code_poses_pair.first);
         contact_manip_pose_vec = transition_code_poses_pair.second;
-        feasible_record_file_name = "dynopt_result/transition_dynopt_result_" + std::to_string(planning_id) + ".txt";
-        infeasible_record_file_name = "dynopt_result/transition_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
+        feasible_record_file_name = "../data/dynopt_result/contact_transition_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "../data/dynopt_result/contact_transition_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
     else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
     {
         auto capturability_code_poses_pair = current_state->getOneStepCapturabilityCodeAndPoses();
         motion_code = int(capturability_code_poses_pair.first);
         contact_manip_pose_vec = capturability_code_poses_pair.second;
-        feasible_record_file_name = "dynopt_result/one_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
-        infeasible_record_file_name = "dynopt_result/one_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
+        feasible_record_file_name = "../data/dynopt_result/one_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "../data/dynopt_result/one_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
     else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
     {
         auto capturability_code_poses_pair = current_state->getZeroStepCapturabilityCodeAndPoses();
         motion_code = int(capturability_code_poses_pair.first);
         contact_manip_pose_vec = capturability_code_poses_pair.second;
-        feasible_record_file_name = "dynopt_result/zero_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
-        infeasible_record_file_name = "dynopt_result/zero_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
+        feasible_record_file_name = "../data/dynopt_result/zero_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
+        infeasible_record_file_name = "../data/dynopt_result/zero_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
 
     std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_manip_pose_vec.size());

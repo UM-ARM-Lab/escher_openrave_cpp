@@ -156,7 +156,8 @@ enum ZeroStepCaptureCode
     TWO_FEET,                   // 1
     ONE_FOOT_AND_INNER_HAND,    // 2
     ONE_FOOT_AND_OUTER_HAND,    // 3
-    FEET_AND_ONE_HAND           // 4
+    ONE_FOOT_AND_TWO_HANDS,     // 4
+    FEET_AND_ONE_HAND           // 5
 };
 
 enum OneStepCaptureCode
@@ -169,7 +170,8 @@ enum OneStepCaptureCode
     ONE_FOOT_AND_INNER_HAND_ADD_HAND,   // 5
     ONE_FOOT_AND_OUTER_HAND_ADD_FOOT,   // 6
     ONE_FOOT_AND_OUTER_HAND_ADD_HAND,   // 7
-    TWO_FEET_AND_ONE_HAND_ADD_HAND      // 8
+    ONE_FOOT_AND_TWO_HANDS_ADD_FOOT,    // 8
+    TWO_FEET_AND_ONE_HAND_ADD_HAND      // 9
 };
 
 enum DynOptApplication

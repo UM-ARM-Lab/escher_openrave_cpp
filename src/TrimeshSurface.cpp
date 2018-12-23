@@ -646,18 +646,31 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
 {
     Translation3D translation = projectionGlobalFrame(origin, ray);
 
+    if(translation.norm() > 2000)
+    {
+        std::cout << translation << std::endl;
+        std::cout << "++++++++++" << std::endl;
+        std::cout << origin << std::endl;
+        std::cout << "++++++++++" << std::endl;
+        std::cout << ray << std::endl;
+        std::cout << "++++++++++" << std::endl;
+        std::cout << contact_manipulator << std::endl;
+        getchar();
+    }
+
     if(translation[0] == -99.0)
     {
         valid_contact = false;
         return TransformationMatrix();
     }
 
-    Translation3D cx, cy, cz;
+    Vector3D cx, cy, cz;
+    double roll_rad = roll * DEG2RAD;
 
     if(contact_manipulator == ContactManipulator::L_LEG || contact_manipulator == ContactManipulator::R_LEG)
     {
         cz = getNormal();
-        cx = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
+        cx = Vector3D(std::cos(roll_rad), std::sin(roll_rad), 0);
         cy = cz.cross(cx).normalized();
         cx = cy.cross(cz);
     }
@@ -666,13 +679,22 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
         cx = -getNormal();
         if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
         {
-            cy = Translation3D(std::sin(roll * DEG2RAD), 0, std::cos(roll * DEG2RAD));
+            cy = Vector3D(std::sin(roll_rad), 0, std::cos(roll_rad));
         }
         else
         {
-            cy = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
+            cy = Vector3D(std::cos(roll_rad), std::sin(roll_rad), 0);
         }
-        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+
+        if(cy.dot(getNormal()) >= 0)
+        {
+            cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        }
+        else
+        {
+            cy = (projectionGlobalFrame(translation+cy, getNormal()) - translation).normalized();
+        }
+
         cz = cx.cross(cy);
 
     }
@@ -681,13 +703,22 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
         cx = -getNormal();
         if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
         {
-            cy = Translation3D(-std::sin(roll * DEG2RAD), 0, -std::cos(roll * DEG2RAD));
+            cy = Vector3D(-std::sin(roll_rad), 0, -std::cos(roll_rad));
         }
         else
         {
-            cy = Translation3D(-std::cos(roll * DEG2RAD), -std::sin(roll * DEG2RAD), 0);
+            cy = Vector3D(-std::cos(roll_rad), -std::sin(roll_rad), 0);
         }
-        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+
+        if(cy.dot(getNormal()) >= 0)
+        {
+            cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        }
+        else
+        {
+            cy = (projectionGlobalFrame(translation+cy, getNormal()) - translation).normalized();
+        }
+
         cz = cx.cross(cy);
     }
 

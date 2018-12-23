@@ -60,16 +60,33 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
     this->stances_vector_.resize(num_stance_in_state_);
     this->stances_vector_[0] = _initial_stance;
 
-    // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
-    this->nominal_com_(0) = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    this->nominal_com_(1) = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    this->nominal_com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + 1.0;
+    this->nominal_com_ = Translation3D(0,0,0);
+    this->mean_feet_position_ = Translation3D(0,0,0);
 
-    mean_feet_position_[0] = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    mean_feet_position_[1] = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    mean_feet_position_[2] = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
+    float feet_contact_num = 0;
+    for(auto & manip : LEG_MANIPULATORS)
+    {
+        if(this->manip_in_contact(manip))
+        {
+            this->nominal_com_[0] += this->stances_vector_[0]->ee_contact_poses_[manip].x_;
+            this->nominal_com_[1] += this->stances_vector_[0]->ee_contact_poses_[manip].y_;
+            this->nominal_com_[2] += this->stances_vector_[0]->ee_contact_poses_[manip].z_;
 
-    stances_vector_.resize(num_stance_in_state_);
+            this->mean_feet_position_[0] += this->stances_vector_[0]->ee_contact_poses_[manip].x_;
+            this->mean_feet_position_[1] += this->stances_vector_[0]->ee_contact_poses_[manip].y_;
+            this->mean_feet_position_[2] += this->stances_vector_[0]->ee_contact_poses_[manip].z_;
+
+            feet_contact_num += 1.0;
+        }
+    }
+
+    this->nominal_com_[0] /= feet_contact_num;
+    this->nominal_com_[1] /= feet_contact_num;
+    this->nominal_com_[2] /= feet_contact_num;
+    this->mean_feet_position_[0] /= feet_contact_num;
+    this->mean_feet_position_[1] /= feet_contact_num;
+    this->mean_feet_position_[2] /= feet_contact_num;
+    this->nominal_com_[2] += 1.0;
 
     this->max_manip_x_ = -9999.0;
 
@@ -100,17 +117,36 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
         this->stances_vector_[i] = _parent->stances_vector_[i+1];
     }
 
-    // updates the com_ and com_dot_ by optimization (will be time consuming) probably need to parallelize the construction of states
-    this->com_(0) = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    this->com_(1) = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    this->com_(2) = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0 + _robot_com_z;
+    this->com_ = Translation3D(0,0,0);
+    this->mean_feet_position_ = Translation3D(0,0,0);
+
+    float feet_contact_num = 0;
+    for(auto & manip : LEG_MANIPULATORS)
+    {
+        if(this->manip_in_contact(manip))
+        {
+            this->com_[0] += this->stances_vector_[0]->ee_contact_poses_[manip].x_;
+            this->com_[1] += this->stances_vector_[0]->ee_contact_poses_[manip].y_;
+            this->com_[2] += this->stances_vector_[0]->ee_contact_poses_[manip].z_;
+
+            this->mean_feet_position_[0] += this->stances_vector_[0]->ee_contact_poses_[manip].x_;
+            this->mean_feet_position_[1] += this->stances_vector_[0]->ee_contact_poses_[manip].y_;
+            this->mean_feet_position_[2] += this->stances_vector_[0]->ee_contact_poses_[manip].z_;
+
+            feet_contact_num += 1.0;
+        }
+    }
+
+    this->com_[0] /= feet_contact_num;
+    this->com_[1] /= feet_contact_num;
+    this->com_[2] /= feet_contact_num;
+    this->mean_feet_position_[0] /= feet_contact_num;
+    this->mean_feet_position_[1] /= feet_contact_num;
+    this->mean_feet_position_[2] /= feet_contact_num;
+    this->com_[2] += _robot_com_z;
+
     this->com_dot_ = Vector3D(0, 0, 0);
-
     this->nominal_com_ = this->com_;
-
-    mean_feet_position_[0] = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-    mean_feet_position_[1] = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-    mean_feet_position_[2] = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
 
     // initialize the explore states
     explore_state_ = ExploreState::OPEN;
@@ -413,6 +449,7 @@ std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCaptu
     const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
     const std::array<bool,ContactManipulator::MANIP_NUM> left_foot_and_right_hand = {true,false,false,true};
     const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_both_hands = {false,true,true,true};
     const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
 
     // one foot contact
@@ -480,6 +517,18 @@ std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCaptu
             getchar();
         }
     }
+    else if(prev_stance->ee_contact_status_ == right_foot_and_both_hands)
+    {
+        if(prev_move_manip_ == ContactManipulator::L_LEG)
+        {
+            one_step_capture_code = OneStepCaptureCode::ONE_FOOT_AND_TWO_HANDS_ADD_FOOT;
+        }
+        else
+        {
+            RAVELOG_ERROR("Unknown One Step Capture Case.\n");
+            getchar();
+        }
+    }
     else if(prev_stance->ee_contact_status_ == both_feet_and_right_hand)
     {
         if(prev_move_manip_ == ContactManipulator::L_ARM)
@@ -525,13 +574,15 @@ std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > ContactState::getZeroStepCap
     //     TWO_FEET,                   // 1
     //     ONE_FOOT_AND_INNER_HAND,    // 2
     //     ONE_FOOT_AND_OUTER_HAND,    // 3
-    //     FEET_AND_ONE_HAND           // 4
+    //     ONE_FOOT_AND_TWO_HANDS,     // 4
+    //     FEET_AND_ONE_HAND           // 5
     // };
 
     const std::array<bool,ContactManipulator::MANIP_NUM> only_right_foot = {false,true,false,false};
     const std::array<bool,ContactManipulator::MANIP_NUM> both_feet = {true,true,false,false};
     const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
     const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
+    const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_both_hands = {false,true,true,true};
     const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
 
     // one foot contact
@@ -550,6 +601,10 @@ std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > ContactState::getZeroStepCap
     else if(current_stance->ee_contact_status_ == right_foot_and_left_hand)
     {
         zero_step_capture_code = ZeroStepCaptureCode::ONE_FOOT_AND_OUTER_HAND;
+    }
+    else if(current_stance->ee_contact_status_ == right_foot_and_both_hands)
+    {
+        zero_step_capture_code = ZeroStepCaptureCode::ONE_FOOT_AND_TWO_HANDS;
     }
     else if(current_stance->ee_contact_status_ == both_feet_and_right_hand)
     {
