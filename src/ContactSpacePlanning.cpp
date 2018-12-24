@@ -95,6 +95,10 @@ planning_application_(_planning_application)
     {
         consider_disturbance_ = true;
     }
+
+    uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    std::seed_seq ss{uint32_t(timeSeed & 0xffffffff), uint32_t(timeSeed>>32)};
+    rng_.seed(ss);
 }
 
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanning(std::shared_ptr<ContactState> initial_state, std::array<float,3> goal,
@@ -2432,7 +2436,7 @@ void ContactSpacePlanning::collectTrainingData()
     right_relative_shoulder_position[0] = 0;
     right_relative_shoulder_position[1] = -robot_properties_->shoulder_w_/2.0;
     right_relative_shoulder_position[2] = robot_properties_->shoulder_z_;
-    
+
     // sample 3 feet stances
     std::uniform_int_distribution<unsigned int> foot_transition_size_unif(0, foot_transition_model_.size()-1);
 
