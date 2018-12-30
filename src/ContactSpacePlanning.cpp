@@ -1275,8 +1275,36 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips)
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode)
 {
+    std::vector<ContactManipulator> branching_manips;
+    std::vector< std::array<float,2> > hand_transition_model;
+    
+    if(branching_mode == BranchingManipMode::ALL)
+    {
+        branching_manips = ALL_MANIPULATORS;
+        hand_transition_model = hand_transition_model_;
+    }
+    else if(branching_mode == BranchingManipMode::FEET_CONTACTS)
+    {
+        branching_manips = LEG_MANIPULATORS;
+    }
+    else if(bracnhing_mode == BranchingManipMode::HAND_CONTACTS)
+    {
+        branching_manips = ARM_MANIPULATORS;
+        hand_transition_model = hand_transition_model_;
+    }
+    else if(bracnhing_mode == BranchingManipMode::BREAKING_HAND_CONTACTS)
+    {
+        branching_manips = ARM_MANIPULATORS;
+        hand_transition_model.push_back({-99.0, -99.0});
+    }
+    else
+    {
+        RAVELOG_ERROR("Unknown branching mode.");
+        getchar();
+    }
+
     const float l_leg_horizontal_yaw = current_state->getLeftHorizontalYaw();
     const float r_leg_horizontal_yaw = current_state->getRightHorizontalYaw();
     const float mean_horizontal_yaw = current_state->getFeetMeanHorizontalYaw();
@@ -1390,7 +1418,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             for(auto & arm_orientation : hand_transition_model_)
             {
                 std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_ee_contact_status;
-                RPYTF new_left_hand_pose, new_right_hand_pose;
+                RPYTF new_left_hand_pose = current_state->stances_vector[0]->left_hand_pose_;
+                RPYTF new_right_hand_pose = curren_state->stances_vector[0]->right_hand_pose_;
                 bool projection_is_successful = false;
 
                 if(arm_orientation[0] != -99.0) // making contact
@@ -1438,7 +1467,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 }
                 else // breaking contact
                 {
-                    projection_is_successful = true;
+                    projection_is_successful = current_state->manip_in_contact;
                     new_ee_contact_status[move_manip] = false;
 
                     if(move_manip == ContactManipulator::L_ARM)
@@ -2413,7 +2442,7 @@ void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contac
     }
 }
 
-void ContactSpacePlanning::collectTrainingData()
+void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode)
 {
     // sample the initial states
     std::vector<std::shared_ptr<ContactState> > initial_states;
@@ -2542,6 +2571,6 @@ void ContactSpacePlanning::collectTrainingData()
     for(auto & initial_state : initial_states)
     {
         // RAVELOG_WARN("New initial state.\n");
-        branchingContacts(initial_state, branching_manips);
+        branchingContacts(initial_state, branching_mode);
     }
 }

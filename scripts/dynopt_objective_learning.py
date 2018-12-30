@@ -111,15 +111,19 @@ start_index = 0
 end_index = 100
 
 def plot_history(history):
-    plt.figure()
-    plt.xlabel('Epoch')
-    plt.ylabel('Error')
-    plt.plot(history.epoch, np.array(history.history['loss']), label='MSE Train Loss')
-    plt.plot(history.epoch, np.array(history.history['val_loss']), label='MSE Val loss')
-    plt.plot(history.epoch, np.array(history.history['mean_absolute_error']), label='MAE Train Loss')
-    plt.plot(history.epoch, np.array(history.history['val_mean_absolute_error']), label='MAE Val loss')
-    plt.legend()
-    # plt.ylim([0,5])
+
+    try:
+        plt.figure()
+        plt.xlabel('Epoch')
+        plt.ylabel('Error')
+        plt.plot(history.epoch, np.array(history.history['loss']), label='MSE Train Loss')
+        plt.plot(history.epoch, np.array(history.history['val_loss']), label='MSE Val loss')
+        plt.plot(history.epoch, np.array(history.history['mean_absolute_error']), label='MAE Train Loss')
+        plt.plot(history.epoch, np.array(history.history['val_mean_absolute_error']), label='MAE Val loss')
+        plt.legend()
+        # plt.ylim([0,5])
+    except Exception:
+        print 'Error in plot_history. Skip it.'
 
 def construct_data_label(desired_motion_code, motion_type):
     global prediction_label

@@ -187,6 +187,14 @@ enum PlanningApplication
     PLAN_IN_ENV
 };
 
+enum BranchingManipMode
+{
+    FEET_CONTACTS,
+    HAND_CONTACTS,
+    BREAKING_HAND_CONTACTS,
+    ALL
+};
+
 struct EnumClassHash
 {
     template <typename T>
