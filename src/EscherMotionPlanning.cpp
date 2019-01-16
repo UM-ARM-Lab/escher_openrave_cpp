@@ -1813,6 +1813,17 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
     int thread_num = 1;
     int planning_id = 0;
+    int contact_sampling_iteration = 20;
+
+    bool check_zero_step_capturability = false;
+    bool check_one_step_capturability = false;
+    bool check_contact_transition_feasibility = false;
+
+    bool sample_feet_only_state = false;
+    bool sample_feet_and_one_hand_state = false;
+    bool sample_feet_and_two_hands_state = false;
+
+    BranchingManipMode branching_manip_mode = BranchingManipMode::ALL;
 
     // read the transition models
     while(!sinput.eof())
@@ -1853,6 +1864,63 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
         {
             sinput >> planning_id;
         }
+
+        else if(strcmp(param.c_str(), "contact_sampling_iteration") == 0)
+        {
+            sinput >> contact_sampling_iteration;
+        }
+
+        else if(strcmp(param.c_str(), "branching_manip_mode") == 0)
+        {
+            sinput >> param;
+
+            if(strcmp(param.c_str(), "feet_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::FEET_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "hand_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::HAND_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "breaking_hand_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::BREAKING_HAND_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "all") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::ALL;
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
+        {
+            check_zero_step_capturability = true;
+        }
+
+        else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
+        {
+            check_one_step_capturability = true;
+        }
+
+        else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
+        {
+            check_contact_transition_feasibility = true;
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_only_state") == 0)
+        {
+            sample_feet_only_state = true;
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_and_one_hand_state") == 0)
+        {
+            sample_feet_and_one_hand_state = true;
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_and_two_hands_state") == 0)
+        {
+            sample_feet_and_two_hands_state = true;
+        }
     }
 
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
@@ -1871,9 +1939,15 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
                                               thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
                                               PlanningApplication::COLLECT_DATA);
 
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < contact_sampling_iteration; i++)
     {
-        contact_pose_sampler.collectTrainingData();
+        contact_pose_sampler.collectTrainingData(branching_manip_mode,
+                                                 check_zero_step_capturability, 
+                                                 check_one_step_capturability,
+                                                 check_contact_transition_feasibility,
+                                                 sample_feet_only_state,
+                                                 sample_feet_and_one_hand_state,
+                                                 sample_feet_and_two_hands_state);
     }
 }
 

@@ -394,7 +394,11 @@ class escher_openrave_cpp_wrapper(object):
         result_str = self.module.SendCommand(cmd_str)
 
     def SendStartCollectDynamicsOptimizationData(self,robot_name=None,escher=None,foot_transition_model=None,hand_transition_model=None,
-                                                 thread_num=None,planning_id=None,printing=None):
+                                                 thread_num=None,planning_id=None,contact_sampling_iteration=None,printing=None,
+                                                 branching_manip_mode='all',check_zero_step_capturability=True,
+                                                 check_one_step_capturability=True,check_contact_transition_feasibility=True,
+                                                 sample_feet_only_state=True,sample_feet_and_one_hand_state=True,
+                                                 sample_feet_and_two_hands_state=True):
 
         start = time.time()
 
@@ -432,6 +436,32 @@ class escher_openrave_cpp_wrapper(object):
         if planning_id is not None:
             cmd.append('planning_id')
             cmd.append(planning_id)
+
+        if contact_sampling_iteration is not None:
+            cmd.append('contact_sampling_iteration')
+            cmd.append(contact_sampling_iteration)
+
+        if branching_manip_mode is not None:
+            cmd.append('branching_manip_mode')
+            cmd.append(branching_manip_mode)
+
+        if check_zero_step_capturability:
+            cmd.append('check_zero_step_capturability')
+
+        if check_one_step_capturability:
+            cmd.append('check_one_step_capturability')
+
+        if check_contact_transition_feasibility:
+            cmd.append('check_contact_transition_feasibility')
+
+        if sample_feet_only_state:
+            cmd.append('sample_feet_only_state')
+
+        if sample_feet_and_one_hand_state:
+            cmd.append('sample_feet_and_one_hand_state')
+
+        if sample_feet_and_two_hands_state:
+            cmd.append('sample_feet_and_two_hands_state')
 
         cmd_str = " ".join(str(item) for item in cmd)
 

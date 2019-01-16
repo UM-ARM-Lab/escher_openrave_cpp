@@ -1275,7 +1275,9 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode)
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode, 
+                                             bool check_zero_step_capturability, bool check_one_step_capturability, 
+                                             bool check_contact_transition_feasibility)
 {
     std::vector<ContactManipulator> branching_manips;
     std::vector< std::array<float,2> > hand_transition_model;
@@ -1530,73 +1532,79 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first;
 
                 // zero step capturability
-                std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
-
-                std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
-
-                // drawing_handler_->ClearHandler();
-                // drawing_handler_->DrawContactPath(zero_step_capture_contact_state);
-                // // getchar();
-
-                zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
-
-                float zero_step_dummy_dynamics_cost = 0.0;
-                bool zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
-
-                zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
-
-                if(zero_step_dynamically_feasible)
+                if(check_zero_step_capturability)
                 {
-                    rejected_disturbances_.insert(disturb_id);
-                    // continue;
+                    std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
+
+                    std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
+
+                    // drawing_handler_->ClearHandler();
+                    // drawing_handler_->DrawContactPath(zero_step_capture_contact_state);
+                    // // getchar();
+
+                    zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
+
+                    float zero_step_dummy_dynamics_cost = 0.0;
+                    bool zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
+
+                    zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
+
+                    if(zero_step_dynamically_feasible)
+                    {
+                        rejected_disturbances_.insert(disturb_id);
+                        // continue;
+                    }
                 }
 
                 // one step capturability
-                for(int i = 0; i < branching_states.size(); i++)
+                if(check_one_step_capturability)
                 {
-                    std::shared_ptr<ContactState> branching_state = branching_states[i];
-                    ContactManipulator capture_contact_manip = branching_state->prev_move_manip_;
-
-                    // if(branching_state->prev_move_manip_ != move_manip)
-                    // {
-                    //     RAVELOG_ERROR("Moving manipulator info mismatch.\n");
-                    //     getchar();
-                    // }
-
-                    if(branching_state->manip_in_contact(capture_contact_manip) &&
-                       !zero_step_capture_contact_state->manip_in_contact(capture_contact_manip)) // only consider branches making a new contact
+                    for(int i = 0; i < branching_states.size(); i++)
                     {
-                        std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
+                        std::shared_ptr<ContactState> branching_state = branching_states[i];
+                        ContactManipulator capture_contact_manip = branching_state->prev_move_manip_;
 
-                        // construct the state for the floating moving end-effector
-                        std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_contact_state->stances_vector_[0]->ee_contact_status_;
-                        ee_contact_status[capture_contact_manip] = true;
-                        std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_contact_state->stances_vector_[0]->ee_contact_poses_;
-                        ee_contact_poses[capture_contact_manip] = branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip];
+                        // if(branching_state->prev_move_manip_ != move_manip)
+                        // {
+                        //     RAVELOG_ERROR("Moving manipulator info mismatch.\n");
+                        //     getchar();
+                        // }
 
-                        std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                                   ee_contact_poses[2], ee_contact_poses[3],
-                                                                                                   ee_contact_status);
-
-                        std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
-
-                        std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
-
-                        one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
-
-                        float one_step_dummy_dynamics_cost = 0.0;
-                        bool one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(one_step_dummy_dynamics_cost);
-
-                        one_step_capture_dynamics_optimizer_interface_vector_[i]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
-
-                        // drawing_handler_->ClearHandler();
-                        // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
-                        // // getchar();
-
-                        if(one_step_dynamically_feasible)
+                        if(branching_state->manip_in_contact(capture_contact_manip) &&
+                        !zero_step_capture_contact_state->manip_in_contact(capture_contact_manip)) // only consider branches making a new contact
                         {
-                            rejected_disturbances_.insert(disturb_id);
-                            // break;
+                            std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
+
+                            // construct the state for the floating moving end-effector
+                            std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_contact_state->stances_vector_[0]->ee_contact_status_;
+                            ee_contact_status[capture_contact_manip] = true;
+                            std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_contact_state->stances_vector_[0]->ee_contact_poses_;
+                            ee_contact_poses[capture_contact_manip] = branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip];
+
+                            std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                                                    ee_contact_poses[2], ee_contact_poses[3],
+                                                                                                    ee_contact_status);
+
+                            std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+
+                            std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
+
+                            one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
+
+                            float one_step_dummy_dynamics_cost = 0.0;
+                            bool one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(one_step_dummy_dynamics_cost);
+
+                            one_step_capture_dynamics_optimizer_interface_vector_[i]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
+
+                            // drawing_handler_->ClearHandler();
+                            // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
+                            // // getchar();
+
+                            if(one_step_dynamically_feasible)
+                            {
+                                rejected_disturbances_.insert(disturb_id);
+                                // break;
+                            }
                         }
                     }
                 }
@@ -1609,19 +1617,22 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     // RAVELOG_WARN("finish check capturability.\n");
 
     // Find the dynamics cost and capturability cost
-    std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_states.size());
-
-    for(int i = 0; i < branching_states.size(); i++)
+    if(check_contact_transition_feasibility)
     {
-        std::shared_ptr<ContactState> branching_state = branching_states[i];
-        float dynamics_cost = 0.0;
-        if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+        std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_states.size());
+
+        for(int i = 0; i < branching_states.size(); i++)
         {
-            state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost);
-        }
-        else
-        {
-            state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost);
+            std::shared_ptr<ContactState> branching_state = branching_states[i];
+            float dynamics_cost = 0.0;
+            if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+            {
+                state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost);
+            }
+            else
+            {
+                state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost);
+            }
         }
     }
 
@@ -2442,7 +2453,10 @@ void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contac
     }
 }
 
-void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode)
+void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool check_zero_step_capturability, 
+                                               bool check_one_step_capturability, bool check_contact_transition_feasibility,
+                                               bool sample_feet_only_state, bool sample_feet_and_one_hand_state,
+                                               bool sample_feet_and_two_hands_state)
 {
     // sample the initial states
     std::vector<std::shared_ptr<ContactState> > initial_states;
@@ -2514,7 +2528,11 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
                                                                             RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
                                                                             feet_only_contact_status);
         std::shared_ptr<ContactState> feet_only_state = std::make_shared<ContactState>(feet_only_stance, initial_com, initial_com_dot, 1);
-        initial_states.push_back(feet_only_state);
+        
+        if(sample_feet_only_state)
+        {
+            initial_states.push_back(feet_only_state);
+        }
 
         // sample a feet + one hand state
         RPYTF left_hand_pose, right_hand_pose;
@@ -2542,7 +2560,11 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
                                                                                     RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
                                                                                     feet_and_one_hand_contact_status);
         std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance, initial_com, initial_com_dot, 1);
-        initial_states.push_back(feet_and_one_hand_state);
+        
+        if(sample_feet_and_one_hand_state)
+        {
+            initial_states.push_back(feet_and_one_hand_state);
+        }
 
         // sample a feet + two hands state
         Translation3D global_right_shoulder_position = robot_yaw_rotation * right_relative_shoulder_position + feet_only_state->mean_feet_position_;
@@ -2562,7 +2584,11 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         std::shared_ptr<Stance> feet_and_two_hands_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
                                                                                      feet_and_two_hands_contact_status);
         std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance, initial_com, initial_com_dot, 1);
-        initial_states.push_back(feet_and_two_hands_state);
+        
+        if(sample_feet_and_two_hands_state)
+        {
+            initial_states.push_back(feet_and_two_hands_state);
+        }
     }
 
     heuristics_type_ = PlanningHeuristicsType::EUCLIDEAN; // supress the error message
@@ -2571,6 +2597,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     for(auto & initial_state : initial_states)
     {
         // RAVELOG_WARN("New initial state.\n");
-        branchingContacts(initial_state, branching_mode);
+        branchingContacts(initial_state, branching_mode, check_zero_step_capturability, 
+                          check_one_step_capturability, check_contact_transition_feasibility);
     }
 }
