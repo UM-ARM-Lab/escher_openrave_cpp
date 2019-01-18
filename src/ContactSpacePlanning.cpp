@@ -1275,13 +1275,13 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode, 
-                                             bool check_zero_step_capturability, bool check_one_step_capturability, 
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode,
+                                             bool check_zero_step_capturability, bool check_one_step_capturability,
                                              bool check_contact_transition_feasibility)
 {
     std::vector<ContactManipulator> branching_manips;
     std::vector< std::array<float,2> > hand_transition_model;
-    
+
     if(branching_mode == BranchingManipMode::ALL)
     {
         branching_manips = ALL_MANIPULATORS;
@@ -1291,12 +1291,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     {
         branching_manips = LEG_MANIPULATORS;
     }
-    else if(bracnhing_mode == BranchingManipMode::HAND_CONTACTS)
+    else if(branching_mode == BranchingManipMode::HAND_CONTACTS)
     {
         branching_manips = ARM_MANIPULATORS;
         hand_transition_model = hand_transition_model_;
     }
-    else if(bracnhing_mode == BranchingManipMode::BREAKING_HAND_CONTACTS)
+    else if(branching_mode == BranchingManipMode::BREAKING_HAND_CONTACTS)
     {
         branching_manips = ARM_MANIPULATORS;
         hand_transition_model.push_back({-99.0, -99.0});
@@ -1420,8 +1420,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             for(auto & arm_orientation : hand_transition_model_)
             {
                 std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_ee_contact_status;
-                RPYTF new_left_hand_pose = current_state->stances_vector[0]->left_hand_pose_;
-                RPYTF new_right_hand_pose = curren_state->stances_vector[0]->right_hand_pose_;
+                RPYTF new_left_hand_pose = current_state->stances_vector_[0]->left_hand_pose_;
+                RPYTF new_right_hand_pose = current_state->stances_vector_[0]->right_hand_pose_;
                 bool projection_is_successful = false;
 
                 if(arm_orientation[0] != -99.0) // making contact
@@ -1469,7 +1469,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 }
                 else // breaking contact
                 {
-                    projection_is_successful = current_state->manip_in_contact;
+                    projection_is_successful = current_state->manip_in_contact(move_manip);
                     new_ee_contact_status[move_manip] = false;
 
                     if(move_manip == ContactManipulator::L_ARM)
@@ -1508,6 +1508,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = current_state->stances_vector_[0]->ee_contact_status_;
             ee_contact_status[move_manip] = false;
 
+            // the zero capture state has already been checked.
             if(checked_zero_capture_state.find(ee_contact_status) != checked_zero_capture_state.end())
             {
                 continue;
@@ -1532,10 +1533,10 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first;
 
                 // zero step capturability
+                std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
+
                 if(check_zero_step_capturability)
                 {
-                    std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
-
                     std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
 
                     // drawing_handler_->ClearHandler();
@@ -1634,17 +1635,17 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost);
             }
         }
-    }
 
-    for(auto & check_result : state_feasibility_check_result)
-    {
-        bool pass_state_feasibility_check = std::get<0>(check_result);
-        std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
-        float dynamics_cost = std::get<2>(check_result);
-
-        if(pass_state_feasibility_check)
+        for(auto & check_result : state_feasibility_check_result)
         {
-            insertState(branching_state, dynamics_cost);
+            bool pass_state_feasibility_check = std::get<0>(check_result);
+            std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
+            float dynamics_cost = std::get<2>(check_result);
+
+            if(pass_state_feasibility_check)
+            {
+                insertState(branching_state, dynamics_cost);
+            }
         }
     }
 }
@@ -2453,7 +2454,7 @@ void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contac
     }
 }
 
-void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool check_zero_step_capturability, 
+void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool check_zero_step_capturability,
                                                bool check_one_step_capturability, bool check_contact_transition_feasibility,
                                                bool sample_feet_only_state, bool sample_feet_and_one_hand_state,
                                                bool sample_feet_and_two_hands_state)
@@ -2528,7 +2529,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
                                                                             RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
                                                                             feet_only_contact_status);
         std::shared_ptr<ContactState> feet_only_state = std::make_shared<ContactState>(feet_only_stance, initial_com, initial_com_dot, 1);
-        
+
         if(sample_feet_only_state)
         {
             initial_states.push_back(feet_only_state);
@@ -2560,7 +2561,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
                                                                                     RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
                                                                                     feet_and_one_hand_contact_status);
         std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance, initial_com, initial_com_dot, 1);
-        
+
         if(sample_feet_and_one_hand_state)
         {
             initial_states.push_back(feet_and_one_hand_state);
@@ -2584,7 +2585,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         std::shared_ptr<Stance> feet_and_two_hands_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
                                                                                      feet_and_two_hands_contact_status);
         std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance, initial_com, initial_com_dot, 1);
-        
+
         if(sample_feet_and_two_hands_state)
         {
             initial_states.push_back(feet_and_two_hands_state);
@@ -2597,7 +2598,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     for(auto & initial_state : initial_states)
     {
         // RAVELOG_WARN("New initial state.\n");
-        branchingContacts(initial_state, branching_mode, check_zero_step_capturability, 
+        branchingContacts(initial_state, branching_mode, check_zero_step_capturability,
                           check_one_step_capturability, check_contact_transition_feasibility);
     }
 }

@@ -527,6 +527,19 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
     if(int(solver_exitcode) <= 1)
     {
         // recordDynamicsMetrics();
+
+        if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT ||
+           dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        {
+            for(int time_id = 0; time_id < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps); time_id++)
+            {
+                if(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum().norm() > 0.01)
+                {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
     else

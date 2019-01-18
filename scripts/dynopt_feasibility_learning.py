@@ -434,6 +434,8 @@ def load_data(desired_motion_code, load_from_txt=True):
     np.random.shuffle(infeasible_total_data)
     np.random.shuffle(feasible_total_data)
 
+    IPython.embed()
+
     testing_data = np.vstack((infeasible_total_data[0:500,:],feasible_total_data[0:500,:]))
     infeasible_total_data = infeasible_total_data[500:,:]
     feasible_total_data = feasible_total_data[500:,:]
