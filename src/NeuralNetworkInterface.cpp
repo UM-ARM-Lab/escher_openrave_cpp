@@ -53,104 +53,73 @@ inline void null_logger(const std::string& str)
 {
 }
 
-NeuralNetworkInterface::NeuralNetworkInterface(std::string regression_model_file_path, std::string classification_model_file_path)
+NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_regression_model_file_path,
+                                               std::string contact_transition_classification_model_file_path,
+                                               std::string zero_step_capturability_classification_model_file_path,
+                                               std::string one_step_capturability_classification_model_file_path)
 {
-    std::vector<ContactTransitionCode> state_transition_contact_status_code_vec = {ContactTransitionCode::FEET_ONLY_MOVE_FOOT,                // 0
-                                                                                   ContactTransitionCode::FEET_ONLY_ADD_HAND,                 // 1
-                                                                                   ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_INNER_FOOT,  // 2
-                                                                                   ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_OUTER_FOOT,  // 3
-                                                                                   ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND,       // 4
-                                                                                   ContactTransitionCode::FEET_AND_ONE_HAND_MOVE_HAND,        // 5
-                                                                                   ContactTransitionCode::FEET_AND_ONE_HAND_ADD_HAND,         // 6
-                                                                                   ContactTransitionCode::FEET_AND_TWO_HANDS_MOVE_FOOT,        // 7
-                                                                                   ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND,       // 8
-                                                                                   ContactTransitionCode::FEET_AND_TWO_HANDS_MOVE_HAND         // 9
-                                                                                  };
 
-    for(auto & contact_status_code : state_transition_contact_status_code_vec)
+    // set up the contact transition feasibility classifier and objective regressor
+    for(int contact_status_code_int = 0; contact_status_code_int < 10; contact_status_code_int++)
     {
+        ContactTransitionCode contact_status_code = static_cast<ContactTransitionCode>(contact_status_code_int);
+
         // load the regression neural network
         std::string regression_model_parameter_string = "_0.0005_256_0.0";
-        std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json"));
+        std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json"));
 
-        // load the input/output mean and std of the regression model
-        std::ifstream f_input_mean_std, f_output_mean_std;
+        auto objective_regression_input_mean_std = readMeanStd(contact_transition_regression_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt");
+        auto objective_regression_output_mean_std = readMeanStd(contact_transition_regression_model_file_path + "output_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt");
 
-        f_input_mean_std.open(regression_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt",std::ifstream::in);
-        f_output_mean_std.open(regression_model_file_path + "output_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt",std::ifstream::in);
-
-        std::vector<double> input_mean, input_std, output_mean, output_std;
-        double mean_data, std_data;
-
-        while(f_input_mean_std >> mean_data)
-        {
-            input_mean.push_back(mean_data);
-            f_input_mean_std >> std_data;
-            input_std.push_back(std_data);
-        }
-        while(f_output_mean_std >> mean_data)
-        {
-            output_mean.push_back(mean_data);
-            f_output_mean_std >> std_data;
-            output_std.push_back(std_data);
-        }
-
-        f_input_mean_std.close();
-        f_output_mean_std.close();
-
-        int input_dim = input_mean.size();
-        int output_dim = output_mean.size();
-
-        Eigen::VectorXd input_mean_eigen(input_dim);
-        Eigen::VectorXd input_std_eigen(input_dim);
-        Eigen::VectorXd output_mean_eigen(output_dim);
-        Eigen::VectorXd output_std_eigen(output_dim);
-
-        for(int i = 0; i < input_dim; i++)
-        {
-            input_mean_eigen[i] = input_mean[i];
-            input_std_eigen[i] = input_std[i];
-        }
-        for(int i = 0; i < output_dim; i++)
-        {
-            output_mean_eigen[i] = output_mean[i];
-            output_std_eigen[i] = output_std[i];
-        }
-
-        dynamics_cost_regression_models_map_.insert(std::make_pair(contact_status_code, RegressionModel(input_mean_eigen, input_std_eigen, output_mean_eigen, output_std_eigen, dynamics_cost_regression_model)));
+        contact_transition_dynamics_cost_regression_models_map_.insert(std::make_pair(contact_status_code, RegressionModel(objective_regression_input_mean_std.first,
+                                                                                                                           objective_regression_input_mean_std.second,
+                                                                                                                           objective_regression_output_mean_std.first,
+                                                                                                                           objective_regression_output_mean_std.second,
+                                                                                                                           dynamics_cost_regression_model)));
 
 
-        // load the classification neueal network
+        // load the classification neural network
         std::string calssification_model_parameter_string = "_0.0001_256_0.1";
-        std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(classification_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".json", false, null_logger));
+        std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        f_input_mean_std.open(classification_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".txt",std::ifstream::in);
+        auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".txt");
 
-        input_mean.clear();
-        input_std.clear();
+        contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
+                                                                                                                                 feasibility_classification_input_mean_std.second,
+                                                                                                                                 feasibility_calssification_model)));
+    }
 
-        while(f_input_mean_std >> mean_data)
-        {
-            input_mean.push_back(mean_data);
-            f_input_mean_std >> std_data;
-            input_std.push_back(std_data);
-        }
+    // set up the zero step capturability classifier
+    for(int zero_step_capture_code_int = 0; zero_step_capture_code_int < 6; zero_step_capture_code_int++)
+    {
+        ZeroStepCaptureCode zero_step_capture_code = static_cast<ZeroStepCaptureCode>(zero_step_capture_code_int);
 
-        f_input_mean_std.close();
+        // load the classification neural network
+        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
+        std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        input_dim = input_mean.size();
-        input_mean_eigen.resize(input_dim);
-        input_std_eigen.resize(input_dim);
+        auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "input_mean_std_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".txt");
 
-        for(int i = 0; i < input_dim; i++)
-        {
-            input_mean_eigen[i] = input_mean[i];
-            input_std_eigen[i] = input_std[i];
-        }
+        zero_step_capturability_calssification_models_map_.insert(std::make_pair(zero_step_capture_code, ClassificationModel(zero_step_capture_classification_input_mean_std.first,
+                                                                                                                             zero_step_capture_classification_input_mean_std.second,
+                                                                                                                             zero_step_capturability_calssification_model)));
+    }
 
-        feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(input_mean_eigen, input_std_eigen, feasibility_calssification_model)));
+    // set up the one step capturability classifier
+    for(int one_step_capture_code_int = 0; one_step_capture_code_int < 10; one_step_capture_code_int++)
+    {
+        OneStepCaptureCode one_step_capture_code = static_cast<OneStepCaptureCode>(one_step_capture_code_int);
 
+        // load the classification neural network
+        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
+        std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
+
+        auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
+
+        one_step_capturability_calssification_models_map_.insert(std::make_pair(one_step_capture_code, ClassificationModel(one_step_capture_classification_input_mean_std.first,
+                                                                                                                           one_step_capture_classification_input_mean_std.second,
+                                                                                                                           one_step_capturability_calssification_model)));
     }
 
 }
@@ -159,6 +128,36 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string regression_model_file
 // {
 //     return true;
 // }
+
+std::pair<Eigen::VectorXd, Eigen::VectorXd> NeuralNetworkInterface::readMeanStd(std::string file_path)
+{
+    std::ifstream f_mean_std;
+    f_mean_std.open(file_path, std::ifstream::in);
+
+    Eigen::VectorXd mean_eigen, std_eigen;
+    double mean, std;
+    std::vector<double> mean_data, std_data;
+
+    while(f_mean_std >> mean)
+    {
+        mean_data.push_back(mean);
+        f_mean_std >> std;
+        std_data.push_back(std);
+    }
+    f_mean_std.close();
+
+    int dim = mean_data.size();
+    mean_eigen.resize(dim);
+    std_eigen.resize(dim);
+
+    for(int i = 0; i < dim; i++)
+    {
+        mean_eigen[i] = mean_data[i];
+        std_eigen[i] = std_data[i];
+    }
+
+    return std::make_pair(mean_eigen, std_eigen);
+}
 
 std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictDynamicsCost(std::shared_ptr<ContactState> branching_state)
 {
@@ -229,7 +228,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     bool dynamics_feasibility;
 
 
-    float dynamics_feasibility_prediction = feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+    float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
     dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
 
     // if(contact_transition_code == ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND || contact_transition_code == ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND)
@@ -241,7 +240,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
 
     if(dynamics_feasibility)
     {
-        Eigen::VectorXd prediction = dynamics_cost_regression_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+        Eigen::VectorXd prediction = contact_transition_dynamics_cost_regression_models_map_.find(contact_transition_code)->second.predict(feature_vector);
 
         Translation3D predicted_com = prediction.block(0,0,3,1).cast<float>();
         Vector3D predicted_com_dot = prediction.block(3,0,3,1).cast<float>();

@@ -1,6 +1,6 @@
 # imports
-from sklearn import svm
-from sklearn import multioutput
+from sklearn import svm, multioutput
+from sklearn.metrics import roc_curve, auc
 
 import tensorflow as tf
 from tensorflow import keras
@@ -225,7 +225,7 @@ def construct_data_label(desired_motion_code, motion_type):
 
     # prev_lf and prev_rf are guaranteed
     for manip in motion_code_manip_map[desired_motion_code]:
-        for j in range(6):
+        for j in range(len(se3_list)):
             feature_label.append(manip + '_' + se3_list[j])
             data_label.append(manip + '_' + se3_list[j])
 
@@ -434,11 +434,9 @@ def load_data(desired_motion_code, load_from_txt=True):
     np.random.shuffle(infeasible_total_data)
     np.random.shuffle(feasible_total_data)
 
-    IPython.embed()
-
     testing_data = np.vstack((infeasible_total_data[0:500,:],feasible_total_data[0:500,:]))
-    infeasible_total_data = infeasible_total_data[500:,:]
-    feasible_total_data = feasible_total_data[500:,:]
+    infeasible_total_data = infeasible_total_data[500:50500,:]
+    feasible_total_data = feasible_total_data[500:50500,:]
 
     # balance the dataset
     infeasible_data_num = infeasible_total_data.shape[0]
@@ -468,6 +466,10 @@ def get_data_mean_std(data):
     for i in contact_status_indices_list:
         mean[i] = 0.0
         std[i] = 1.0
+
+    for i in range(std.shape[0]):
+        if std[i] == 0:
+            std[i] = 1.0
 
     mean[data_index_map['feasibility']] = 0.0
     std[data_index_map['feasibility']] = 1.0
@@ -540,11 +542,11 @@ def learning_NeuralNetwork_model(normalized_training_data, learning_rate, layer_
     # Display training progress by printing a single dot for each completed epoch.
     class PrintDot(keras.callbacks.Callback):
         def on_epoch_end(self,epoch,logs):
-            if epoch % 50 == 0:
+            if epoch % 100 == 0:
                 print '. '
 
     # Store training stats
-    history = tf_nn_model.fit(normalized_training_feature, normalized_training_ground_truth, epochs=50, validation_split=0.2, verbose=0, callbacks=[PrintDot()])
+    history = tf_nn_model.fit(normalized_training_feature, normalized_training_ground_truth, epochs=100, validation_split=0.2, verbose=0, callbacks=[PrintDot()])
     plot_history(history)
 
     return tf_nn_model, history
@@ -579,6 +581,13 @@ def evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, data_me
     # # mae gap
     file_stream = open(training_data_path + motion_type_string + '_test_dynopt_feasibility_result_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
     file_stream.write('%5.3f'%(accuracy))
+
+    # ROC and AUC
+    normalized_prediction.ravel()
+    fpr, tpr, thresholds = roc_curve(normalized_testing_ground_truth, normalized_prediction)
+    auc_score = auc(fpr, tpr)
+    file_stream.write(' %5.3f'%(auc_score))
+    print 'auc: ', auc_score
 
     file_stream.close()
     # IPython.embed()

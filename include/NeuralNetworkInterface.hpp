@@ -50,15 +50,22 @@ class RegressionModel
 class NeuralNetworkInterface
 {
     public:
-        NeuralNetworkInterface(std::string regression_model_file_path, std::string classification_model_file_path);
+        NeuralNetworkInterface(std::string contact_transition_regression_model_file_path,
+                               std::string contact_transition_classification_model_file_path,
+                               std::string zero_step_capturability_classification_model_file_path,
+                               std::string one_step_capturability_classification_model_file_path);
 
         // bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
         std::tuple<bool, float, Translation3D, Vector3D> predictDynamicsCost(std::shared_ptr<ContactState> branching_state);
         bool dynamicsPrediction(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
 
     private:
-        std::unordered_map<ContactTransitionCode, ClassificationModel, EnumClassHash> feasibility_calssification_models_map_;
-        std::unordered_map<ContactTransitionCode, RegressionModel, EnumClassHash> dynamics_cost_regression_models_map_;
+        std::unordered_map<ContactTransitionCode, ClassificationModel, EnumClassHash> contact_transition_feasibility_calssification_models_map_;
+        std::unordered_map<ContactTransitionCode, RegressionModel, EnumClassHash> contact_transition_dynamics_cost_regression_models_map_;
+        std::unordered_map<ZeroStepCaptureCode, ClassificationModel, EnumClassHash> zero_step_capturability_calssification_models_map_;
+        std::unordered_map<OneStepCaptureCode, ClassificationModel, EnumClassHash> one_step_capturability_calssification_models_map_;
+
+        std::pair<Eigen::VectorXd, Eigen::VectorXd> readMeanStd(std::string file_path);
 
 
 };

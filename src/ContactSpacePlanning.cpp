@@ -48,7 +48,10 @@ planning_application_(_planning_application)
 
     for(unsigned int i = 0; i < neural_network_interface_vector_.size(); i++)
     {
-        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/objective_regression_nn_models/", "../data/dynopt_result/feasibility_classification_nn_models/");
+        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/objective_regression_nn_models/",
+                                                                                       "../data/dynopt_result/feasibility_classification_nn_models/",
+                                                                                       "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models",
+                                                                                       "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models");
     }
 
     RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
