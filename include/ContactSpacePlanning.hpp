@@ -29,7 +29,7 @@ class ContactSpacePlanning
                                                                      bool use_learned_dynamics_model, bool enforce_stop_in_the_end);
         void storeSLEnvironment();
 
-        void collectTrainingData(BranchingManipMode branching_mode=BranchingManipMode::ALL, bool check_zero_step_capturability=true, 
+        void collectTrainingData(BranchingManipMode branching_mode=BranchingManipMode::ALL, bool check_zero_step_capturability=true,
                                  bool check_one_step_capturability=true, bool check_contact_transition_feasibility=true,
                                  bool sample_feet_only_state=true, bool sample_feet_and_one_hand_state=true,
                                  bool sample_feet_and_two_hands_state=true);
@@ -72,6 +72,7 @@ class ContactSpacePlanning
         const float step_cost_weight_ = 3.0;
         const float dynamics_cost_weight_ = 0.1; // original
         // const float dynamics_cost_weight_ = 1.0; // simplified
+        const float disturbance_rejection_weight_ = 0.0;
 
         // random parameters
         std::mt19937_64 rng_;
@@ -114,13 +115,13 @@ class ContactSpacePlanning
         bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
-        float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost);
+        float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
-        void branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode=BranchingManipMode::ALL, 
-                               bool check_zero_step_capturability=true, bool check_one_step_capturability=true, 
+        void branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode=BranchingManipMode::ALL,
+                               bool check_zero_step_capturability=true, bool check_one_step_capturability=true,
                                bool check_contact_transition_feasibility=true);
         bool footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose);
         bool handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_point, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
@@ -128,7 +129,7 @@ class ContactSpacePlanning
         bool footPoseSampling(ContactManipulator& contact_manipulator, RPYTF& projection_pose, double height);
         bool handPoseSampling(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
 
-        void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost);
+        void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
         void updateExploreStatesAndOpenHeap();
         bool isReachedGoal(std::shared_ptr<ContactState> current_state);

@@ -1498,14 +1498,15 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     }
 
     // Find the forces rejected by each category of the moving manipulator
-    std::vector< std::unordered_set<int> > rejected_disturbances_by_manip(ContactManipulator::MANIP_NUM);
+    std::vector< std::unordered_set<int> > failing_disturbances_by_manip(ContactManipulator::MANIP_NUM);
+    std::vector<float> disturbance_costs(ContactManipulator::MANIP_NUM, 0.0);
     if(consider_disturbance_)
     {
-        std::set< std::array<bool, ContactManipulator::MANIP_NUM> > checked_zero_capture_state;
+        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_set<int> > checked_zero_capture_state;
         for(auto & move_manip : branching_manips)
         {
             // get the initial state for this move_manip
-            std::unordered_set<int> rejected_disturbances_;
+            std::unordered_set<int> failing_disturbances;
 
             // construct the state for the floating moving end-effector
             std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = current_state->stances_vector_[0]->ee_contact_status_;
@@ -1514,11 +1515,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             // the zero capture state has already been checked.
             if(checked_zero_capture_state.find(ee_contact_status) != checked_zero_capture_state.end())
             {
+                failing_disturbances_by_manip[move_manip] = checked_zero_capture_state.find(ee_contact_status)->second;
                 continue;
-            }
-            else
-            {
-                checked_zero_capture_state.insert(ee_contact_status);
             }
 
             std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = current_state->stances_vector_[0]->ee_contact_poses_;
@@ -1532,6 +1530,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
             for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
             {
+                bool disturbance_rejected = false;
                 auto disturbance = disturbance_samples_[disturb_id];
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first;
 
@@ -1563,8 +1562,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                     if(zero_step_dynamically_feasible)
                     {
-                        rejected_disturbances_.insert(disturb_id);
-                        // continue;
+                        disturbance_rejected = true;
+                        continue;
                     }
                 }
 
@@ -1622,49 +1621,74 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             if(one_step_dynamically_feasible)
                             {
-                                rejected_disturbances_.insert(disturb_id);
-                                // break;
+                                disturbance_rejected = true;
+                                break;
                             }
                         }
                     }
                 }
+
+                if(!disturbance_rejected)
+                {
+                    failing_disturbances.insert(disturb_id);
+                }
             }
 
-            rejected_disturbances_by_manip[move_manip] = rejected_disturbances_;
+            checked_zero_capture_state.insert(std::make_pair(ee_contact_status, failing_disturbances));
+            failing_disturbances_by_manip[move_manip] = failing_disturbances;
+        }
+
+        for(auto & manip_id : branching_manips)
+        {
+            for(auto disturb_id : failing_disturbances_by_manip[int(manip_id)])
+            {
+                disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second;
+            }
         }
     }
 
     // RAVELOG_WARN("finish check capturability.\n");
 
     // Find the dynamics cost and capturability cost
+    std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float, float> > state_feasibility_check_result(branching_states.size());
     if(check_contact_transition_feasibility)
     {
-        std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float> > state_feasibility_check_result(branching_states.size());
-
         for(int i = 0; i < branching_states.size(); i++)
         {
             std::shared_ptr<ContactState> branching_state = branching_states[i];
             float dynamics_cost = 0.0;
+            float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
             if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
             {
-                state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost);
+                state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
             }
             else
             {
-                state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost);
+                state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost, disturbance_cost);
             }
         }
-
-        for(auto & check_result : state_feasibility_check_result)
+    }
+    else
+    {
+        for(int i = 0; i < branching_states.size(); i++)
         {
-            bool pass_state_feasibility_check = std::get<0>(check_result);
-            std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
-            float dynamics_cost = std::get<2>(check_result);
+            std::shared_ptr<ContactState> branching_state = branching_states[i];
+            float dynamics_cost = 0.0;
+            float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
+            state_feasibility_check_result[i] = std::make_tuple(true, branching_states[i], dynamics_cost, disturbance_cost);
+        }
+    }
 
-            if(pass_state_feasibility_check)
-            {
-                insertState(branching_state, dynamics_cost);
-            }
+    for(auto & check_result : state_feasibility_check_result)
+    {
+        bool pass_state_feasibility_check = std::get<0>(check_result);
+        std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
+        float dynamics_cost = std::get<2>(check_result);
+        float disturbance_cost = std::get<3>(check_result);
+
+        if(pass_state_feasibility_check)
+        {
+            insertState(branching_state, dynamics_cost, disturbance_cost);
         }
     }
 }
@@ -2199,11 +2223,11 @@ bool ContactSpacePlanning::feetReprojection(std::shared_ptr<ContactState> state)
     return has_projection;
 }
 
-void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost)
+void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost, float disturbance_cost)
 {
     std::shared_ptr<ContactState> prev_state = current_state->parent_;
     // calculate the edge cost and the cost to come
-    current_state->g_ = prev_state->g_ + getEdgeCost(prev_state, current_state, dynamics_cost);
+    current_state->g_ = prev_state->g_ + getEdgeCost(prev_state, current_state, dynamics_cost, disturbance_cost);
 
     // calculate the heuristics (cost to go)
     current_state->h_ = getHeuristics(current_state);
@@ -2325,7 +2349,7 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
     }
 }
 
-float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost)
+float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost, float disturbance_cost)
 {
     // float traveling_distance_cost = std::sqrt(std::pow(current_state->com_(0) - prev_state->com_(0), 2) + std::pow(current_state->com_(1) - prev_state->com_(1), 2));
     // float traveling_distance_cost = std::sqrt(std::pow(current_state->mean_feet_position_[0] - prev_state->mean_feet_position_[0], 2) +
@@ -2349,7 +2373,7 @@ float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state
     //     return 0.1 * (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost);
     // }
 
-    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost);
+    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost + disturbance_rejection_weight_ * disturbance_cost);
     // return (traveling_distance_cost + orientation_cost + step_cost);
     // return dynamics_cost;
 }
