@@ -56,8 +56,10 @@ class NeuralNetworkInterface
                                std::string one_step_capturability_classification_model_file_path);
 
         // bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
-        std::tuple<bool, float, Translation3D, Vector3D> predictDynamicsCost(std::shared_ptr<ContactState> branching_state);
-        bool dynamicsPrediction(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
+        std::tuple<bool, float, Translation3D, Vector3D> predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state);
+        bool predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
+        bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state);
+        bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state);
 
     private:
         std::unordered_map<ContactTransitionCode, ClassificationModel, EnumClassHash> contact_transition_feasibility_calssification_models_map_;
@@ -66,6 +68,7 @@ class NeuralNetworkInterface
         std::unordered_map<OneStepCaptureCode, ClassificationModel, EnumClassHash> one_step_capturability_calssification_models_map_;
 
         std::pair<Eigen::VectorXd, Eigen::VectorXd> readMeanStd(std::string file_path);
+        Eigen::VectorXd constructFeatureVector(std::vector<RPYTF>& contact_manip_pose_vec, Translation3D& com, Vector3D& com_dot);
 
 
 };

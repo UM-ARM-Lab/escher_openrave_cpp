@@ -58,7 +58,6 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                std::string zero_step_capturability_classification_model_file_path,
                                                std::string one_step_capturability_classification_model_file_path)
 {
-
     // set up the contact transition feasibility classifier and objective regressor
     for(int contact_status_code_int = 0; contact_status_code_int < 10; contact_status_code_int++)
     {
@@ -121,7 +120,6 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            one_step_capture_classification_input_mean_std.second,
                                                                                                                            one_step_capturability_calssification_model)));
     }
-
 }
 
 // bool NeuralNetworkInterface::predictFeasibility(std::shared_ptr<ContactState> branching_state)
@@ -159,61 +157,43 @@ std::pair<Eigen::VectorXd, Eigen::VectorXd> NeuralNetworkInterface::readMeanStd(
     return std::make_pair(mean_eigen, std_eigen);
 }
 
-std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictDynamicsCost(std::shared_ptr<ContactState> branching_state)
+Eigen::VectorXd NeuralNetworkInterface::constructFeatureVector(std::vector<RPYTF>& contact_manip_pose_vec, Translation3D& com, Vector3D& com_dot)
 {
-    TransformationMatrix feet_mean_transform = branching_state->parent_->getFeetMeanTransform();
-    TransformationMatrix inv_feet_mean_transform = inverseTransformationMatrix(feet_mean_transform);
+    unsigned int pose_feature_size = contact_manip_pose_vec.size()*6;
+    Eigen::VectorXd feature_vector(pose_feature_size+6);
 
-    std::vector< std::shared_ptr<ContactState> > transition_states;
-
-    if(branching_state->prev_move_manip_ == ContactManipulator::R_LEG || branching_state->prev_move_manip_ == ContactManipulator::R_ARM)
+    unsigned int counter = 0;
+    for(auto & contact_pose : contact_manip_pose_vec)
     {
-        std::shared_ptr<ContactState> mirror_branching_state = branching_state->getMirrorState(feet_mean_transform);
-        std::shared_ptr<ContactState> mirror_branching_state_parent = branching_state->parent_->getMirrorState(feet_mean_transform);
-        mirror_branching_state->parent_ = mirror_branching_state_parent;
-        transition_states.push_back(mirror_branching_state->parent_);
-        transition_states.push_back(mirror_branching_state);
-    }
-    else
-    {
-        transition_states.push_back(branching_state->parent_);
-        transition_states.push_back(branching_state);
-    }
-
-    // decide the contact transition code & the poses
-    auto transition_code_poses_pair = transition_states[1]->getTransitionCodeAndPoses();
-    ContactTransitionCode contact_transition_code = transition_code_poses_pair.first;
-    std::vector<RPYTF> contact_manip_pose_vec = transition_code_poses_pair.second;
-
-
-    std::vector<double> pose_feature_vector(contact_manip_pose_vec.size()*6);
-    // std::vector<char> contact_status_vec(int(ContactManipulator::MANIP_NUM)*2);
-    int counter = 0;
-
-    for(auto & contact_manip_pose : contact_manip_pose_vec)
-    {
-        RPYTF transformed_pose = SE3ToXYZRPY(inv_feet_mean_transform * XYZRPYToSE3(contact_manip_pose));
-
-        pose_feature_vector[counter] = transformed_pose.x_;
-        pose_feature_vector[counter+1] = transformed_pose.y_;
-        pose_feature_vector[counter+2] = transformed_pose.z_;
-        pose_feature_vector[counter+3] = transformed_pose.roll_ * DEG2RAD;
-        pose_feature_vector[counter+4] = transformed_pose.pitch_ * DEG2RAD;
-        pose_feature_vector[counter+5] = transformed_pose.yaw_ * DEG2RAD;
+        feature_vector[counter]   = contact_pose.x_;
+        feature_vector[counter+1] = contact_pose.y_;
+        feature_vector[counter+2] = contact_pose.z_;
+        feature_vector[counter+3] = contact_pose.roll_ * DEG2RAD;
+        feature_vector[counter+4] = contact_pose.pitch_ * DEG2RAD;
+        feature_vector[counter+5] = contact_pose.yaw_ * DEG2RAD;
 
         counter += 6;
     }
 
-    int pose_feature_size = pose_feature_vector.size();
-    Eigen::VectorXd feature_vector(pose_feature_size+6);
+    feature_vector.block(pose_feature_size, 0, 3, 1) = com.cast<double>();
+    feature_vector.block(pose_feature_size+3, 0, 3, 1) = com_dot.cast<double>();
 
-    for(unsigned int i = 0; i < pose_feature_size; i++)
-    {
-        feature_vector[i] = pose_feature_vector[i];
-    }
+    return feature_vector;
+}
 
-    feature_vector.block(pose_feature_size,0,3,1) = (inv_feet_mean_transform * transition_states[0]->com_.homogeneous()).block(0,0,3,1).cast<double>();
-    feature_vector.block(pose_feature_size+3,0,3,1) = (inv_feet_mean_transform.block(0,0,3,3) * transition_states[0]->com_dot_).cast<double>();
+std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state)
+{
+    TransformationMatrix feet_mean_transform = branching_state->parent_->getFeetMeanTransform();
+
+    std::shared_ptr<ContactState> standard_input_state = branching_state->getStandardInputState(DynOptApplication::CONTACT_TRANSITION_DYNOPT);
+    std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+
+    // decide the contact transition code & the poses
+    auto transition_code_poses_pair = standard_input_state->getTransitionCodeAndPoses();
+    ContactTransitionCode contact_transition_code = transition_code_poses_pair.first;
+    std::vector<RPYTF> contact_manip_pose_vec = transition_code_poses_pair.second;
+
+    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->com_dot_);
 
     // std::cout << "======================" << std::endl;
     // std::cout << "feature vector: " << std::endl;
@@ -224,9 +204,8 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // }
     // std::cout << std::endl;
 
-    // decide wheather the transition is dynamically feasible
+    // decide whether the transition is dynamically feasible
     bool dynamics_feasibility;
-
 
     float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
     dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
@@ -250,7 +229,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
         if(branching_state->prev_move_manip_ == ContactManipulator::R_LEG || branching_state->prev_move_manip_ == ContactManipulator::R_ARM)
         {
             // std::cout << feet_mean_transform << std::endl;
-            // std::cout << transition_states[0]->getFeetMeanTransform() << std::endl;
+            // std::cout << prev_state->getFeetMeanTransform() << std::endl;
             predicted_com[1] = -predicted_com[1];
             predicted_com_dot[1] = -predicted_com_dot[1];
         }
@@ -273,9 +252,9 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     }
 }
 
-bool NeuralNetworkInterface::dynamicsPrediction(std::shared_ptr<ContactState> branching_state, float& dynamics_cost)
+bool NeuralNetworkInterface::predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost)
 {
-    std::tuple<bool, float, Translation3D, Vector3D> dynamics_prediction = predictDynamicsCost(branching_state);
+    std::tuple<bool, float, Translation3D, Vector3D> dynamics_prediction = predictContactTransitionDynamicsCost(branching_state);
     bool dynamics_feasibility = std::get<0>(dynamics_prediction);
     dynamics_cost = std::get<1>(dynamics_prediction);
     dynamics_cost = std::max(dynamics_cost,float(0.0));
@@ -283,4 +262,41 @@ bool NeuralNetworkInterface::dynamicsPrediction(std::shared_ptr<ContactState> br
     branching_state->com_dot_ = std::get<3>(dynamics_prediction);
 
     return dynamics_feasibility;
+}
+
+bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state)
+{
+    std::shared_ptr<ContactState> standard_input_state = zero_step_capture_state->getStandardInputState(DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
+
+    // decide the motion code & the poses
+    auto motion_code_poses_pair = standard_input_state->getZeroStepCapturabilityCodeAndPoses();
+    ZeroStepCaptureCode zero_step_capture_code = motion_code_poses_pair.first;
+    std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+
+    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, standard_input_state->com_, standard_input_state->com_dot_);
+
+    // decide whether it is zero step capturable
+    float zero_step_capturability_prediction = zero_step_capturability_calssification_models_map_.find(zero_step_capture_code)->second.predict(feature_vector);
+    bool zero_step_capturable = (zero_step_capturability_prediction >= 0.5);
+
+    return zero_step_capturable;
+}
+
+bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state)
+{
+    std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+
+    // decide the motion code & the poses
+    auto motion_code_poses_pair = standard_input_state->getOneStepCapturabilityCodeAndPoses();
+    OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
+    std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+
+    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->com_dot_);
+
+    // decide whether it is one step capturable
+    float one_step_capturability_prediction = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_vector);
+    bool one_step_capturable = (one_step_capturability_prediction >= 0.5);
+
+    return one_step_capturable;
 }

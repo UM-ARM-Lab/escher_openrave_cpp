@@ -321,6 +321,94 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
     return mirror_state;
 }
 
+std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatrix& reference_frame)
+{
+    // mirror the left and right end-effector poses
+    TransformationMatrix inv_reference_frame =  inverseTransformationMatrix(reference_frame);
+    RotationMatrix reference_frame_rotation = reference_frame.block(0,0,3,3);
+    RotationMatrix inv_reference_frame_rotation = inv_reference_frame.block(0,0,3,3);
+
+    std::array<RPYTF,ContactManipulator::MANIP_NUM> centered_ee_contact_pose;
+
+    // mirror the end-effector poses
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        if(stances_vector_[0]->ee_contact_status_[int(manip)])
+        {
+            centered_ee_contact_pose[int(manip)] = SE3ToXYZRPY(inv_reference_frame * XYZRPYToSE3(stances_vector_[0]->ee_contact_poses_[int(manip)]));
+        }
+        else
+        {
+            centered_ee_contact_pose[int(manip)] = stances_vector_[0]->ee_contact_poses_[int(manip)];
+        }
+    }
+
+    std::shared_ptr<Stance> centered_stance = std::make_shared<Stance>(centered_ee_contact_pose[0],
+                                                                       centered_ee_contact_pose[1],
+                                                                       centered_ee_contact_pose[2],
+                                                                       centered_ee_contact_pose[3],
+                                                                       stances_vector_[0]->ee_contact_status_);
+
+    // mirror the com and com dot
+    Translation3D centered_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
+    Vector3D centered_com_dot = inv_reference_frame_rotation * com_dot_;
+
+    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, 1);
+    if(!is_root_)
+    {
+        centered_state->prev_move_manip_ = prev_move_manip_;
+    }
+
+    return centered_state;
+}
+
+std::shared_ptr<ContactState> ContactState::getStandardInputState(DynOptApplication dynamics_optimizer_application)
+{
+    // get the standard state for storing in a training data, and as input to the networks.
+    std::shared_ptr<ContactState> standard_state, prev_state;
+    TransformationMatrix reference_frame;
+
+    if(dynamics_optimizer_application == DynOptApplication::CONTACT_TRANSITION_DYNOPT ||
+       dynamics_optimizer_application == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+    {
+        standard_state = std::make_shared<ContactState>(*this);
+        prev_state = std::make_shared<ContactState>(*parent_);
+        reference_frame = prev_state->getFeetMeanTransform();
+
+        // mirror the states if necessary
+        if(standard_state->prev_move_manip_ == ContactManipulator::R_LEG || standard_state->prev_move_manip_ == ContactManipulator::R_ARM)
+        {
+            standard_state = standard_state->getMirrorState(reference_frame);
+            prev_state = prev_state->getMirrorState(reference_frame);
+        }
+
+        standard_state = standard_state->getCenteredState(reference_frame);
+        prev_state = prev_state->getCenteredState(reference_frame);
+
+        standard_state->parent_ = prev_state;
+
+        if(standard_state->prev_move_manip_ != ContactManipulator::L_LEG && standard_state->prev_move_manip_ != ContactManipulator::L_ARM)
+        {
+            RAVELOG_ERROR("A standard state which moves right hand side of the robot. This should not happen.\n");
+            getchar();
+        }
+    }
+    else if(dynamics_optimizer_application == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+    {
+        standard_state = std::make_shared<ContactState>(*this);
+        reference_frame = standard_state->getFeetMeanTransform();
+
+        if((standard_state->manip_in_contact(ContactManipulator::L_LEG) && !standard_state->manip_in_contact(ContactManipulator::R_LEG)) ||
+           (standard_state->manip_in_contact(ContactManipulator::L_LEG) && standard_state->manip_in_contact(ContactManipulator::R_LEG) && standard_state->manip_in_contact(ContactManipulator::L_ARM)))
+        {
+            standard_state = standard_state->getMirrorState(reference_frame);
+        }
+
+        standard_state = standard_state->getCenteredState(reference_frame);
+    }
+
+    return standard_state;
+}
 
 std::pair<ContactTransitionCode, std::vector<RPYTF> > ContactState::getTransitionCodeAndPoses()
 {

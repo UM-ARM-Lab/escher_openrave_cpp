@@ -82,6 +82,8 @@ class ContactState
         bool manip_in_contact(ContactManipulator manip) {return stances_vector_[0]->ee_contact_status_[manip];}
 
         std::shared_ptr<ContactState> getMirrorState(TransformationMatrix& reference_frame);
+        std::shared_ptr<ContactState> getCenteredState(TransformationMatrix& reference_frame);
+        std::shared_ptr<ContactState> getStandardInputState(DynOptApplication dynamics_optimizer_application);
         std::pair<ContactTransitionCode, std::vector<RPYTF> > getTransitionCodeAndPoses();
         std::pair<OneStepCaptureCode, std::vector<RPYTF> > getOneStepCapturabilityCodeAndPoses();
         std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();

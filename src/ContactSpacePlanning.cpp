@@ -1091,7 +1091,7 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
             // }
 
             // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
-            dynamically_feasible = neural_network_interface_vector_[0]->dynamicsPrediction(current_state, dynamics_cost);
+            dynamically_feasible = neural_network_interface_vector_[0]->predictContactTransitionDynamics(current_state, dynamics_cost);
             // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
             // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
 
@@ -1540,18 +1540,26 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                 if(check_zero_step_capturability)
                 {
-                    std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
+                    bool zero_step_dynamically_feasible;
+                    if(use_learned_dynamics_model_)
+                    {
+                        zero_step_dynamically_feasible = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_contact_state);
+                    }
+                    else
+                    {
+                        std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
 
-                    // drawing_handler_->ClearHandler();
-                    // drawing_handler_->DrawContactPath(zero_step_capture_contact_state);
-                    // // getchar();
+                        // drawing_handler_->ClearHandler();
+                        // drawing_handler_->DrawContactPath(zero_step_capture_contact_state);
+                        // // getchar();
 
-                    zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
+                        zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
 
-                    float zero_step_dummy_dynamics_cost = 0.0;
-                    bool zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
+                        float zero_step_dummy_dynamics_cost = 0.0;
+                        zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
 
-                    zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
+                        zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
+                    }
 
                     if(zero_step_dynamically_feasible)
                     {
@@ -1575,7 +1583,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         // }
 
                         if(branching_state->manip_in_contact(capture_contact_manip) &&
-                        !zero_step_capture_contact_state->manip_in_contact(capture_contact_manip)) // only consider branches making a new contact
+                           !zero_step_capture_contact_state->manip_in_contact(capture_contact_manip)) // only consider branches making a new contact
                         {
                             std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
 
@@ -1591,18 +1599,26 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
 
-                            std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
+                            bool one_step_dynamically_feasible;
+                            if(use_learned_dynamics_model_)
+                            {
+                                one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state);
+                            }
+                            else
+                            {
+                                std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
 
-                            one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
+                                one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
 
-                            float one_step_dummy_dynamics_cost = 0.0;
-                            bool one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(one_step_dummy_dynamics_cost);
+                                float one_step_dummy_dynamics_cost = 0.0;
+                                one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(one_step_dummy_dynamics_cost);
 
-                            one_step_capture_dynamics_optimizer_interface_vector_[i]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
+                                one_step_capture_dynamics_optimizer_interface_vector_[i]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
 
-                            // drawing_handler_->ClearHandler();
-                            // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
-                            // // getchar();
+                                // drawing_handler_->ClearHandler();
+                                // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
+                                // // getchar();
+                            }
 
                             if(one_step_dynamically_feasible)
                             {

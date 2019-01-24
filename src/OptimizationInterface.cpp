@@ -921,54 +921,8 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
 void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id)
 {
     // mirror the data if the robot is using the right side of the manipulators
-    std::shared_ptr<ContactState> current_state, prev_state;
-    TransformationMatrix inv_prev_mean_feet_transform;
-    RotationMatrix inv_prev_mean_feet_rotation;
-
-    if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT ||
-       dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
-    {
-        current_state = std::make_shared<ContactState>(*input_current_state);
-        prev_state = std::make_shared<ContactState>(*input_current_state->parent_);
-
-        if(current_state->prev_move_manip_ == ContactManipulator::R_LEG || current_state->prev_move_manip_ == ContactManipulator::R_ARM)
-        {
-            TransformationMatrix reference_frame = prev_state->getFeetMeanTransform();
-            current_state = current_state->getMirrorState(reference_frame);
-            prev_state = prev_state->getMirrorState(reference_frame);
-        }
-
-        current_state->parent_ = prev_state;
-
-        inv_prev_mean_feet_transform = inverseTransformationMatrix(prev_state->getFeetMeanTransform());
-        inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
-
-        if(current_state->prev_move_manip_ != ContactManipulator::L_LEG && current_state->prev_move_manip_ != ContactManipulator::L_ARM)
-        {
-            RAVELOG_ERROR("Recording a motion which moves right hand side of the robot. This should not happen.\n");
-            getchar();
-        }
-    }
-    else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
-    {
-        // const std::array<bool,ContactManipulator::MANIP_NUM> only_right_foot = {false,true,false,false};
-        // const std::array<bool,ContactManipulator::MANIP_NUM> both_feet = {true,true,false,false};
-        // const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_right_hand = {false,true,false,true};
-        // const std::array<bool,ContactManipulator::MANIP_NUM> right_foot_and_left_hand = {false,true,true,false};
-        // const std::array<bool,ContactManipulator::MANIP_NUM> both_feet_and_right_hand = {true,true,false,true};
-
-        current_state = std::make_shared<ContactState>(*input_current_state);
-
-        if((current_state->manip_in_contact(ContactManipulator::L_LEG) && !current_state->manip_in_contact(ContactManipulator::R_LEG)) ||
-           (current_state->manip_in_contact(ContactManipulator::L_LEG) && current_state->manip_in_contact(ContactManipulator::R_LEG) && current_state->manip_in_contact(ContactManipulator::L_ARM)))
-        {
-            TransformationMatrix reference_frame = current_state->getFeetMeanTransform();
-            current_state = current_state->getMirrorState(reference_frame);
-        }
-
-        inv_prev_mean_feet_transform = inverseTransformationMatrix(current_state->getFeetMeanTransform());
-        inv_prev_mean_feet_rotation = inv_prev_mean_feet_transform.block(0,0,3,3);
-    }
+    std::shared_ptr<ContactState> current_state = input_current_state->getStandardInputState(dynamics_optimizer_application_);
+    std::shared_ptr<ContactState> prev_state = current_state->parent_;
 
     int motion_code;
     std::vector<RPYTF> contact_manip_pose_vec;
@@ -999,25 +953,25 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
         infeasible_record_file_name = "../data/dynopt_result/zero_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
 
-    std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_manip_pose_vec.size());
+    unsigned int contact_pose_num = contact_manip_pose_vec.size();
+    std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_pose_num);
     float angle_duplication_range = 90;
 
-
-    for(unsigned int i = 0; i < contact_manip_pose_vec.size(); i++)
+    for(unsigned int i = 0; i < contact_pose_num; i++)
     {
-        RPYTF transformed_pose = SE3ToXYZRPY(inv_prev_mean_feet_transform * XYZRPYToSE3(contact_manip_pose_vec[i]));
+        RPYTF contact_pose = contact_manip_pose_vec[i];
         std::array<std::vector<float>,3> possible_rpy;
 
         for(int j = 3; j < 6; j++)
         {
-            possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]);
-            if(transformed_pose.getXYZRPY()[j] > 180-angle_duplication_range/2.0)
+            possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]);
+            if(contact_pose.getXYZRPY()[j] > 180-angle_duplication_range/2.0)
             {
-                possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]-360);
+                possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]-360);
             }
-            else if(transformed_pose.getXYZRPY()[j] < -180+angle_duplication_range/2.0)
+            else if(contact_pose.getXYZRPY()[j] < -180+angle_duplication_range/2.0)
             {
-                possible_rpy[j-3].push_back(transformed_pose.getXYZRPY()[j]+360);
+                possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]+360);
             }
         }
 
@@ -1027,31 +981,19 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
             {
                 for(auto & yaw : possible_rpy[2])
                 {
-                    possible_contact_pose_representation[i].push_back(RPYTF(transformed_pose.x_, transformed_pose.y_, transformed_pose.z_, roll, pitch, yaw));
+                    possible_contact_pose_representation[i].push_back(RPYTF(contact_pose.x_, contact_pose.y_, contact_pose.z_, roll, pitch, yaw));
                 }
             }
         }
     }
 
     std::vector< std::vector<RPYTF> > all_contact_pose_combinations;
-    std::vector<RPYTF> contact_pose_combination_placeholder(possible_contact_pose_representation.size());
+    std::vector<RPYTF> contact_pose_combination_placeholder(contact_pose_num);
     getAllContactPoseCombinations(all_contact_pose_combinations, possible_contact_pose_representation, 0, contact_pose_combination_placeholder);
-
 
     if(dynamically_feasible)
     {
         std::ofstream dynopt_result_fstream(feasible_record_file_name, std::ofstream::app);
-        Translation3D transformed_prev_com, transformed_current_com;
-        Vector3D transformed_prev_com_dot, transformed_current_com_dot;
-
-        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
-        {
-            transformed_prev_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
-            transformed_prev_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
-        }
-
-        transformed_current_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
-        transformed_current_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
 
         double motion_duration = 0;
         for(int i = 0; i < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps); i++)
@@ -1065,28 +1007,28 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
             dynopt_result_fstream << motion_code << " ";
 
             // get the contact poses
-            for(auto & transformed_pose : contact_pose_combination)
+            for(auto & contact_pose : contact_pose_combination)
             {
-                dynopt_result_fstream << transformed_pose.x_ << " "
-                                        << transformed_pose.y_ << " "
-                                        << transformed_pose.z_ << " "
-                                        << transformed_pose.roll_ * DEG2RAD << " "
-                                        << transformed_pose.pitch_ * DEG2RAD << " "
-                                        << transformed_pose.yaw_ * DEG2RAD << " ";
+                dynopt_result_fstream << contact_pose.x_ << " "
+                                      << contact_pose.y_ << " "
+                                      << contact_pose.z_ << " "
+                                      << contact_pose.roll_ * DEG2RAD << " "
+                                      << contact_pose.pitch_ * DEG2RAD << " "
+                                      << contact_pose.yaw_ * DEG2RAD << " ";
             }
 
             if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
             {
-                dynopt_result_fstream << transformed_prev_com[0] << " " << transformed_prev_com[1] << " " << transformed_prev_com[2] << " ";
-                dynopt_result_fstream << transformed_prev_com_dot[0] << " " << transformed_prev_com_dot[1] << " " << transformed_prev_com_dot[2] << " ";
+                dynopt_result_fstream << prev_state->com_[0] << " " << prev_state->com_[1] << " " << prev_state->com_[2] << " ";
+                dynopt_result_fstream << prev_state->com_dot_[0] << " " << prev_state->com_dot_[1] << " " << prev_state->com_dot_[2] << " ";
             }
 
             // dynopt_result_fstream << reference_dynamics_sequence_.dynamicsState(0).linearMomentum()[0] << " "
             //                       << reference_dynamics_sequence_.dynamicsState(0).linearMomentum()[1] << " "
             //                       << reference_dynamics_sequence_.dynamicsState(0).linearMomentum()[2] << " ";
 
-            dynopt_result_fstream << transformed_current_com[0] << " " << transformed_current_com[1] << " " << transformed_current_com[2] << " ";
-            dynopt_result_fstream << transformed_current_com_dot[0] << " " << transformed_current_com_dot[1] << " " << transformed_current_com_dot[2] << " ";
+            dynopt_result_fstream << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " ";
+            dynopt_result_fstream << current_state->com_dot_[0] << " " << current_state->com_dot_[1] << " " << current_state->com_dot_[2] << " ";
 
             dynopt_result_fstream << dynamics_cost << " ";
 
@@ -1101,37 +1043,32 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     {
         std::ofstream dynopt_result_fstream(infeasible_record_file_name, std::ofstream::app);
 
-        Translation3D transformed_com, transformed_com_dot;
-
-        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
-        {
-            transformed_com = (inv_prev_mean_feet_transform * prev_state->com_.homogeneous()).block(0,0,3,1);
-            transformed_com_dot = inv_prev_mean_feet_rotation * prev_state->com_dot_;
-        }
-        else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
-        {
-            transformed_com = (inv_prev_mean_feet_transform * current_state->com_.homogeneous()).block(0,0,3,1);
-            transformed_com_dot = inv_prev_mean_feet_rotation * current_state->com_dot_;
-        }
-
         for(auto & contact_pose_combination : all_contact_pose_combinations)
         {
             // contact state code
             dynopt_result_fstream << motion_code << " ";
 
             // get the contact poses
-            for(auto & transformed_pose : contact_pose_combination)
+            for(auto & contact_pose : contact_pose_combination)
             {
-                dynopt_result_fstream << transformed_pose.x_ << " "
-                                        << transformed_pose.y_ << " "
-                                        << transformed_pose.z_ << " "
-                                        << transformed_pose.roll_ * DEG2RAD << " "
-                                        << transformed_pose.pitch_ * DEG2RAD << " "
-                                        << transformed_pose.yaw_ * DEG2RAD << " ";
+                dynopt_result_fstream << contact_pose.x_ << " "
+                                      << contact_pose.y_ << " "
+                                      << contact_pose.z_ << " "
+                                      << contact_pose.roll_ * DEG2RAD << " "
+                                      << contact_pose.pitch_ * DEG2RAD << " "
+                                      << contact_pose.yaw_ * DEG2RAD << " ";
             }
 
-            dynopt_result_fstream << transformed_com[0] << " " << transformed_com[1] << " " << transformed_com[2] << " ";
-            dynopt_result_fstream << transformed_com_dot[0] << " " << transformed_com_dot[1] << " " << transformed_com_dot[2] << " ";
+            if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+            {
+                dynopt_result_fstream << prev_state->com_[0] << " " << prev_state->com_[1] << " " << prev_state->com_[2] << " ";
+                dynopt_result_fstream << prev_state->com_dot_[0] << " " << prev_state->com_dot_[1] << " " << prev_state->com_dot_[2] << " ";
+            }
+            else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+            {
+                dynopt_result_fstream << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " ";
+                dynopt_result_fstream << current_state->com_dot_[0] << " " << current_state->com_dot_[1] << " " << current_state->com_dot_[2] << " ";
+            }
 
             dynopt_result_fstream << std::endl;
         }
