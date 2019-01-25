@@ -1266,11 +1266,13 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
 
     if(branching_method == BranchingMethod::CONTACT_PROJECTION)
     {
-        // branching foot contacts
-        branchingFootContacts(current_state, branching_manips);
+        // // branching foot contacts
+        // branchingFootContacts(current_state, branching_manips);
 
-        // branching hand contacts
-        branchingHandContacts(current_state, branching_manips);
+        // // branching hand contacts
+        // branchingHandContacts(current_state, branching_manips);
+
+        branchingContacts(current_state, BranchingManipMode::ALL, true, true, true);
     }
     else if(branching_method == BranchingMethod::CONTACT_OPTIMIZATION)
     {
@@ -1310,6 +1312,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         getchar();
     }
 
+    // remove the last branched manipulator from the branching manips list
+    if(!current_state->is_root_)
+    {
+        branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), current_state->prev_move_manip_), branching_manips.end());
+    }
+
     const float l_leg_horizontal_yaw = current_state->getLeftHorizontalYaw();
     const float r_leg_horizontal_yaw = current_state->getRightHorizontalYaw();
     const float mean_horizontal_yaw = current_state->getFeetMeanHorizontalYaw();
@@ -1326,7 +1334,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     std::uniform_real_distribution<float> projection_height_unif(current_height - 0.15, current_height + 0.15);
 
     std::vector< std::shared_ptr<ContactState> > branching_states;
-    std::vector< std::vector<std::shared_ptr<ContactState> > > branching_states_by_move_manip(ContactManipulator::MANIP_NUM);
+    std::vector<bool> has_branch(ContactManipulator::MANIP_NUM, false);
+    // std::vector< std::vector<std::shared_ptr<ContactState> > > branching_states_by_move_manip(ContactManipulator::MANIP_NUM);
 
     // get all the possible branching states of the current state
     for(auto & move_manip : branching_manips)
@@ -1395,6 +1404,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(new_left_foot_pose, new_right_foot_pose, current_left_hand_pose, current_right_hand_pose, current_ee_contact_status);
                     std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
                     branching_states.push_back(new_contact_state);
+                    has_branch[int(move_manip)] = true;
                     // branching_states_by_move_manip[move_manip].push_back(new_contact_state);
                 }
             }
@@ -1491,9 +1501,19 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(current_left_foot_pose, current_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status);
                     std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
                     branching_states.push_back(new_contact_state);
+                    has_branch[int(move_manip)] = true;
                     // branching_states_by_move_manip[move_manip].push_back(new_contact_state);
                 }
             }
+        }
+    }
+
+    // take out manips which do not have a single branch, and avoid the unnecessary calculation of its disturbance cost.
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        if(!has_branch[int(manip)])
+        {
+            branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), manip), branching_manips.end());
         }
     }
 
@@ -2373,7 +2393,7 @@ float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state
     //     return 0.1 * (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost);
     // }
 
-    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost + disturbance_rejection_weight_ * disturbance_cost);
+    return (traveling_distance_cost + orientation_cost + step_cost + dynamics_cost_weight_ * dynamics_cost + disturbance_cost_weight_ * disturbance_cost);
     // return (traveling_distance_cost + orientation_cost + step_cost);
     // return dynamics_cost;
 }

@@ -1942,7 +1942,7 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     for(int i = 0; i < contact_sampling_iteration; i++)
     {
         contact_pose_sampler.collectTrainingData(branching_manip_mode,
-                                                 check_zero_step_capturability, 
+                                                 check_zero_step_capturability,
                                                  check_one_step_capturability,
                                                  check_contact_transition_feasibility,
                                                  sample_feet_only_state,

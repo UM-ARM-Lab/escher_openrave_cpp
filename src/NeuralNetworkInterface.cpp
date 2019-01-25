@@ -111,7 +111,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         OneStepCaptureCode one_step_capture_code = static_cast<OneStepCaptureCode>(one_step_capture_code_int);
 
         // load the classification neural network
-        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
+        std::string calssification_model_parameter_string = "_0.0001_192_0.1";
         std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
 
         auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
