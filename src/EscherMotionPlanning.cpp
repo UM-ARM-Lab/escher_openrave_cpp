@@ -360,6 +360,31 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
                                                           shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride);
 }
 
+void EscherMotionPlanning::parseDisturbanceSamplesCommand(std::istream& sinput)
+{
+    int disturbance_samples_num;
+    sinput >> disturbance_samples_num;
+
+    disturbance_samples_.resize(disturbance_samples_num);
+
+    if(printing_)
+    {
+        RAVELOG_INFO("Load %d disturbance samples.\n", disturbance_samples_num);
+    }
+
+    float dx, dy, dz, weight;
+
+    for(int i = 0; i < disturbance_samples_num; i++)
+    {
+        sinput >> dx;
+        sinput >> dy;
+        sinput >> dz;
+        sinput >> weight;
+
+        disturbance_samples_[i] = std::make_pair(Vector3D(dx, dy, dz), weight);
+    }
+}
+
 std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std::istream& sinput)
 {
     std::vector<RPYTF> ee_poses(ContactManipulator::MANIP_NUM);
@@ -1825,6 +1850,9 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
     BranchingManipMode branching_manip_mode = BranchingManipMode::ALL;
 
+    disturbance_samples_.clear();
+    disturbance_samples_.push_back(std::make_pair(Vector3D(0,0,0), 1.0));
+
     // read the transition models
     while(!sinput.eof())
     {
@@ -1894,17 +1922,17 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
         else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
         {
-            check_zero_step_capturability = true;
+            sinput >> check_zero_step_capturability;
         }
 
         else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
         {
-            check_one_step_capturability = true;
+            sinput >> check_one_step_capturability;
         }
 
         else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
         {
-            check_contact_transition_feasibility = true;
+            sinput >> check_contact_transition_feasibility;
         }
 
         else if(strcmp(param.c_str(), "sample_feet_only_state") == 0)
@@ -1921,6 +1949,11 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
         {
             sample_feet_and_two_hands_state = true;
         }
+
+        else if(strcmp(param.c_str(), "disturbance_samples") == 0)
+        {
+            parseDisturbanceSamplesCommand(sinput);
+        }
     }
 
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
@@ -1932,19 +1965,15 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
     // enumerate all the initial states
-    disturbance_samples_.clear();
-    disturbance_samples_.push_back(std::make_pair(Vector3D(0,0,0), 1.0));
     ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model_, hand_transition_model_,
                                               structures_, structures_dict_, NULL, general_ik_interface_, 1,
                                               thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
-                                              PlanningApplication::COLLECT_DATA);
+                                              PlanningApplication::COLLECT_DATA, check_zero_step_capturability,
+                                              check_one_step_capturability, check_contact_transition_feasibility);
 
     for(int i = 0; i < contact_sampling_iteration; i++)
     {
         contact_pose_sampler.collectTrainingData(branching_manip_mode,
-                                                 check_zero_step_capturability,
-                                                 check_one_step_capturability,
-                                                 check_contact_transition_feasibility,
                                                  sample_feet_only_state,
                                                  sample_feet_and_one_hand_state,
                                                  sample_feet_and_two_hands_state);
@@ -1970,6 +1999,10 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     bool enforce_stop_in_the_end;
     PlanningHeuristicsType heuristics_type;
     BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
+
+    bool check_zero_step_capturability = false;
+    bool check_one_step_capturability = false;
+    bool check_contact_transition_feasibility = true;
 
     int thread_num = 1;
     int planning_id = 0;
@@ -2128,6 +2161,26 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             }
         }
 
+        else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
+        {
+            sinput >> check_zero_step_capturability;
+        }
+
+        else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
+        {
+            sinput >> check_one_step_capturability;
+        }
+
+        else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
+        {
+            sinput >> check_contact_transition_feasibility;
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_samples") == 0)
+        {
+            parseDisturbanceSamplesCommand(sinput);
+        }
+
         else if(strcmp(param.c_str(), "planning_id") == 0)
         {
             sinput >> planning_id;
@@ -2184,7 +2237,9 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
                                                structures_, structures_dict_, map_grid_,
                                                general_ik_interface_, 1, thread_num, drawing_handler_,
-                                               planning_id, use_dynamics_planning, disturbance_samples_);
+                                               planning_id, use_dynamics_planning, disturbance_samples_,
+                                               PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
+                                               check_one_step_capturability, check_contact_transition_feasibility);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 

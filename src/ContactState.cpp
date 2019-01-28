@@ -387,6 +387,11 @@ std::shared_ptr<ContactState> ContactState::getStandardInputState(DynOptApplicat
 
         standard_state->parent_ = prev_state;
 
+        std::cout << "=======" << std::endl;
+        std::cout << standard_state->is_root_ << std::endl;
+        std::cout << standard_state->prev_move_manip_ << std::endl;
+        std::cout << "*******" << std::endl;
+
         if(standard_state->prev_move_manip_ != ContactManipulator::L_LEG && standard_state->prev_move_manip_ != ContactManipulator::L_ARM)
         {
             RAVELOG_ERROR("A standard state which moves right hand side of the robot. This should not happen.\n");

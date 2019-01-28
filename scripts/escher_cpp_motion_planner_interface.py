@@ -186,7 +186,7 @@ def main(meta_path_generation_method='all_planning',
 
     ########################################################################
     # load and initialize the robot
-    rave.raveLogInfo('Load and Initrialize the Robot.')
+    rave.raveLogInfo('Load and Initialize the Robot.')
 
     if robot_name == 'escher':
         escher = load_escher.escher(env)
@@ -237,7 +237,15 @@ def main(meta_path_generation_method='all_planning',
 
         initial_node = node(initial_left_leg, initial_right_leg, initial_left_arm, initial_right_arm)
 
-        IPython.embed()
+        # IPython.embed()
+
+        disturbance_samples = []
+        disturbance_magnitude = 0.2
+        disturbance_sample_num = 8
+        for i in range(disturbance_sample_num):
+            disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
+                                        disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
+                                        0, 1.0/disturbance_sample_num])
 
         # for collect data
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
@@ -258,6 +266,10 @@ def main(meta_path_generation_method='all_planning',
                                                 use_dynamics_planning=True,
                                                 use_learned_dynamics_model=True,
                                                 enforce_stop_in_the_end=False,
+                                                check_zero_step_capturability=True,
+                                                check_one_step_capturability=True,
+                                                check_contact_transition_feasibility=True,
+                                                disturbance_samples=disturbance_samples,
                                                 thread_num=1,
                                                 # thread_num=multiprocessing.cpu_count(),
                                                 planning_id=env_id,

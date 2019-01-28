@@ -36,6 +36,7 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         void parseMapGridDimCommand(std::istream& sinput);
         void parseMapGridCommand(std::istream& sinput);
         void parseRobotPropertiesCommand(std::istream& sinput);
+        void parseDisturbanceSamplesCommand(std::istream& sinput);
         std::shared_ptr<ContactState> parseContactStateCommand(std::istream& sinput);
 
         std::map<std::array<int,5>,std::array<float,3> > calculateFootstepTransitionTraversability(std::vector<std::array<int,5>> torso_transitions, std::string motion_mode);

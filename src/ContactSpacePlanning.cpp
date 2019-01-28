@@ -14,7 +14,10 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            int _planning_id,
                                            bool _use_dynamics_planning,
                                            std::vector<std::pair<Vector3D, float> > _disturbance_samples,
-                                           PlanningApplication _planning_application):
+                                           PlanningApplication _planning_application,
+                                           bool _check_zero_step_capturability,
+                                           bool _check_one_step_capturability,
+                                           bool _check_contact_transition_feasibility):
 robot_properties_(_robot_properties),
 foot_transition_model_(_foot_transition_model),
 hand_transition_model_(_hand_transition_model),
@@ -28,7 +31,10 @@ planning_id_(_planning_id),
 use_dynamics_planning_(_use_dynamics_planning),
 general_ik_interface_(_general_ik_interface),
 disturbance_samples_(_disturbance_samples),
-planning_application_(_planning_application)
+planning_application_(_planning_application),
+check_zero_step_capturability_(_check_zero_step_capturability),
+check_one_step_capturability_(_check_one_step_capturability),
+check_contact_transition_feasibility_(_check_contact_transition_feasibility)
 {
     for(auto & structure : structures_)
     {
@@ -50,8 +56,8 @@ planning_application_(_planning_application)
     {
         neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/objective_regression_nn_models/",
                                                                                        "../data/dynopt_result/feasibility_classification_nn_models/",
-                                                                                       "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models",
-                                                                                       "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models");
+                                                                                       "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models/",
+                                                                                       "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models/");
     }
 
     RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
@@ -88,15 +94,6 @@ planning_application_(_planning_application)
             // general_ik_interface_vector_[i] = std::make_shared<GeneralIKInterface>(cloned_env, cloned_env->GetRobot(general_ik_interface_->robot_->GetName()));
             general_ik_interface_vector_[i] = general_ik_interface_;
         }
-    }
-
-    if(disturbance_samples_.empty())
-    {
-        consider_disturbance_ = false;
-    }
-    else
-    {
-        consider_disturbance_ = true;
     }
 
     uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
@@ -1272,7 +1269,7 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
         // // branching hand contacts
         // branchingHandContacts(current_state, branching_manips);
 
-        branchingContacts(current_state, BranchingManipMode::ALL, true, true, true);
+        branchingContacts(current_state, BranchingManipMode::ALL);
     }
     else if(branching_method == BranchingMethod::CONTACT_OPTIMIZATION)
     {
@@ -1280,9 +1277,7 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode,
-                                             bool check_zero_step_capturability, bool check_one_step_capturability,
-                                             bool check_contact_transition_feasibility)
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode)
 {
     std::vector<ContactManipulator> branching_manips;
     std::vector< std::array<float,2> > hand_transition_model;
@@ -1520,7 +1515,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     // Find the forces rejected by each category of the moving manipulator
     std::vector< std::unordered_set<int> > failing_disturbances_by_manip(ContactManipulator::MANIP_NUM);
     std::vector<float> disturbance_costs(ContactManipulator::MANIP_NUM, 0.0);
-    if(consider_disturbance_)
+    if(!disturbance_samples_.empty())
     {
         std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_set<int> > checked_zero_capture_state;
         for(auto & move_manip : branching_manips)
@@ -1557,7 +1552,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 // zero step capturability
                 std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
 
-                if(check_zero_step_capturability)
+                if(check_zero_step_capturability_)
                 {
                     bool zero_step_dynamically_feasible;
                     if(use_learned_dynamics_model_)
@@ -1588,7 +1583,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 }
 
                 // one step capturability
-                if(check_one_step_capturability)
+                if(check_one_step_capturability_)
                 {
                     for(int i = 0; i < branching_states.size(); i++)
                     {
@@ -1671,7 +1666,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
     // Find the dynamics cost and capturability cost
     std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float, float> > state_feasibility_check_result(branching_states.size());
-    if(check_contact_transition_feasibility)
+    if(check_contact_transition_feasibility_)
     {
         for(int i = 0; i < branching_states.size(); i++)
         {
@@ -2517,10 +2512,8 @@ void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contac
     }
 }
 
-void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool check_zero_step_capturability,
-                                               bool check_one_step_capturability, bool check_contact_transition_feasibility,
-                                               bool sample_feet_only_state, bool sample_feet_and_one_hand_state,
-                                               bool sample_feet_and_two_hands_state)
+void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool sample_feet_only_state,
+                                               bool sample_feet_and_one_hand_state, bool sample_feet_and_two_hands_state)
 {
     // sample the initial states
     std::vector<std::shared_ptr<ContactState> > initial_states;
@@ -2661,7 +2654,6 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     for(auto & initial_state : initial_states)
     {
         // RAVELOG_WARN("New initial state.\n");
-        branchingContacts(initial_state, branching_mode, check_zero_step_capturability,
-                          check_one_step_capturability, check_contact_transition_feasibility);
+        branchingContacts(initial_state, branching_mode);
     }
 }

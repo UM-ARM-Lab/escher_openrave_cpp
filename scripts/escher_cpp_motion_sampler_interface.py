@@ -83,7 +83,7 @@ def main(start_env_id=0,
 
     ########################################################################
     # load and initialize the robot
-    rave.raveLogInfo('Load and Initrialize the Robot.')
+    rave.raveLogInfo('Load and Initialize the Robot.')
 
     if robot_name == 'escher':
         escher = load_escher.escher(env)
@@ -106,6 +106,9 @@ def main(start_env_id=0,
                                                             escher=escher,
                                                             foot_transition_model=step_transition_model,
                                                             hand_transition_model=hand_transition_model,
+                                                            check_zero_step_capturability=True,
+                                                            check_one_step_capturability=True,
+                                                            check_contact_transition_feasibility=True,
                                                             thread_num=1,
                                                             # thread_num=multiprocessing.cpu_count(),
                                                             planning_id=env_id,

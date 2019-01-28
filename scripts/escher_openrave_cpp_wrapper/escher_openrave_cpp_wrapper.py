@@ -398,7 +398,7 @@ class escher_openrave_cpp_wrapper(object):
                                                  branching_manip_mode='all',check_zero_step_capturability=True,
                                                  check_one_step_capturability=True,check_contact_transition_feasibility=True,
                                                  sample_feet_only_state=True,sample_feet_and_one_hand_state=True,
-                                                 sample_feet_and_two_hands_state=True):
+                                                 sample_feet_and_two_hands_state=True,disturbance_samples=None):
 
         start = time.time()
 
@@ -447,12 +447,15 @@ class escher_openrave_cpp_wrapper(object):
 
         if check_zero_step_capturability:
             cmd.append('check_zero_step_capturability')
+            cmd.append(check_zero_step_capturability)
 
         if check_one_step_capturability:
             cmd.append('check_one_step_capturability')
+            cmd.append(check_one_step_capturability)
 
         if check_contact_transition_feasibility:
             cmd.append('check_contact_transition_feasibility')
+            cmd.append(check_contact_transition_feasibility)
 
         if sample_feet_only_state:
             cmd.append('sample_feet_only_state')
@@ -462,6 +465,13 @@ class escher_openrave_cpp_wrapper(object):
 
         if sample_feet_and_two_hands_state:
             cmd.append('sample_feet_and_two_hands_state')
+
+        if disturbance_samples is not None:
+            cmd.append('disturbance_samples')
+            cmd.append(len(disturbance_samples))
+            for sample in disturbance_samples:
+                cmd.append(sample[0]); cmd.append(sample[1])
+                cmd.append(sample[2]); cmd.append(sample[3])
 
         cmd_str = " ".join(str(item) for item in cmd)
 
@@ -484,7 +494,8 @@ class escher_openrave_cpp_wrapper(object):
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',map_grid=None,map_grid_dim=None,
                                      output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
-                                     use_learned_dynamics_model=False,enforce_stop_in_the_end=False,
+                                     use_learned_dynamics_model=False,enforce_stop_in_the_end=False,disturbance_samples=None,
+                                     check_zero_step_capturability=True,check_one_step_capturability=True,check_contact_transition_feasibility=True,
                                      thread_num=None,branching_method=None,planning_id=None,printing=None):
 
         start = time.time()
@@ -609,6 +620,25 @@ class escher_openrave_cpp_wrapper(object):
         if branching_method is not None:
             cmd.append('branching_method')
             cmd.append(branching_method)
+
+        if check_zero_step_capturability:
+            cmd.append('check_zero_step_capturability')
+            cmd.append(check_zero_step_capturability)
+
+        if check_one_step_capturability:
+            cmd.append('check_one_step_capturability')
+            cmd.append(check_one_step_capturability)
+
+        if check_contact_transition_feasibility:
+            cmd.append('check_contact_transition_feasibility')
+            cmd.append(check_contact_transition_feasibility)
+
+        if disturbance_samples is not None:
+            cmd.append('disturbance_samples')
+            cmd.append(len(disturbance_samples))
+            for sample in disturbance_samples:
+                cmd.append(sample[0]); cmd.append(sample[1])
+                cmd.append(sample[2]); cmd.append(sample[3])
 
         if planning_id is not None:
             cmd.append('planning_id')
