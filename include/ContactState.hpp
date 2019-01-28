@@ -28,7 +28,7 @@ class ContactState
 {
     public:
         // ContactState():num_stance_in_state_(0), is_root_(false){}
-        ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state);
+        ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state, bool _is_root=true);
         ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float _robot_com_z);
         // ~ContactState(){}
 

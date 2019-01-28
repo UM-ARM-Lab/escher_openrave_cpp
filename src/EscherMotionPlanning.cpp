@@ -2163,17 +2163,47 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
         else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
         {
-            sinput >> check_zero_step_capturability;
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_zero_step_capturability = false;
+                RAVELOG_INFO("Do not check zero step capturability.\n");
+            }
+            else
+            {
+                check_zero_step_capturability = true;
+                RAVELOG_INFO("Check zero step capturability.\n");
+            }
         }
 
         else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
         {
-            sinput >> check_one_step_capturability;
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_one_step_capturability = false;
+                RAVELOG_INFO("Do not check one step capturability.\n");
+            }
+            else
+            {
+                check_one_step_capturability = true;
+                RAVELOG_INFO("Check one step capturability.\n");
+            }
         }
 
         else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
         {
-            sinput >> check_contact_transition_feasibility;
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_contact_transition_feasibility = false;
+                RAVELOG_INFO("Do not check contact transition feasibility.\n");
+            }
+            else
+            {
+                check_contact_transition_feasibility = true;
+                RAVELOG_INFO("Check contact transition feasibility.\n");
+            }
         }
 
         else if(strcmp(param.c_str(), "disturbance_samples") == 0)
@@ -2225,8 +2255,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Command Parsing Done. \n");
 
-    map_grid_->obstacleAndGapMapping(penv_, structures_);
-    RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
+    // map_grid_->obstacleAndGapMapping(penv_, structures_);
+    // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;

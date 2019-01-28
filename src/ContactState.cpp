@@ -46,8 +46,8 @@ bool Stance::operator!=(const Stance& other) const
 }
 
 // Constructor for the initial state
-ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state):
-                           is_root_(true),
+ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state, bool _is_root):
+                           is_root_(_is_root),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
                            num_stance_in_state_(_num_stance_in_state),
@@ -312,7 +312,7 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
     transformed_com_dot[1] = -transformed_com_dot[1];
     Vector3D mirror_com_dot = reference_frame_rotation * transformed_com_dot;
 
-    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, 1);
+    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, 1, is_root_);
     if(!is_root_)
     {
         mirror_state->prev_move_manip_ = mirror_manip_vec[int(prev_move_manip_)];
@@ -353,7 +353,7 @@ std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatri
     Translation3D centered_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
     Vector3D centered_com_dot = inv_reference_frame_rotation * com_dot_;
 
-    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, 1);
+    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, 1, is_root_);
     if(!is_root_)
     {
         centered_state->prev_move_manip_ = prev_move_manip_;
@@ -386,11 +386,6 @@ std::shared_ptr<ContactState> ContactState::getStandardInputState(DynOptApplicat
         prev_state = prev_state->getCenteredState(reference_frame);
 
         standard_state->parent_ = prev_state;
-
-        std::cout << "=======" << std::endl;
-        std::cout << standard_state->is_root_ << std::endl;
-        std::cout << standard_state->prev_move_manip_ << std::endl;
-        std::cout << "*******" << std::endl;
 
         if(standard_state->prev_move_manip_ != ContactManipulator::L_LEG && standard_state->prev_move_manip_ != ContactManipulator::L_ARM)
         {

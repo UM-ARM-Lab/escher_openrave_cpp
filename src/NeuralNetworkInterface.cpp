@@ -98,7 +98,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         std::string calssification_model_parameter_string = "_0.0001_256_0.1";
         std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "input_mean_std_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".txt");
+        auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "zero_step_capture_input_mean_std_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".txt");
 
         zero_step_capturability_calssification_models_map_.insert(std::make_pair(zero_step_capture_code, ClassificationModel(zero_step_capture_classification_input_mean_std.first,
                                                                                                                              zero_step_capture_classification_input_mean_std.second,
@@ -114,7 +114,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         std::string calssification_model_parameter_string = "_0.0001_192_0.1";
         std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
+        auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "one_step_capture_input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
 
         one_step_capturability_calssification_models_map_.insert(std::make_pair(one_step_capture_code, ClassificationModel(one_step_capture_classification_input_mean_std.first,
                                                                                                                            one_step_capture_classification_input_mean_std.second,

@@ -1520,6 +1520,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_set<int> > checked_zero_capture_state;
         for(auto & move_manip : branching_manips)
         {
+            std::cout << "Branch manip: " << move_manip << std::endl;
+
             // get the initial state for this move_manip
             std::unordered_set<int> failing_disturbances;
 
@@ -1549,8 +1551,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 auto disturbance = disturbance_samples_[disturb_id];
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first;
 
+                std::cout << "Disturbance ID: " << disturb_id << ", (" << disturbance.first[0] << ", " << disturbance.first[1] << ", " << disturbance.first[2] << ")" << std::endl;
+
                 // zero step capturability
                 std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
+
+                std::cout << "Zero Step Capture Check:" << std::endl;
 
                 if(check_zero_step_capturability_)
                 {
@@ -1558,6 +1564,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     if(use_learned_dynamics_model_)
                     {
                         zero_step_dynamically_feasible = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_contact_state);
+                        std::cout << zero_step_dynamically_feasible << std::endl;
                     }
                     else
                     {
@@ -1582,9 +1589,13 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     }
                 }
 
+                std::cout << "++++++++++++++++++++" << std::endl;
+
                 // one step capturability
                 if(check_one_step_capturability_)
                 {
+                    std::cout << "One Step Capture Check:" << std::endl;
+
                     for(int i = 0; i < branching_states.size(); i++)
                     {
                         std::shared_ptr<ContactState> branching_state = branching_states[i];
@@ -1608,15 +1619,21 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                             ee_contact_poses[capture_contact_manip] = branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip];
 
                             std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                                    ee_contact_poses[2], ee_contact_poses[3],
-                                                                                                    ee_contact_status);
+                                                                                                       ee_contact_poses[2], ee_contact_poses[3],
+                                                                                                       ee_contact_status);
 
                             std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+
+                            // std::cout << "##########" << std::endl;
+                            // std::cout << capture_contact_manip << std::endl;
+                            // std::cout << one_step_capture_contact_state->prev_move_manip_ << std::endl;
+                            // std::cout << "^^^^^^^^^" << std::endl;
 
                             bool one_step_dynamically_feasible;
                             if(use_learned_dynamics_model_)
                             {
                                 one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state);
+                                std::cout << "Capture Manip: " << capture_contact_manip << ", " << one_step_dynamically_feasible << std::endl;
                             }
                             else
                             {
@@ -1643,11 +1660,17 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     }
                 }
 
+                std::cout << "====================" << std::endl;
+                // getchar();
+
                 if(!disturbance_rejected)
                 {
                     failing_disturbances.insert(disturb_id);
                 }
             }
+
+            std::cout << "Rejected Disturbance / Total Disturbance: " << disturbance_samples_.size() - failing_disturbances.size() << "/" << disturbance_samples_.size() << std::endl;
+            getchar();
 
             checked_zero_capture_state.insert(std::make_pair(ee_contact_status, failing_disturbances));
             failing_disturbances_by_manip[move_manip] = failing_disturbances;
