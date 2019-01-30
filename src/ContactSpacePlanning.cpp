@@ -1580,6 +1580,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
 
                         zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
+
+                        // zero_step_capture_dynamics_optimizer_interface_vector_[0]->exportOptimizationConfigFile("../data/SL_optim_config_template/cfg_kdopt_demo.yaml", "../data/SL_optim_config_template/cfg_kdopt_demo_test.yaml");
+                        // zero_step_capture_dynamics_optimizer_interface_vector_[0]->exportSLObjectsFile("../data/SL_optim_config_template/Objects_test.cf", robot_properties_);
                     }
 
                     if(zero_step_dynamically_feasible)

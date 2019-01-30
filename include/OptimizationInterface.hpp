@@ -130,6 +130,9 @@ class OptimizationInterface
 
         void recordDynamicsMetrics();
 
+        void exportOptimizationConfigFile(std::string template_path, std::string output_path);
+        void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
+
         float step_transition_time_;
         float support_phase_time_;
 

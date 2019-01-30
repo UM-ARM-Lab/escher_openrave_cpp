@@ -5,7 +5,7 @@ set(CMAKE_CXX_FLAGS "-std=c++1y -O3 ${CMAKE_CXX_FLAGS}")
 # set(CMAKE_CXX_FLAGS "-std=c++1y -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 # set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik)
+find_package(catkin REQUIRED COMPONENTS roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik yaml_cpp)
 
 find_package(Boost REQUIRED COMPONENTS regex filesystem system)
 find_package(OpenRAVE REQUIRED)

@@ -1,3 +1,5 @@
+#include <yaml-cpp/yaml.h>
+#include <yaml-cpp/yaml_eigen.h>
 #include "Utilities.hpp"
 
 static const std::map<ContactManipulator, int> contact_manipulator_id_map_ = {{ContactManipulator::L_LEG, 1}, {ContactManipulator::R_LEG, 0},
@@ -1102,4 +1104,110 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
         prev_com = com;
         prev_com_dot = com_dot;
     }
+}
+
+void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path)
+{
+    YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
+
+    // modify the contact poses
+    std::vector<std::string> eff_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    {
+        optimization_cfg["contact_plan"]["num_contacts"][eff_id] = contact_sequence_interpreter_.contacts_per_endeff_[eff_id];
+        for(int cnt_id = 0; cnt_id < contact_sequence_interpreter_.contacts_per_endeff_[eff_id]; cnt_id++)
+        {
+            std::string eff_name = eff_name_vec[eff_id];
+            std::string cnt_name = "cnt"+std::to_string(cnt_id);
+            YAML::Node cnt_node = optimization_cfg["contact_plan"][eff_name][cnt_name];
+            auto cnt_obj = contact_sequence_interpreter_.contactSequence().endeffectorContacts(eff_id)[cnt_id];
+
+            cnt_node[0] = cnt_obj.contactActivationTime();
+            cnt_node[1] = cnt_obj.contactDeactivationTime();
+            cnt_node[2] = cnt_obj.contactPosition()[0];
+            cnt_node[3] = cnt_obj.contactPosition()[1];
+            cnt_node[4] = cnt_obj.contactPosition()[2];
+            cnt_node[5] = cnt_obj.contactOrientation().w();
+            cnt_node[6] = cnt_obj.contactOrientation().x();
+            cnt_node[7] = cnt_obj.contactOrientation().y();
+            cnt_node[8] = cnt_obj.contactOrientation().z();
+            cnt_node[9] = float(cnt_obj.contactType());
+            cnt_node[10] = -1.0;
+        }
+    }
+
+    // modify the initial com, and com dot
+    for(int i = 0; i < 3; i++)
+    {
+        optimization_cfg["initial_robot_state"]["com"][i] = initial_state_.centerOfMass()[i];
+        optimization_cfg["initial_robot_state"]["lmom"][i] = initial_state_.linearMomentum()[i];
+        optimization_cfg["initial_robot_state"]["amom"][i] = initial_state_.angularMomentum()[i];
+    }
+
+    std::ofstream fout(output_path.c_str());
+    fout << optimization_cfg;
+    fout.close();
+}
+
+// construct the SL Objects with the contact poses
+void OptimizationInterface::exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties)
+{
+    double thickness = 0.001;
+    double inflate_scale = 1.2;
+
+    std::ofstream dump_object_stream(output_path, std::ofstream::out);
+
+    // wirte the comments
+    dump_object_stream << "/* this file contains a list of object specifications that can be added to the " << std::endl;
+    dump_object_stream << "graphics scence. Each object must contain blank or tab delimited parameters in " << std::endl;
+    dump_object_stream << "the following sequence: " << std::endl;
+    dump_object_stream << std::endl;
+    dump_object_stream << "name  (max 20 characters)" << std::endl;
+    dump_object_stream << "    object type (e.g., CUBE=1, SPHERE=2, see SL_openGL.h)" << std::endl;
+    dump_object_stream << "    rgb color values (3 values)" << std::endl;
+    dump_object_stream << "    pos_x pos_y pos_z" << std::endl;
+    dump_object_stream << "    rot_x rot_y rot_z" << std::endl;
+    dump_object_stream << "    scale_x scale_y scale_z" << std::endl;
+    dump_object_stream << "    contact_model  (e.g., DAMPED_SPRING_FRICTION=1)" << std::endl;
+    dump_object_stream << "    appropriate number of object parameters (N_OBJ_PARMS: see SL_openGL.h)" << std::endl;
+    dump_object_stream << "    appropriate number of contact parameters (N_OBJ_PARMS: see SL_openGL.h)" << std::endl;
+    dump_object_stream << "*/" << std::endl;
+    dump_object_stream << std::endl;
+
+
+    std::vector<std::string> eff_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    std::vector< std::array<float,3> > eff_color_vec = {{0,1,0}, {1,0,0} , {1,1,0}, {0,0,1}};
+    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    {
+        double contact_h, contact_w;
+
+        if(eff_id < 2)
+        {
+            contact_h = robot_properties->foot_h_;
+            contact_w = robot_properties->foot_w_;
+        }
+        else
+        {
+            contact_h = robot_properties->hand_h_;
+            contact_w = robot_properties->hand_w_;
+        }
+
+        for(int cnt_id = 0; cnt_id < contact_sequence_interpreter_.contacts_per_endeff_[eff_id]; cnt_id++)
+        {
+            auto cnt_obj = contact_sequence_interpreter_.contactSequence().endeffectorContacts(eff_id)[cnt_id];
+            auto cnt_rpy = cnt_obj.contactOrientation().toRotationMatrix().eulerAngles(0, 1, 2);
+
+            dump_object_stream << "box_" << eff_name_vec[eff_id] << "_cnt_" << cnt_id << " 1          /* name and ID of object type */ " << std::endl;
+            dump_object_stream << eff_color_vec[eff_id][0] << " " << eff_color_vec[eff_id][1] << " " << eff_color_vec[eff_id][2] << "         /* rgb */ " << std::endl;
+            dump_object_stream << cnt_obj.contactPosition()[0] << " " << cnt_obj.contactPosition()[1] << " " << cnt_obj.contactPosition()[2] << "         /* pos -1.45 */ " << std::endl;
+            dump_object_stream << cnt_rpy[0] << " " << cnt_rpy[1] << " " << cnt_rpy[2] << "         /* orient */ " << std::endl;
+            dump_object_stream << contact_h << " " << contact_w << " " << thickness << "         /* scale */ " << std::endl;
+            dump_object_stream << "3         /* contact model */ " << std::endl;
+            dump_object_stream << "10            /* object parameters */ " << std::endl;
+            dump_object_stream << "7000 20 7000 20  1.5 1.5  0.2 0.2         /* contact parameters */ " << std::endl;
+            dump_object_stream << std::endl;
+        }
+    }
+
+    dump_object_stream.close();
 }
