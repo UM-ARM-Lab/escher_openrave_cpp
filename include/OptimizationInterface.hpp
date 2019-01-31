@@ -130,6 +130,8 @@ class OptimizationInterface
 
         void recordDynamicsMetrics();
 
+        void exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
+                               std::string objects_config_output_path, std::shared_ptr<RobotProperties> robot_properties);
         void exportOptimizationConfigFile(std::string template_path, std::string output_path);
         void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
 

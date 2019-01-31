@@ -1555,6 +1555,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                 // zero step capturability
                 std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, 1);
+                std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
 
                 std::cout << "Zero Step Capture Check:" << std::endl;
 
@@ -1568,8 +1569,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     }
                     else
                     {
-                        std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
-
                         // drawing_handler_->ClearHandler();
                         // drawing_handler_->DrawContactPath(zero_step_capture_contact_state);
                         // // getchar();
@@ -1579,11 +1578,15 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         float zero_step_dummy_dynamics_cost = 0.0;
                         zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
 
-                        zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
-
-                        // zero_step_capture_dynamics_optimizer_interface_vector_[0]->exportOptimizationConfigFile("../data/SL_optim_config_template/cfg_kdopt_demo.yaml", "../data/SL_optim_config_template/cfg_kdopt_demo_test.yaml");
-                        // zero_step_capture_dynamics_optimizer_interface_vector_[0]->exportSLObjectsFile("../data/SL_optim_config_template/Objects_test.cf", robot_properties_);
+                        // zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
                     }
+
+                    // zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
+                    // zero_step_capture_dynamics_optimizer_interface_vector_[0]->exportConfigFiles("../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+                    //                   "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/cfg_kdopt_demo.yaml",
+                    //                   "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf",
+                    //                   robot_properties_);
+                    // getchar();
 
                     if(zero_step_dynamically_feasible)
                     {
@@ -1626,6 +1629,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                                                                                                        ee_contact_status);
 
                             std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+                            std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
 
                             // std::cout << "##########" << std::endl;
                             // std::cout << capture_contact_manip << std::endl;
@@ -1640,8 +1644,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                             }
                             else
                             {
-                                std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
-
                                 one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
 
                                 float one_step_dummy_dynamics_cost = 0.0;
@@ -1656,6 +1658,14 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             if(one_step_dynamically_feasible)
                             {
+                                one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
+                                one_step_capture_dynamics_optimizer_interface_vector_[0]->exportConfigFiles("../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/cfg_kdopt_demo.yaml",
+                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf",
+                                                robot_properties_);
+                                std::cout << "AAA" << std::endl;
+                                getchar();
+
                                 disturbance_rejected = true;
                                 break;
                             }

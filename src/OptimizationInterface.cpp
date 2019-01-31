@@ -1106,12 +1106,24 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
     }
 }
 
+void OptimizationInterface::exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
+                                              std::string objects_config_output_path, std::shared_ptr<RobotProperties> robot_properties)
+{
+    this->initializeDynamicsOptimizer();
+    this->fillInitialRobotState();
+    this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
+
+    exportOptimizationConfigFile(optimization_config_template_path, optimization_config_output_path);
+    exportSLObjectsFile(objects_config_output_path, robot_properties);
+}
+
 void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path)
 {
     YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
 
-    // modify the contact poses
+    // modify the contact poses, and the initial contact poses
     std::vector<std::string> eff_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    std::vector<std::string> init_eff_name_vec = {"eef_rf", "eef_lf", "eef_rh", "eef_lh"};
     for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
     {
         optimization_cfg["contact_plan"]["num_contacts"][eff_id] = contact_sequence_interpreter_.contacts_per_endeff_[eff_id];
@@ -1133,16 +1145,37 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
             cnt_node[8] = cnt_obj.contactOrientation().z();
             cnt_node[9] = float(cnt_obj.contactType());
             cnt_node[10] = -1.0;
+
+            if(cnt_obj.contactActivationTime() == 0)
+            {
+                YAML::Node init_cnt_node = optimization_cfg["initial_robot_state"]["eef_pose"][init_eff_name_vec[eff_id]];
+
+                init_cnt_node[0] = 1;
+                init_cnt_node[1] = cnt_obj.contactPosition()[0];
+                init_cnt_node[2] = cnt_obj.contactPosition()[1];
+                init_cnt_node[3] = cnt_obj.contactPosition()[2];
+                init_cnt_node[4] = cnt_obj.contactOrientation().w();
+                init_cnt_node[5] = cnt_obj.contactOrientation().x();
+                init_cnt_node[6] = cnt_obj.contactOrientation().y();
+                init_cnt_node[7] = cnt_obj.contactOrientation().z();
+            }
         }
     }
 
-    // modify the initial com, and com dot
+
+    // modify the initial com, com dot, and the com displacement
     for(int i = 0; i < 3; i++)
     {
         optimization_cfg["initial_robot_state"]["com"][i] = initial_state_.centerOfMass()[i];
         optimization_cfg["initial_robot_state"]["lmom"][i] = initial_state_.linearMomentum()[i];
         optimization_cfg["initial_robot_state"]["amom"][i] = initial_state_.angularMomentum()[i];
+
+        optimization_cfg["planner_variables"]["com_displacement"][i] = optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion)[i];
     }
+
+    // modify the com displacement, and time horizon
+    optimization_cfg["planner_variables"]["time_horizon"] = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon);
+    optimization_cfg["planner_variables"]["time_step"] = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) / optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps);
 
     std::ofstream fout(output_path.c_str());
     fout << optimization_cfg;
@@ -1201,7 +1234,7 @@ void OptimizationInterface::exportSLObjectsFile(std::string output_path, std::sh
             dump_object_stream << eff_color_vec[eff_id][0] << " " << eff_color_vec[eff_id][1] << " " << eff_color_vec[eff_id][2] << "         /* rgb */ " << std::endl;
             dump_object_stream << cnt_obj.contactPosition()[0] << " " << cnt_obj.contactPosition()[1] << " " << cnt_obj.contactPosition()[2] << "         /* pos -1.45 */ " << std::endl;
             dump_object_stream << cnt_rpy[0] << " " << cnt_rpy[1] << " " << cnt_rpy[2] << "         /* orient */ " << std::endl;
-            dump_object_stream << contact_h << " " << contact_w << " " << thickness << "         /* scale */ " << std::endl;
+            dump_object_stream << contact_w << " " << contact_h << " " << thickness << "         /* scale */ " << std::endl;
             dump_object_stream << "3         /* contact model */ " << std::endl;
             dump_object_stream << "10            /* object parameters */ " << std::endl;
             dump_object_stream << "7000 20 7000 20  1.5 1.5  0.2 0.2         /* contact parameters */ " << std::endl;
