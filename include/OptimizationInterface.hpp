@@ -130,9 +130,16 @@ class OptimizationInterface
 
         void recordDynamicsMetrics();
 
+        // export cfg_kdopt_demo.yaml and Objects.cf for kinematics optimization
         void exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
-                               std::string objects_config_output_path, std::shared_ptr<RobotProperties> robot_properties);
-        void exportOptimizationConfigFile(std::string template_path, std::string output_path);
+                               std::string objects_config_output_path,
+                               std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                               std::shared_ptr<RobotProperties> robot_properties,
+                               std::vector<OpenRAVE::dReal> initial_config);
+        void exportOptimizationConfigFile(std::string template_path, std::string output_path,
+                                          std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                                          std::shared_ptr<RobotProperties> robot_properties,
+                                          std::vector<OpenRAVE::dReal> initial_config);
         void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
 
         float step_transition_time_;

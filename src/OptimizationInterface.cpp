@@ -1107,27 +1107,37 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
 }
 
 void OptimizationInterface::exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
-                                              std::string objects_config_output_path, std::shared_ptr<RobotProperties> robot_properties)
+                                              std::string objects_config_output_path, std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                                              std::shared_ptr<RobotProperties> robot_properties, std::vector<OpenRAVE::dReal> initial_config)
 {
     this->initializeDynamicsOptimizer();
     this->fillInitialRobotState();
     this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
 
-    exportOptimizationConfigFile(optimization_config_template_path, optimization_config_output_path);
+    exportOptimizationConfigFile(optimization_config_template_path, optimization_config_output_path,
+                                 floating_initial_contact_poses, robot_properties, initial_config);
     exportSLObjectsFile(objects_config_output_path, robot_properties);
 }
 
-void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path)
+void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path,
+                                                         std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                                                         std::shared_ptr<RobotProperties> robot_properties,
+                                                         std::vector<OpenRAVE::dReal> initial_config)
 {
     YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
 
     // modify the contact poses, and the initial contact poses
     std::vector<std::string> eff_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
     std::vector<std::string> init_eff_name_vec = {"eef_rf", "eef_lf", "eef_rh", "eef_lh"};
-    for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
+    for(auto & manip : ALL_MANIPULATORS)
     {
-        optimization_cfg["contact_plan"]["num_contacts"][eff_id] = contact_sequence_interpreter_.contacts_per_endeff_[eff_id];
-        for(int cnt_id = 0; cnt_id < contact_sequence_interpreter_.contacts_per_endeff_[eff_id]; cnt_id++)
+        int eff_id = contact_manipulator_id_map_.find(manip)->second;
+        int num_contacts = contact_sequence_interpreter_.contacts_per_endeff_[eff_id];
+        bool init_pose_specified = false;
+        YAML::Node init_cnt_node = optimization_cfg["initial_robot_state"]["eef_pose"][init_eff_name_vec[eff_id]];
+
+        optimization_cfg["contact_plan"]["num_contacts"][eff_id] = num_contacts;
+        for(int cnt_id = 0; cnt_id < num_contacts; cnt_id++)
         {
             std::string eff_name = eff_name_vec[eff_id];
             std::string cnt_name = "cnt"+std::to_string(cnt_id);
@@ -1148,9 +1158,7 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
 
             if(cnt_obj.contactActivationTime() == 0)
             {
-                YAML::Node init_cnt_node = optimization_cfg["initial_robot_state"]["eef_pose"][init_eff_name_vec[eff_id]];
-
-                init_cnt_node[0] = 1;
+                init_cnt_node[0] = 1; // in contact
                 init_cnt_node[1] = cnt_obj.contactPosition()[0];
                 init_cnt_node[2] = cnt_obj.contactPosition()[1];
                 init_cnt_node[3] = cnt_obj.contactPosition()[2];
@@ -1158,10 +1166,31 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
                 init_cnt_node[5] = cnt_obj.contactOrientation().x();
                 init_cnt_node[6] = cnt_obj.contactOrientation().y();
                 init_cnt_node[7] = cnt_obj.contactOrientation().z();
+
+                init_pose_specified = true;
             }
+        }
+
+        if(!init_pose_specified)
+        {
+            RPYTF eff_pose = transformPoseFromOpenraveToSL(floating_initial_contact_poses[manip], ee_offset_transform_to_dynopt[manip]);
+            Quaternion eff_orientation_quat = RPYToQuaternion(eff_pose);
+
+            init_cnt_node[0] = 0; // not in contact
+            init_cnt_node[1] = eff_pose.x_;
+            init_cnt_node[2] = eff_pose.y_;
+            init_cnt_node[3] = eff_pose.z_;
+            init_cnt_node[4] = eff_orientation_quat.w();
+            init_cnt_node[5] = eff_orientation_quat.x();
+            init_cnt_node[6] = eff_orientation_quat.y();
+            init_cnt_node[7] = eff_orientation_quat.z();
+
+            init_pose_specified = true;
         }
     }
 
+    // TODO: modify the initial joint values
+    // DOFName -> ActiveDOFValues
 
     // modify the initial com, com dot, and the com displacement
     for(int i = 0; i < 3; i++)

@@ -338,6 +338,7 @@ float orientationDistance(const Quaternion& q, const Quaternion& p);
 
 // Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform transform);
 TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);

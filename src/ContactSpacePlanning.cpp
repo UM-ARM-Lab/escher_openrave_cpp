@@ -841,12 +841,12 @@ void ContactSpacePlanning::setupStateReachabilityIK(std::shared_ptr<ContactState
     general_ik_interface->CenterOfMass()[2] = current_state->mean_feet_position_[2] + robot_properties_->robot_z_;
 
     // Initial Configuration
-    std::vector<OpenRAVE::dReal> DOF0 = robot_properties_->IK_init_DOF_Values_;
-    DOF0[robot_properties_->DOFName_index_map_["x_prismatic_joint"]] = current_state->mean_feet_position_[0];
-    DOF0[robot_properties_->DOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
-    DOF0[robot_properties_->DOFName_index_map_["z_prismatic_joint"]] = current_state->mean_feet_position_[2] + 1.0;
-    DOF0[robot_properties_->DOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw() * DEG2RAD - M_PI/2.0;
-    general_ik_interface->robot_->SetDOFValues(DOF0);
+    std::vector<OpenRAVE::dReal> init_config = robot_properties_->IK_init_DOF_Values_;
+    init_config[robot_properties_->DOFName_index_map_["x_prismatic_joint"]] = current_state->mean_feet_position_[0];
+    init_config[robot_properties_->DOFName_index_map_["y_prismatic_joint"]] = current_state->mean_feet_position_[1];
+    init_config[robot_properties_->DOFName_index_map_["z_prismatic_joint"]] = current_state->mean_feet_position_[2] + 1.0;
+    init_config[robot_properties_->DOFName_index_map_["yaw_revolute_joint"]] = current_state->getFeetMeanHorizontalYaw() * DEG2RAD - M_PI/2.0;
+    general_ik_interface->robot_->SetDOFValues(init_config);
     general_ik_interface->robot_->GetActiveDOFValues(general_ik_interface->q0());
 
     general_ik_interface->balanceMode() = OpenRAVE::BalanceMode::BALANCE_NONE;
@@ -1658,12 +1658,13 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             if(one_step_dynamically_feasible)
                             {
-                                one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
-                                one_step_capture_dynamics_optimizer_interface_vector_[0]->exportConfigFiles("../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/cfg_kdopt_demo.yaml",
-                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf",
-                                                robot_properties_);
-                                std::cout << "AAA" << std::endl;
+                                exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                             one_step_capture_contact_state_sequence,
+                                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+                                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/cfg_kdopt_demo.yaml",
+                                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf");
+
+                                std::cout << "A one step capture has been recorded." << std::endl;
                                 getchar();
 
                                 disturbance_rejected = true;
@@ -2474,7 +2475,7 @@ bool ContactSpacePlanning::isReachedGoal(std::shared_ptr<ContactState> current_s
     // return current_state->max_manip_x_ > (goal_[0] - goal_radius_);
 }
 
-void ContactSpacePlanning::storeSLEnvironment()
+void ContactSpacePlanning::storeSLEnvironment() // for mixed integer implementation
 {
     // std::array<float,2> foot_erosion = {0.11, 0.055};
     // std::array<float,2> hand_erosion = {0.045, 0.045};
@@ -2523,6 +2524,41 @@ void ContactSpacePlanning::storeSLEnvironment()
 
         SL_region_list_fstream << "]" << std::endl;
     }
+
+}
+
+void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::shared_ptr<OptimizationInterface> optimizer_interface,
+                                                                        std::vector< std::shared_ptr<ContactState> > contact_sequence,
+                                                                        std::string optimization_config_template_path,
+                                                                        std::string optimization_config_output_path,
+                                                                        std::string objects_config_output_path)
+{
+    // construct the initial state for the optimization
+    setupStateReachabilityIK(contact_sequence[0], general_ik_interface_);
+    general_ik_interface_->returnClosest() = true;
+    general_ik_interface_->executeMotion() = true;
+    std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
+
+    std::map<ContactManipulator, RPYTF> floating_initial_contact_poses;
+
+    for(auto manip : ALL_MANIPULATORS)
+    {
+        if(!contact_sequence[0]->manip_in_contact(manip))
+        {
+            std::string manip_name = robot_properties_->manipulator_name_map_[manip];
+            OpenRAVE::Transform floating_manip_transform = general_ik_interface_->robot_->GetManipulator(manip_name)->GetTransform();
+            TransformationMatrix floating_manip_transform_matrix = constructTransformationMatrix(floating_manip_transform);
+            RPYTF floating_manip_pose = SE3ToXYZRPY(floating_manip_transform_matrix);
+
+            floating_initial_contact_poses[manip] = floating_manip_pose;
+        }
+    }
+
+    // generate the files
+    optimizer_interface->updateContactSequence(contact_sequence);
+    optimizer_interface->exportConfigFiles(optimization_config_template_path, optimization_config_output_path,
+                                           objects_config_output_path, floating_initial_contact_poses,
+                                           robot_properties_, ik_result.second);
 
 }
 

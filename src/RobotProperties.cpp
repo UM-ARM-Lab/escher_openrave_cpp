@@ -38,4 +38,20 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_LEG, "r_leg"));
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::L_ARM, "l_arm"));
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_ARM, "r_arm"));
+
+    // construct the DOF name - SL index map
+    // SL follows the sequence of left leg, right leg, left arm, right arm , and others. (at least for Athena)
+    // here we only do the mapping for the 4 manipulators
+    int SL_index_counter = 0;
+    for(auto & manip : ALL_MANIPULATORS)
+    {
+        auto manipulator = _robot->GetManipulator(manipulator_name_map_[manip]);
+
+        for(auto & rave_index : manipulator->GetArmIndices())
+        {
+            DOFName_SLindex_map_[_robot->GetJointFromDOFIndex(rave_index)->GetName()] = SL_index_counter;
+            SL_index_counter++;
+        }
+    }
+
 }

@@ -142,6 +142,12 @@ class ContactSpacePlanning
 
         void kinematicsVerification(std::vector< std::shared_ptr<ContactState> > contact_state_path);
         void kinematicsVerification_StateOnly(std::vector< std::shared_ptr<ContactState> > contact_state_path);
+
+        void exportContactSequenceOptimizationConfigFiles(std::shared_ptr<OptimizationInterface> optimizer_interface,
+                                                          std::vector< std::shared_ptr<ContactState> > contact_sequence,
+                                                          std::string optimization_config_template_path,
+                                                          std::string optimization_config_output_path,
+                                                          std::string objects_config_output_path);
 };
 
 #endif
