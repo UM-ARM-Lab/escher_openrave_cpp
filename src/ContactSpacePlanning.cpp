@@ -2539,6 +2539,9 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
     general_ik_interface_->executeMotion() = true;
     std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
 
+    std::vector<OpenRAVE::dReal> init_robot_config;
+    general_ik_interface_->robot_->GetDOFValues(init_robot_config);
+
     std::map<ContactManipulator, RPYTF> floating_initial_contact_poses;
 
     for(auto manip : ALL_MANIPULATORS)
@@ -2558,7 +2561,7 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
     optimizer_interface->updateContactSequence(contact_sequence);
     optimizer_interface->exportConfigFiles(optimization_config_template_path, optimization_config_output_path,
                                            objects_config_output_path, floating_initial_contact_poses,
-                                           robot_properties_, ik_result.second);
+                                           robot_properties_, init_robot_config);
 
 }
 

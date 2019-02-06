@@ -20,7 +20,7 @@ class RobotProperties
 
         std::map<ContactManipulator, std::string> manipulator_name_map_;
 
-        std::map<std::string, int> DOFName_SLindex_map_;
+        std::map<int, int> DOFindex_SLindex_map_;
 
         const std::vector<OpenRAVE::dReal> IK_init_DOF_Values_; // the OriginalDOFValues
         const std::vector<OpenRAVE::dReal> default_DOF_Values_; // the GazeboOriginalDOFValues

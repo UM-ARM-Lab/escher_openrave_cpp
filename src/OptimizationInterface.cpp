@@ -246,17 +246,25 @@ dynamics_optimizer_application_(_dynamics_optimizer_application)
     ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
 
     TransformationMatrix lh_offset_transform;
-    lh_offset_transform << 0, 0,-1, 0,
+    lh_offset_transform << 0, 0, 1, 0,
                            1, 0, 0, 0,
-                           0,-1, 0, 0,
+                           0, 1, 0, 0,
                            0, 0, 0, 1;
+    // lh_offset_transform <<  0, 0, 1, 0,
+    //                        -1, 0, 0, 0,
+    //                         0,-1, 0, 0,
+    //                         0, 0, 0, 1;
     ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
 
     TransformationMatrix rh_offset_transform;
-    rh_offset_transform << 0, 0,-1, 0,
-                          -1, 0, 0, 0,
-                           0, 1, 0, 0,
+    rh_offset_transform <<  0, 0, 1, 0,
+                           -1, 0, 0, 0,
+                           0, -1, 0, 0,
                            0, 0, 0, 1;
+    // rh_offset_transform << 0, 0, 1, 0,
+    //                        1, 0, 0, 0,
+    //                        0, 1, 0, 0,
+    //                        0, 0, 0, 1;
     ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
 }
 
@@ -1122,7 +1130,7 @@ void OptimizationInterface::exportConfigFiles(std::string optimization_config_te
 void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path,
                                                          std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
                                                          std::shared_ptr<RobotProperties> robot_properties,
-                                                         std::vector<OpenRAVE::dReal> initial_config)
+                                                         std::vector<OpenRAVE::dReal> initial_robot_config)
 {
     YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
 
@@ -1189,7 +1197,19 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
         }
     }
 
-    // TODO: modify the initial joint values
+    // modify the initial joint values
+    YAML::Node initial_robot_config_node = optimization_cfg["initial_robot_state"]["joints_state"];
+    YAML::Node default_robot_config_node = optimization_cfg["planner_variables"]["default_joints_state"];
+    for(int dof_id = 0; dof_id < initial_robot_config.size(); dof_id++)
+    {
+        if(robot_properties->DOFindex_SLindex_map_.find(dof_id) != robot_properties->DOFindex_SLindex_map_.end())
+        {
+            int SL_id = robot_properties->DOFindex_SLindex_map_[dof_id];
+            initial_robot_config_node[SL_id] = initial_robot_config[dof_id];
+            // default_robot_config_node[SL_id] = initial_robot_config[dof_id];
+        }
+    }
+
     // DOFName -> ActiveDOFValues
 
     // modify the initial com, com dot, and the com displacement
