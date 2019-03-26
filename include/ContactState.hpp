@@ -148,6 +148,12 @@ namespace std
                 hash_number ^= hash<float>()(contact_state.com_dot_(0)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
                 hash_number ^= hash<float>()(contact_state.com_dot_(1)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
                 hash_number ^= hash<float>()(contact_state.com_dot_(2)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.lmom_(0)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.lmom_(1)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.lmom_(2)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.amom_(0)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.amom_(1)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(contact_state.amom_(2)) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
 
                 return hash_number;
             }

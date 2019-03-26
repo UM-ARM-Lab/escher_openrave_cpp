@@ -9,14 +9,14 @@ import IPython
 #initialize link configuration
 def escher(env, active_dof_mode='whole_body', urdf_name=None):
 
-    # urdf = 'package://escher_openrave_models/robot/escher_v2.kinbody.urdf'
-    # srdf = 'package://escher_openrave_models/robot/escher.robot.srdf'
-    # urdf = 'package://escher_openrave_models/robot/new_escher.urdf'
-    urdf = 'package://escher_openrave_models/robot/new_escher_chest_modified.urdf'
-    srdf = 'package://escher_openrave_models/robot/escher.srdf'
+    # urdf = 'package://escher_description/robot/escher_v2.kinbody.urdf'
+    # srdf = 'package://escher_description/robot/escher.robot.srdf'
+    # urdf = 'package://escher_description/robot/new_escher.urdf'
+    urdf = 'package://escher_description/robot/new_escher_chest_modified.urdf'
+    srdf = 'package://escher_description/robot/escher.srdf'
 
     if(urdf_name is not None):
-        urdf = 'package://escher_openrave_models/robot/' + urdf_name + '.urdf'
+        urdf = 'package://escher_description/robot/' + urdf_name + '.urdf'
 
     escher = HumanoidRobot(env, urdf_path=urdf, srdf_path=srdf)
 

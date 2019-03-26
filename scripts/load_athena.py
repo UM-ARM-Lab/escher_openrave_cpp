@@ -9,13 +9,13 @@ import IPython
 #initialize link configuration
 def athena(env, active_dof_mode='whole_body', urdf_name=None):
 
-    # urdf = 'package://athena_openrave_models/robot/athena_step_interpolation.urdf'
-    # urdf = 'package://athena_openrave_models/robot/athena_ik_fast_test.urdf'
-    urdf = 'package://athena_openrave_models/robot/athena.urdf'
-    srdf = 'package://athena_openrave_models/robot/athena.srdf'
+    # urdf = 'package://athena_description/robot/athena_step_interpolation.urdf'
+    # urdf = 'package://athena_description/robot/athena_ik_fast_test.urdf'
+    urdf = 'package://athena_description/robot/athena.urdf'
+    srdf = 'package://athena_description/robot/athena.srdf'
 
     if(urdf_name is not None):
-        urdf = 'package://athena_openrave_models/robot/' + urdf_name + '.urdf'
+        urdf = 'package://athena_description/robot/' + urdf_name + '.urdf'
 
     athena = HumanoidRobot(env, urdf_path=urdf, srdf_path=srdf)
 
