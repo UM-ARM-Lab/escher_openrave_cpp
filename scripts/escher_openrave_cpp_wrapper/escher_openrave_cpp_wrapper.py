@@ -129,24 +129,25 @@ class escher_openrave_cpp_wrapper(object):
         for foot_transition in foot_transition_model:
             cmd.extend(foot_transition)
 
-    def AppendRobotPropertiesCommand(self,cmd,escher):
+    def AppendRobotPropertiesCommand(self,cmd,robot):
         cmd.append('robot_properties')
-        for v in escher.OriginalDOFValues:
+        for v in robot.OriginalDOFValues:
             cmd.append(v)
-        for v in escher.GazeboOriginalDOFValues:
+        for v in robot.GazeboOriginalDOFValues:
             cmd.append(v)
 
-        cmd.append(escher.foot_h)
-        cmd.append(escher.foot_w)
-        cmd.append(escher.hand_h)
-        cmd.append(escher.hand_w)
-        cmd.append(escher.robot_z)
-        cmd.append(escher.top_z)
-        cmd.append(escher.shoulder_z)
-        cmd.append(escher.shoulder_w)
-        cmd.append(escher.max_arm_length)
-        cmd.append(escher.min_arm_length)
-        cmd.append(escher.max_stride)
+        cmd.append(robot.foot_h)
+        cmd.append(robot.foot_w)
+        cmd.append(robot.hand_h)
+        cmd.append(robot.hand_w)
+        cmd.append(robot.robot_z)
+        cmd.append(robot.top_z)
+        cmd.append(robot.shoulder_z)
+        cmd.append(robot.shoulder_w)
+        cmd.append(robot.max_arm_length)
+        cmd.append(robot.min_arm_length)
+        cmd.append(robot.max_stride)
+        cmd.append(robot.mass)
 
     def SendStartCalculatingTraversabilityCommand(self,structures=None,footstep_windows_legs_only=None,footstep_windows=None,torso_transitions=None,footstep_window_grid_resolution=None,
                                                   dh_grid=None,hand_transition_model=None,parallelization=None,printing=False):
@@ -347,7 +348,7 @@ class escher_openrave_cpp_wrapper(object):
 
         return (contact_points_values,contact_regions_values)
 
-    def SendStartTestingDynamicsOptimization(self,initial_state, initial_state_com, initial_state_com_dot, second_state):
+    def SendStartTestingDynamicsOptimization(self,initial_state, initial_state_com, initial_state_com_dot, initial_state_lmom, initial_state_amom, second_state):
 
         cmd = ['StartTestingTransitionDynamicsOptimization']
 
@@ -369,6 +370,8 @@ class escher_openrave_cpp_wrapper(object):
 
             cmd.extend(initial_state_com)
             cmd.extend(initial_state_com_dot)
+            cmd.extend(initial_state_lmom)
+            cmd.extend(initial_state_amom)
 
         if second_state is not None:
             cmd.append('second_state')
@@ -386,6 +389,8 @@ class escher_openrave_cpp_wrapper(object):
                 else:
                     cmd.append(1)
 
+            cmd.extend([0,0,0])
+            cmd.extend([0,0,0])
             cmd.extend([0,0,0])
             cmd.extend([0,0,0])
 
@@ -533,7 +538,9 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append(mean_feet_xyzrpy[0])
             cmd.append(mean_feet_xyzrpy[1])
             cmd.append(mean_feet_xyzrpy[2] + escher.robot_z)
-            cmd.extend([0, 0, 0])
+            cmd.extend([0, 0, 0]) # com_dot
+            cmd.extend([0, 0, 0]) # lmom
+            cmd.extend([0, 0, 0]) # amom
 
         else:
             print('initial state and robot properties(escher) is required for planning. Abort.')

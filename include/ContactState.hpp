@@ -3,6 +3,7 @@
 
 #include <momentumopt/dynopt/DynamicsState.hpp>
 
+class CapturePose;
 class ContactState;
 
 class Stance
@@ -28,7 +29,7 @@ class ContactState
 {
     public:
         // ContactState():num_stance_in_state_(0), is_root_(false){}
-        ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state, bool _is_root=true);
+        ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, Vector3D _initial_lmom, Vector3D _initial_amom, int _num_stance_in_state, bool _is_root=true);
         ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float _robot_com_z);
         // ~ContactState(){}
 
@@ -38,12 +39,16 @@ class ContactState
         float getFeetMeanHorizontalYaw();
         TransformationMatrix getFeetMeanTransform();
 
+        void printStateInfo();
+
         const int num_stance_in_state_;
 
         std::vector<std::shared_ptr<Stance> > stances_vector_;
         Translation3D nominal_com_;
         Translation3D com_;
-        Vector3D com_dot_;
+        Vector3D com_dot_; // probably will switch to use lmom and amom to track the linear momentum and angular momentum of the state. right now keep copies of both the lmom and com_dot
+        Vector3D lmom_;
+        Vector3D amom_;
 
         Translation3D mean_feet_position_;
 
@@ -55,6 +60,8 @@ class ContactState
         float priority_value_;
         float accumulated_dynamics_cost_;
         float max_manip_x_;
+
+        float prev_disturbance_cost_;
 
         ExploreState explore_state_;
 
@@ -88,8 +95,24 @@ class ContactState
         std::pair<OneStepCaptureCode, std::vector<RPYTF> > getOneStepCapturabilityCodeAndPoses();
         std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();
 
+        std::vector<CapturePose> capture_poses_vector_; // a list of capture states during the motion from prev_state to current_state
+
     private:
 
+};
+
+class CapturePose
+{
+    public:
+        CapturePose(ContactManipulator _contact_manip, RPYTF _capture_pose, Vector3D _post_impact_lmom, Vector3D _post_impact_amom) :
+        contact_manip_(_contact_manip),
+        capture_pose_(_capture_pose),
+        post_impact_lmom_(_post_impact_lmom),
+        post_impact_amom_(_post_impact_amom) {};
+        ContactManipulator contact_manip_;
+        RPYTF capture_pose_;
+        Vector3D post_impact_lmom_;
+        Vector3D post_impact_amom_;
 };
 
 

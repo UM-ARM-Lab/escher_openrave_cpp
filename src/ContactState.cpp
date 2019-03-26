@@ -46,10 +46,12 @@ bool Stance::operator!=(const Stance& other) const
 }
 
 // Constructor for the initial state
-ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, int _num_stance_in_state, bool _is_root):
+ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, Vector3D _initial_lmom, Vector3D _initial_amom, int _num_stance_in_state, bool _is_root):
                            is_root_(_is_root),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
+                           lmom_(_initial_lmom),
+                           amom_(_initial_amom),
                            num_stance_in_state_(_num_stance_in_state),
                            explore_state_(ExploreState::OPEN),
                            g_(0.0),
@@ -145,7 +147,9 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
     this->mean_feet_position_[2] /= feet_contact_num;
     this->com_[2] += _robot_com_z;
 
-    this->com_dot_ = Vector3D(0, 0, 0);
+    this->com_dot_ = Vector3D::Zero();
+    this->lmom_ = Vector3D::Zero();
+    this->amom_ = Vector3D::Zero();
     this->nominal_com_ = this->com_;
 
     // initialize the explore states
@@ -312,7 +316,16 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
     transformed_com_dot[1] = -transformed_com_dot[1];
     Vector3D mirror_com_dot = reference_frame_rotation * transformed_com_dot;
 
-    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, 1, is_root_);
+    Vector3D transformed_lmom = inv_reference_frame_rotation * lmom_;
+    transformed_lmom[1] = -transformed_lmom[1];
+    Vector3D mirror_lmom = reference_frame_rotation * transformed_lmom;
+
+    Vector3D transformed_amom = inv_reference_frame_rotation * amom_;
+    transformed_amom[0] = -transformed_amom[0];
+    transformed_amom[2] = -transformed_amom[2];
+    Vector3D mirror_amom = reference_frame_rotation * transformed_amom;
+
+    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, mirror_lmom, mirror_amom, 1, is_root_);
     if(!is_root_)
     {
         mirror_state->prev_move_manip_ = mirror_manip_vec[int(prev_move_manip_)];
@@ -352,8 +365,10 @@ std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatri
     // mirror the com and com dot
     Translation3D centered_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
     Vector3D centered_com_dot = inv_reference_frame_rotation * com_dot_;
+    Vector3D centered_lmom = inv_reference_frame_rotation * lmom_;
+    Vector3D centered_amom = inv_reference_frame_rotation * amom_;
 
-    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, 1, is_root_);
+    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, centered_lmom, centered_amom, 1, is_root_);
     if(!is_root_)
     {
         centered_state->prev_move_manip_ = prev_move_manip_;
@@ -528,7 +543,8 @@ std::pair<OneStepCaptureCode, std::vector<RPYTF> > ContactState::getOneStepCaptu
     //     ONE_FOOT_AND_INNER_HAND_ADD_HAND,   // 5
     //     ONE_FOOT_AND_OUTER_HAND_ADD_FOOT,   // 6
     //     ONE_FOOT_AND_OUTER_HAND_ADD_HAND,   // 7
-    //     TWO_FEET_AND_ONE_HAND_ADD_HAND      // 8
+    //     ONE_FOOT_AND_TWO_HANDS_ADD_FOOT,    // 8
+    //     TWO_FEET_AND_ONE_HAND_ADD_HAND      // 9
     // };
 
     const std::array<bool,ContactManipulator::MANIP_NUM> only_left_foot = {true,false,false,false};
@@ -713,4 +729,29 @@ std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > ContactState::getZeroStepCap
     }
 
     return std::make_pair(zero_step_capture_code, contact_manip_pose_vec);
+}
+
+void ContactState::printStateInfo()
+{
+    std::vector<std::string> contact_manip_name_vector = {"L_LEG", "R_LEG", "L_ARM", "R_ARM"};
+    std::cout << "contact manipulator: " << std::endl;
+
+    for(int i = 0; i < stances_vector_[0]->ee_contact_poses_.size(); i++)
+    {
+        if(stances_vector_[0]->ee_contact_status_[i])
+        {
+            std::cout << contact_manip_name_vector[i] << ": ";
+            stances_vector_[0]->ee_contact_poses_[i].printPose();
+        }
+    }
+
+    std::cout << "com: " << com_.transpose() << std::endl;
+    std::cout << "com dot: " << com_dot_.transpose() << std::endl;
+    std::cout << "is root: " << is_root_ << std::endl;
+
+    if(!is_root_)
+    {
+        std::cout << "prev move manip: " << prev_move_manip_ << std::endl;
+    }
+
 }

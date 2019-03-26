@@ -8,16 +8,18 @@ static const std::map<ContactManipulator, int> contact_manipulator_id_map_ = {{C
 
 static std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt;
 
+static float epsilon_time = 0.001; // for numerical stability
+
 
 void ContactPlanFromContactSequence::addContact(int eff_id, RPYTF& eff_pose, bool prev_in_contact)
 {
     int cnt_id = this->contacts_per_endeff_[eff_id];
     this->contactSequence().endeffectorContacts(eff_id).push_back(momentumopt::ContactState());
 
-    this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() = this->timer_;
+    this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactActivationTime() = this->timer_ - epsilon_time;
     if(prev_in_contact)
     {
-        this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_ - this->step_transition_time_;
+        this->contactSequence().endeffectorContacts(eff_id)[cnt_id-1].contactDeactivationTime() = this->timer_ - this->step_transition_time_ + epsilon_time;
     }
 
     this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactPosition() = Eigen::Vector3d(eff_pose.x_, eff_pose.y_, eff_pose.z_);
@@ -133,7 +135,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                     getchar();
                 }
                 cnt_id = this->contacts_per_endeff_[eff_id] - 1;
-                this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() = this->timer_;
+                this->contactSequence().endeffectorContacts(eff_id)[cnt_id].contactDeactivationTime() = this->timer_ + epsilon_time;
                 this->timer_ += this->step_transition_time_;
                 eff_final_in_contact[eff_id] = false;
             }
@@ -250,21 +252,13 @@ dynamics_optimizer_application_(_dynamics_optimizer_application)
                            1, 0, 0, 0,
                            0, 1, 0, 0,
                            0, 0, 0, 1;
-    // lh_offset_transform <<  0, 0, 1, 0,
-    //                        -1, 0, 0, 0,
-    //                         0,-1, 0, 0,
-    //                         0, 0, 0, 1;
     ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
 
     TransformationMatrix rh_offset_transform;
-    rh_offset_transform <<  0, 0, 1, 0,
-                           -1, 0, 0, 0,
-                           0, -1, 0, 0,
-                           0, 0, 0, 1;
-    // rh_offset_transform << 0, 0, 1, 0,
-    //                        1, 0, 0, 0,
-    //                        0, 1, 0, 0,
-    //                        0, 0, 0, 1;
+    rh_offset_transform <<  0,  0, 1, 0,
+                           -1,  0, 0, 0,
+                            0, -1, 0, 0,
+                            0,  0, 0, 1;
     ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
 }
 
@@ -397,8 +391,10 @@ void OptimizationInterface::fillInitialRobotState()
 
     // CoM and momenta
     initial_state_.centerOfMass() = transformPositionFromOpenraveToSL(initial_contact_state->com_);
-    initial_state_.linearMomentum() = robot_mass * rotateVectorFromOpenraveToSL(initial_contact_state->com_dot_);
-    initial_state_.angularMomentum() = Eigen::Vector3d(0, 0, 0);
+    // initial_state_.linearMomentum() = robot_mass * rotateVectorFromOpenraveToSL(initial_contact_state->com_dot_);
+    // initial_state_.angularMomentum() = Eigen::Vector3d(0, 0, 0);
+    initial_state_.linearMomentum() = rotateVectorFromOpenraveToSL(initial_contact_state->lmom_);
+    initial_state_.angularMomentum() = rotateVectorFromOpenraveToSL(initial_contact_state->amom_);
 
     // Contact poses, and forces
     int eff_id;
@@ -528,7 +524,10 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
 
     int final_time_id = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
     // std::cout << "Total Timesteps: " << optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
-    // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
+    std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
+
+    std::cout << "using ang limit: " << optimizer_setting_.get(momentumopt::PlannerBoolParam::PlannerBoolParam_UseAngularMomentumLimits)
+              << ", ang limit: " << optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_MaxAngularMomentumLimits)[0] << ", ";
 
     // storeResultDigest(solver_exitcode, dynopt_result_digest_);
 
@@ -541,11 +540,18 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
         if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT ||
            dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
         {
-            for(int time_id = 0; time_id < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps); time_id++)
+            if(optimizer_setting_.get(momentumopt::PlannerBoolParam::PlannerBoolParam_UseAngularMomentumLimits))
             {
-                if(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum().norm() > 0.01)
+                for(int time_id = 0; time_id < optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps); time_id++)
                 {
-                    return false;
+                    for(int axis_id = 0; axis_id < 3; axis_id++)
+                    {
+                        if(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum()[axis_id] > optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_MaxAngularMomentumLimits)[axis_id] ||
+                           dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum()[axis_id] < optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_MinAngularMomentumLimits)[axis_id])
+                        {
+                            return false;
+                        }
+                    }
                 }
             }
         }
@@ -835,6 +841,9 @@ void OptimizationInterface::updateStateCoM(std::shared_ptr<ContactState> contact
     contact_state->com_ = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).centerOfMass());
     contact_state->com_dot_ = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).linearMomentum()) / robot_mass;
 
+    contact_state->lmom_ = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).linearMomentum());
+    contact_state->amom_ = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).angularMomentum());
+
     // contact_state->com_ = goal_com.cast<float>();
     // contact_state->com_dot_ = goal_lmom.cast<float>() / robot_mass;
 }
@@ -857,7 +866,7 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
     Vector3D com_motion_Openrave = rotateVectorFromSLToOpenrave(com_motion_SL);
     Translation3D goal_com = initial_com_Openrave.cast<float>() + com_motion_Openrave;
     Translation3D final_com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(final_time_id).centerOfMass());
-    Eigen::Vector3d initial_lmon = initial_state_.linearMomentum();
+    Eigen::Vector3d initial_lmom = initial_state_.linearMomentum();
 
     // std::cout << "Initial CoM: " << initial_com_Openrave.transpose() << std::endl;
     // std::cout << "CoM Motion: " << com_motion_Openrave.transpose() << std::endl;
@@ -877,7 +886,7 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
                 << initial_com_Openrave(0) << ", " << initial_com_Openrave(1) << ", " << initial_com_Openrave(2) << ", "
                 << goal_com(0) << ", " << goal_com(1) << ", " << goal_com(2) << ", "
                 << final_com(0) << ", " << final_com(1) << ", " << final_com(2) << ", "
-                << initial_lmon(0) << ", " << initial_lmon(1) << ", " << initial_lmon(2) << ", "
+                << initial_lmom(0) << ", " << initial_lmom(1) << ", " << initial_lmom(2) << ", "
                 // << com_objective << ", "
                 << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", "
                 // << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) - com_objective << ", "
@@ -928,6 +937,78 @@ void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, 
     // getchar();
 }
 
+void OptimizationInterface::storeDynamicsOptimizationFeature(std::shared_ptr<ContactState> input_current_state, std::string config_file_folder, int file_index)
+{
+    // mirror the data if the robot is using the right side of the manipulators
+    std::shared_ptr<ContactState> current_state = input_current_state->getStandardInputState(dynamics_optimizer_application_);
+    std::shared_ptr<ContactState> prev_state = current_state->parent_;
+
+    int motion_code;
+    std::vector<RPYTF> contact_poses_vector;
+    std::string file_name;
+
+    if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
+    {
+        auto motion_code_poses_pair = current_state->getTransitionCodeAndPoses();
+        motion_code = int(motion_code_poses_pair.first);
+        contact_poses_vector = motion_code_poses_pair.second;
+        file_name = "contact_transition_feature_" + std::to_string(file_index) + ".txt";
+    }
+    else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+    {
+        auto motion_code_poses_pair = current_state->getOneStepCapturabilityCodeAndPoses();
+        motion_code = int(motion_code_poses_pair.first);
+        contact_poses_vector = motion_code_poses_pair.second;
+        file_name = "one_step_capture_feature_" + std::to_string(file_index) + ".txt";
+    }
+    else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+    {
+        auto motion_code_poses_pair = current_state->getZeroStepCapturabilityCodeAndPoses();
+        motion_code = int(motion_code_poses_pair.first);
+        contact_poses_vector = motion_code_poses_pair.second;
+        file_name = "zero_step_capture_feature_" + std::to_string(file_index) + ".txt";
+    }
+
+    // get all the contact pose combination
+    std::vector< std::vector<RPYTF> > all_contact_pose_combinations = getAllContactPoseCombinations(contact_poses_vector);
+
+    // output the feature vector
+    std::string file_path = config_file_folder + file_name;
+    std::ofstream dynopt_feature_fstream(file_path, std::ofstream::trunc);
+
+    for(auto & contact_pose_combination : all_contact_pose_combinations)
+    {
+        // contact state code
+        dynopt_feature_fstream << motion_code << " ";
+
+        // get the contact poses
+        for(auto & contact_pose : contact_pose_combination)
+        {
+            dynopt_feature_fstream << contact_pose.x_ << " "
+                                  << contact_pose.y_ << " "
+                                  << contact_pose.z_ << " "
+                                  << contact_pose.roll_ * DEG2RAD << " "
+                                  << contact_pose.pitch_ * DEG2RAD << " "
+                                  << contact_pose.yaw_ * DEG2RAD << " ";
+        }
+
+        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        {
+            dynopt_feature_fstream << prev_state->com_[0] << " " << prev_state->com_[1] << " " << prev_state->com_[2] << " ";
+            dynopt_feature_fstream << prev_state->com_dot_[0] << " " << prev_state->com_dot_[1] << " " << prev_state->com_dot_[2] << " ";
+        }
+        else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
+        {
+            dynopt_feature_fstream << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " ";
+            dynopt_feature_fstream << current_state->com_dot_[0] << " " << current_state->com_dot_[1] << " " << current_state->com_dot_[2] << " ";
+        }
+
+        dynopt_feature_fstream << std::endl;
+    }
+
+    dynopt_feature_fstream.close();
+}
+
 void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id)
 {
     // mirror the data if the robot is using the right side of the manipulators
@@ -935,14 +1016,14 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     std::shared_ptr<ContactState> prev_state = current_state->parent_;
 
     int motion_code;
-    std::vector<RPYTF> contact_manip_pose_vec;
+    std::vector<RPYTF> contact_poses_vector;
     std::string feasible_record_file_name, infeasible_record_file_name;
 
     if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
     {
         auto transition_code_poses_pair = current_state->getTransitionCodeAndPoses();
         motion_code = int(transition_code_poses_pair.first);
-        contact_manip_pose_vec = transition_code_poses_pair.second;
+        contact_poses_vector = transition_code_poses_pair.second;
         feasible_record_file_name = "../data/dynopt_result/contact_transition_dynopt_result_" + std::to_string(planning_id) + ".txt";
         infeasible_record_file_name = "../data/dynopt_result/contact_transition_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
@@ -950,7 +1031,7 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     {
         auto capturability_code_poses_pair = current_state->getOneStepCapturabilityCodeAndPoses();
         motion_code = int(capturability_code_poses_pair.first);
-        contact_manip_pose_vec = capturability_code_poses_pair.second;
+        contact_poses_vector = capturability_code_poses_pair.second;
         feasible_record_file_name = "../data/dynopt_result/one_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
         infeasible_record_file_name = "../data/dynopt_result/one_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
@@ -958,48 +1039,12 @@ void OptimizationInterface::storeDynamicsOptimizationResult(std::shared_ptr<Cont
     {
         auto capturability_code_poses_pair = current_state->getZeroStepCapturabilityCodeAndPoses();
         motion_code = int(capturability_code_poses_pair.first);
-        contact_manip_pose_vec = capturability_code_poses_pair.second;
+        contact_poses_vector = capturability_code_poses_pair.second;
         feasible_record_file_name = "../data/dynopt_result/zero_step_capture_dynopt_result_" + std::to_string(planning_id) + ".txt";
         infeasible_record_file_name = "../data/dynopt_result/zero_step_capture_dynopt_result_infeasible_" + std::to_string(planning_id) + ".txt";
     }
 
-    unsigned int contact_pose_num = contact_manip_pose_vec.size();
-    std::vector< std::vector<RPYTF> > possible_contact_pose_representation(contact_pose_num);
-    float angle_duplication_range = 90;
-
-    for(unsigned int i = 0; i < contact_pose_num; i++)
-    {
-        RPYTF contact_pose = contact_manip_pose_vec[i];
-        std::array<std::vector<float>,3> possible_rpy;
-
-        for(int j = 3; j < 6; j++)
-        {
-            possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]);
-            if(contact_pose.getXYZRPY()[j] > 180-angle_duplication_range/2.0)
-            {
-                possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]-360);
-            }
-            else if(contact_pose.getXYZRPY()[j] < -180+angle_duplication_range/2.0)
-            {
-                possible_rpy[j-3].push_back(contact_pose.getXYZRPY()[j]+360);
-            }
-        }
-
-        for(auto & roll : possible_rpy[0])
-        {
-            for(auto & pitch : possible_rpy[1])
-            {
-                for(auto & yaw : possible_rpy[2])
-                {
-                    possible_contact_pose_representation[i].push_back(RPYTF(contact_pose.x_, contact_pose.y_, contact_pose.z_, roll, pitch, yaw));
-                }
-            }
-        }
-    }
-
-    std::vector< std::vector<RPYTF> > all_contact_pose_combinations;
-    std::vector<RPYTF> contact_pose_combination_placeholder(contact_pose_num);
-    getAllContactPoseCombinations(all_contact_pose_combinations, possible_contact_pose_representation, 0, contact_pose_combination_placeholder);
+    std::vector< std::vector<RPYTF> > all_contact_pose_combinations = getAllContactPoseCombinations(contact_poses_vector);
 
     if(dynamically_feasible)
     {
@@ -1116,21 +1161,20 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
 
 void OptimizationInterface::exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
                                               std::string objects_config_output_path, std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                                              std::shared_ptr<RobotProperties> robot_properties, std::vector<OpenRAVE::dReal> initial_config)
+                                              std::shared_ptr<RobotProperties> robot_properties)
 {
     this->initializeDynamicsOptimizer();
     this->fillInitialRobotState();
     this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
 
     exportOptimizationConfigFile(optimization_config_template_path, optimization_config_output_path,
-                                 floating_initial_contact_poses, robot_properties, initial_config);
+                                 floating_initial_contact_poses, robot_properties);
     exportSLObjectsFile(objects_config_output_path, robot_properties);
 }
 
 void OptimizationInterface::exportOptimizationConfigFile(std::string template_path, std::string output_path,
                                                          std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                                                         std::shared_ptr<RobotProperties> robot_properties,
-                                                         std::vector<OpenRAVE::dReal> initial_robot_config)
+                                                         std::shared_ptr<RobotProperties> robot_properties)
 {
     YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
 
@@ -1164,7 +1208,7 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
             cnt_node[9] = float(cnt_obj.contactType());
             cnt_node[10] = -1.0;
 
-            if(cnt_obj.contactActivationTime() == 0)
+            if(cnt_obj.contactActivationTime() <= 0)
             {
                 init_cnt_node[0] = 1; // in contact
                 init_cnt_node[1] = cnt_obj.contactPosition()[0];
@@ -1197,20 +1241,16 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
         }
     }
 
-    // modify the initial joint values
-    YAML::Node initial_robot_config_node = optimization_cfg["initial_robot_state"]["joints_state"];
-    YAML::Node default_robot_config_node = optimization_cfg["planner_variables"]["default_joints_state"];
-    for(int dof_id = 0; dof_id < initial_robot_config.size(); dof_id++)
-    {
-        if(robot_properties->DOFindex_SLindex_map_.find(dof_id) != robot_properties->DOFindex_SLindex_map_.end())
-        {
-            int SL_id = robot_properties->DOFindex_SLindex_map_[dof_id];
-            initial_robot_config_node[SL_id] = initial_robot_config[dof_id];
-            // default_robot_config_node[SL_id] = initial_robot_config[dof_id];
-        }
-    }
-
-    // DOFName -> ActiveDOFValues
+    // // modify the initial joint values
+    // YAML::Node initial_robot_config_node = optimization_cfg["initial_robot_state"]["joints_state"];
+    // for(int dof_id = 0; dof_id < initial_robot_config.size(); dof_id++)
+    // {
+    //     if(robot_properties->DOFindex_SLindex_map_.find(dof_id) != robot_properties->DOFindex_SLindex_map_.end())
+    //     {
+    //         int SL_id = robot_properties->DOFindex_SLindex_map_[dof_id];
+    //         initial_robot_config_node[SL_id] = initial_robot_config[dof_id];
+    //     }
+    // }
 
     // modify the initial com, com dot, and the com displacement
     for(int i = 0; i < 3; i++)

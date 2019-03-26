@@ -23,6 +23,7 @@ import load_athena
 
 # from config_parameter import *
 from transformation_conversion import *
+from optim_config_generator import *
 from environment_handler_2 import environment_handler
 from escher_openrave_cpp_wrapper import escher_openrave_cpp_wrapper
 
@@ -247,6 +248,8 @@ def main(meta_path_generation_method='all_planning',
                                         disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
                                         0, 1.0/disturbance_sample_num])
 
+        generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+
         # for collect data
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
                                                 escher=escher,
@@ -258,8 +261,8 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=120.0,
-                                                planning_heuristics='euclidean',
+                                                time_limit=300.0,
+                                                planning_heuristics='dijkstra',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,
                                                 goal_as_exact_poses=False,

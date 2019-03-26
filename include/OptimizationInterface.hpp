@@ -125,6 +125,7 @@ class OptimizationInterface
         void storeResultDigest(solver::ExitCode solver_exitcode, std::ofstream& file_stream);
 
         void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id);
+        void storeDynamicsOptimizationFeature(std::shared_ptr<ContactState> input_current_state, std::string config_file_folder, int file_index);
 
         void drawCoMTrajectory(std::shared_ptr<DrawingHandler> drawing_handler, Vector3D color);
 
@@ -134,12 +135,10 @@ class OptimizationInterface
         void exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
                                std::string objects_config_output_path,
                                std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                               std::shared_ptr<RobotProperties> robot_properties,
-                               std::vector<OpenRAVE::dReal> initial_config);
+                               std::shared_ptr<RobotProperties> robot_properties);
         void exportOptimizationConfigFile(std::string template_path, std::string output_path,
                                           std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                                          std::shared_ptr<RobotProperties> robot_properties,
-                                          std::vector<OpenRAVE::dReal> initial_robot_config);
+                                          std::shared_ptr<RobotProperties> robot_properties);
         void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
 
         float step_transition_time_;

@@ -2,7 +2,7 @@
 
 RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<OpenRAVE::dReal> _IK_init_DOF_Values, std::vector<OpenRAVE::dReal> _default_DOF_Values,
                                  float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z,
-                                 float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride):
+                                 float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride, float _mass):
     name_(_robot->GetName()),
     IK_init_DOF_Values_(_IK_init_DOF_Values),
     default_DOF_Values_(_default_DOF_Values),
@@ -18,7 +18,8 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     shoulder_w_(_shoulder_w),
     max_arm_length_(_max_arm_length),
     min_arm_length_(_min_arm_length),
-    max_stride_(_max_stride)
+    max_stride_(_max_stride),
+    mass_(_mass)
 {
     for(auto &joint : _robot->GetJoints())
     {
@@ -39,20 +40,43 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::L_ARM, "l_arm"));
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_ARM, "r_arm"));
 
-    // construct the DOF name - SL index map
-    // SL follows the sequence of left leg, right leg, left arm, right arm , and others. (at least for Athena)
-    // here we only do the mapping for the 4 manipulators
-    const std::vector<ContactManipulator> SL_MANIPULATOR_SEQ = {ContactManipulator::L_ARM, ContactManipulator::R_ARM, ContactManipulator::L_LEG, ContactManipulator::R_LEG};
-    int SL_index_counter = 0;
-    for(auto & manip : SL_MANIPULATOR_SEQ)
+    if(name_ == "athena")
     {
-        auto manipulator = _robot->GetManipulator(manipulator_name_map_[manip]);
-
-        for(auto & rave_index : manipulator->GetArmIndices())
+        // construct the DOF name - SL index map
+        // SL follows the sequence of left arm, right arm, left leg, right leg, torso joints, and floating base joints. (at least for Athena)
+        // here we only do the mapping for the 4 manipulators
+        const std::vector<ContactManipulator> SL_MANIPULATOR_SEQ = {ContactManipulator::L_ARM, ContactManipulator::R_ARM, ContactManipulator::L_LEG, ContactManipulator::R_LEG};
+        int SL_index_counter = 0;
+        for(auto & manip : SL_MANIPULATOR_SEQ)
         {
-            DOFindex_SLindex_map_[rave_index] = SL_index_counter;
-            SL_index_counter++;
+            auto manipulator = _robot->GetManipulator(manipulator_name_map_[manip]);
+
+            for(auto & rave_index : manipulator->GetArmIndices())
+            {
+                DOFindex_SLindex_map_[rave_index] = SL_index_counter++;
+            }
         }
+
+        // torso dofs
+        DOFindex_SLindex_map_[_robot->GetJoint("B_TR")->GetJointIndex()] = SL_index_counter++;
+        DOFindex_SLindex_map_[_robot->GetJoint("B_TAA")->GetJointIndex()] = SL_index_counter++;
+
+        // // L_THR, L_THF, L_IF, L_MF, L_RF, R_THR, R_THF, R_IF, R_MF, R_RF joints (seems to be the finger joints?)
+        // SL_index_counter += 10;
+
+        // // floating base dofs
+        // DOFindex_SLindex_map_[_robot->GetJoint("x_prismatic_joint")->GetJointIndex()] = SL_index_counter++;
+        // DOFindex_SLindex_map_[_robot->GetJoint("y_prismatic_joint")->GetJointIndex()] = SL_index_counter++;
+        // DOFindex_SLindex_map_[_robot->GetJoint("z_prismatic_joint")->GetJointIndex()] = SL_index_counter++;
+        // DOFindex_SLindex_map_[_robot->GetJoint("roll_revolute_joint")->GetJointIndex()] = SL_index_counter++;
+        // DOFindex_SLindex_map_[_robot->GetJoint("pitch_revolute_joint")->GetJointIndex()] = SL_index_counter++;
+        // DOFindex_SLindex_map_[_robot->GetJoint("yaw_revolute_joint")->GetJointIndex()] = SL_index_counter++;
     }
+    else
+    {
+        RAVELOG_WARN("%s robot's DOF index to SL index mapping is not defined.\n", name_);
+        getchar();
+    }
+
 
 }

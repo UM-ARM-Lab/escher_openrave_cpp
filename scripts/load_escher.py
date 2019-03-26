@@ -144,4 +144,6 @@ def escher(env, active_dof_mode='whole_body', urdf_name=None):
 
     escher.OriginalDOFValues = escher.robot.GetDOFValues()
 
+    escher.mass = 50 ## not verified
+
     return escher

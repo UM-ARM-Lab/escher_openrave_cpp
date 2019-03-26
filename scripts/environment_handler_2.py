@@ -130,7 +130,7 @@ class environment_handler:
         self.DrawSurface(random_surface, transparency=surface_transparancy, style='random_green_yellow_color')
         self.DrawOrientation(global_transform)
 
-    def construct_tilted_rectangle_wall(self, structures, origin_pose, wall_spacing, max_tilted_angle, wall_length, slope=0):
+    def construct_tilted_rectangle_wall(self, structures, origin_pose, wall_spacing, max_tilted_angle, wall_length, wall_height=1.5, slope=0):
 
         surface_boundaries = [(0,1),(1,2),(2,3),(3,0)]
         surface_trimesh_indices = np.array([[0,1,2],[0,2,3]])
@@ -140,7 +140,8 @@ class environment_handler:
         for ix in range(surface_num):
             x = (ix+0.5) * wall_spacing
 
-            surface_transform_bound = [(x,x), (0.0,0.0), (1.4-x*slope,1.6-x*slope), (-90-max_tilted_angle,-90+max_tilted_angle), (-max_tilted_angle,max_tilted_angle), (0,0)]
+            # surface_transform_bound = [(x,x), (0.0,0.0), (wall_height-0.1-x*slope, wall_height+0.1-x*slope), (-90-max_tilted_angle,-90+max_tilted_angle), (-max_tilted_angle,max_tilted_angle), (0,0)]
+            surface_transform_bound = [(x,x), (0.0,0.0), (wall_height-x*slope, wall_height-x*slope), (-90-max_tilted_angle,-90+max_tilted_angle), (-max_tilted_angle,max_tilted_angle), (0,0)]
 
             surface_transform = [None] * 6
 
@@ -691,6 +692,175 @@ class environment_handler:
 
             self.goal_x = 2 * stepping_stone_start_x + row_num * stepping_stone_size[0] + 0.8
             self.goal_y = 0.0
+
+        elif(surface_source == 'dynopt_test_env_9'): # new test environment for using shorter arm span
+            stepping_stone_start_x = escher.foot_h/2.0+0.3
+            stepping_stone_start_y = -0.45
+
+            # initial_platform
+            # self.add_quadrilateral_surface(structures, [(stepping_stone_start_x,-0.5),(stepping_stone_start_x,0.5),(-stepping_stone_start_x,0.5),(-stepping_stone_start_x,-0.5)], [0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, [(stepping_stone_start_x,-0.25),
+                                                        (stepping_stone_start_x,0.25),
+                                                        (-stepping_stone_start_x,0.25),
+                                                        (-stepping_stone_start_x,-0.25)],
+                                                       [0,0.25,0,random.uniform(-20,20),random.uniform(-20,20),0])
+
+            self.add_quadrilateral_surface(structures, [(stepping_stone_start_x,-0.25),
+                                                        (stepping_stone_start_x,0.25),
+                                                        (-stepping_stone_start_x,0.25),
+                                                        (-stepping_stone_start_x,-0.25)],
+                                                       [0,-0.25,0,random.uniform(-20,20),random.uniform(-20,20),0])
+
+            # stepping stones
+            stepping_stone_size = (0.4,0.3)
+            row_num = 3
+            col_num = 3
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    surface_transform = [(row+0.5)*stepping_stone_size[0] + stepping_stone_start_x,
+                                         (col+0.5)*stepping_stone_size[1] + stepping_stone_start_y,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+
+            # side wall
+            wall_length = row_num*stepping_stone_size[0] + 1.3
+            # self.construct_tilted_rectangle_wall(structures, [stepping_stone_start_x + 0.5*row_num*stepping_stone_size[0]/2.0 - wall_length/2.0, -0.55, 0, 0, 0, 0], 0.5, 20, wall_length, wall_height=1.3, slope=0)
+            # self.construct_tilted_rectangle_wall(structures, [stepping_stone_start_x + 0.5*row_num*stepping_stone_size[0]/2.0 + wall_length/2.0, 0.65, 0, 0, 0, 180], 0.5, 20, wall_length, slope=0)
+
+            # self.add_quadrilateral_surface(structures, [(-wall_length/2.0,-0.5),(-wall_length/2.0,0.5),(wall_length/2.0,0.5),(wall_length/2.0,-0.5)],
+            #                                [stepping_stone_start_x+wall_length/2.0, 0.8, 1.3, 90, 0, 0], surface_type='other')
+
+            # self.add_quadrilateral_surface(structures, [(-wall_length/2.0,-0.5),(-wall_length/2.0,0.5),(wall_length/2.0,0.5),(wall_length/2.0,-0.5)],
+            #                                [stepping_stone_start_x+wall_length/2.0, -0.8, 1.3, -90, 0, 0], surface_type='other')
+
+
+            # final_platform
+            self.add_quadrilateral_surface(structures, [(stepping_stone_start_x,-0.5),
+                                                        (stepping_stone_start_x,0.5),
+                                                        (-stepping_stone_start_x,0.5),
+                                                        (-stepping_stone_start_x,-0.5)],
+                                                       [2 * stepping_stone_start_x + row_num * stepping_stone_size[0],0,0,0,0,0])
+
+            self.goal_x = 2 * stepping_stone_start_x + row_num * stepping_stone_size[0]
+            self.goal_y = 0.0
+
+        elif(surface_source == 'capture_test_env_1'): # a room for the robot to go from one end to the other
+
+            # stepping stones
+            stepping_stone_size = (1.0,1.0)
+            row_num = 3
+            col_num = 3
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+
+                    # if row == 1 and col == 1:
+                    #     continue
+
+                    surface_transform = [row*stepping_stone_size[0],
+                                         col*stepping_stone_size[1],
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+
+            # side wall
+            x_wall_length = row_num*stepping_stone_size[0]
+            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] - x_wall_length/2.0 - 0.2, -0.5*stepping_stone_size[1] - 0.25, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] + x_wall_length/2.0 - 0.2, (col_num-0.5)*stepping_stone_size[1] + 0.25, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
+
+            y_wall_length = col_num*stepping_stone_size[1]
+            self.construct_tilted_rectangle_wall(structures, [-0.5*stepping_stone_size[0] - 0.25, 0.5*col_num*stepping_stone_size[1] + y_wall_length/2.0 - 0.3, 0, 0, 0, 270], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [(row_num-0.5)*stepping_stone_size[0] + 0.25, 0.5*col_num*stepping_stone_size[1] - y_wall_length/2.0 - 0.3, 0, 0, 0, 90], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
+
+            self.goal_x = (row_num-1) * stepping_stone_size[0]
+            self.goal_y = (col_num-1) * stepping_stone_size[1]
+            # self.goal_y = 0
+
+        elif(surface_source == 'capture_test_env_2'): # a room for the robot to go from one end to the other
+
+            corridor_length = 2.0
+            corridor_start_x = 0.8
+            narrow_corridor_width = 0.3
+            wide_corridor_width = 0.8
+            wide_corridor_y = -1.5
+
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.2,narrow_corridor_width/2.0),
+                                                        (-0.2,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (corridor_start_x,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (corridor_start_x,narrow_corridor_width/2.0)],
+                                                       [0,0,0,0,0,0])
+
+            # narrow corridor
+            self.add_quadrilateral_surface(structures, [(corridor_start_x,narrow_corridor_width/2.0),
+                                                        (corridor_start_x,-narrow_corridor_width/2.0),
+                                                        (corridor_start_x+corridor_length,-narrow_corridor_width/2.0),
+                                                        (corridor_start_x+corridor_length,narrow_corridor_width/2.0)],
+                                                       [0,0,0,0,0,0])
+
+            # wide corridor
+            self.add_quadrilateral_surface(structures, [(corridor_start_x,wide_corridor_y+wide_corridor_width/2.0),
+                                                        (corridor_start_x,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (corridor_start_x+corridor_length,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (corridor_start_x+corridor_length,wide_corridor_y+wide_corridor_width/2.0)],
+                                                       [0,0,0,0,0,0])
+
+            # final platform
+            self.add_quadrilateral_surface(structures, [(corridor_start_x+corridor_length,narrow_corridor_width/2.0),
+                                                        (corridor_start_x+corridor_length,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (2*corridor_start_x+corridor_length+0.2,wide_corridor_y-wide_corridor_width/2.0),
+                                                        (2*corridor_start_x+corridor_length+0.2,narrow_corridor_width/2.0)],
+                                                       [0,0,0,0,0,0])
+
+            self.goal_x = corridor_start_x * 2 + corridor_length
+            self.goal_y = 0
+
+        elif(surface_source == 'capture_test_env_3'): # a room for the robot to go from one end to the other
+
+            corridor_length = 2.0
+            corridor_width = 1.0
+
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+                                                        (-0.2,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            # left wall
+            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+                                                        (-0.2,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,corridor_width/2.0+0.1,1.3,90,0,0],
+                                                        surface_type='others')
+
+            # right wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,-corridor_width/2.0-0.1,1.3,-90,0,0],
+            #                                             surface_type='others')
+
+            self.goal_x = corridor_length - 0.2
+            self.goal_y = 0
 
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))

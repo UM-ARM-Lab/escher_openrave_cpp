@@ -646,17 +646,21 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
 {
     Translation3D translation = projectionGlobalFrame(origin, ray);
 
-    if(translation.norm() > 2000)
-    {
-        std::cout << translation << std::endl;
-        std::cout << "++++++++++" << std::endl;
-        std::cout << origin << std::endl;
-        std::cout << "++++++++++" << std::endl;
-        std::cout << ray << std::endl;
-        std::cout << "++++++++++" << std::endl;
-        std::cout << contact_manipulator << std::endl;
-        getchar();
-    }
+    // if(translation.norm() > 2000)
+    // {
+    //     std::cout << translation << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << origin << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << ray << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << getCenter() << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << getNormal() << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << contact_manipulator << std::endl;
+    //     getchar();
+    // }
 
     if(translation[0] == -99.0)
     {

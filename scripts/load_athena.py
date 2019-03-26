@@ -76,7 +76,8 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
     athena.shoulder_z = 1.4
     athena.shoulder_w = 0.592
 
-    athena.max_arm_length = 0.75 # 0.688 arm length
+    # athena.max_arm_length = 0.75 # 0.688 arm length
+    athena.max_arm_length = 0.5 # 0.688 arm length
     athena.min_arm_length = 0.2
 
     athena.max_stride = 0.4 # wrong
@@ -153,6 +154,8 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
     athena.OriginalDOFValues[athena.DOFNameIndexDict['yaw_revolute_joint']] += -math.pi/2
 
     athena.GazeboOriginalDOFValues = np.copy(athena.OriginalDOFValues)
+
+    athena.mass = 63.47
 
     # IPython.embed()
 

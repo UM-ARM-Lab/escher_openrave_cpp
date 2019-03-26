@@ -331,7 +331,7 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     std::vector<OpenRAVE::dReal> IK_init_DOF_Values(dof_num);
     std::vector<OpenRAVE::dReal> default_DOF_Values(dof_num);
 
-    float foot_h, foot_w, hand_h, hand_w, robot_z, top_z, shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride;
+    float foot_h, foot_w, hand_h, hand_w, robot_z, top_z, shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride, mass;
 
     for(int i = 0; i < dof_num; i++)
     {
@@ -354,10 +354,12 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     sinput >> max_arm_length;
     sinput >> min_arm_length;
     sinput >> max_stride;
+    sinput >> mass;
 
     robot_properties_ = std::make_shared<RobotProperties>(probot_, IK_init_DOF_Values, default_DOF_Values,
                                                           foot_h, foot_w, hand_h, hand_w, robot_z, top_z,
-                                                          shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride);
+                                                          shoulder_z, shoulder_w, max_arm_length,
+                                                          min_arm_length, max_stride, mass);
 }
 
 void EscherMotionPlanning::parseDisturbanceSamplesCommand(std::istream& sinput)
@@ -376,12 +378,14 @@ void EscherMotionPlanning::parseDisturbanceSamplesCommand(std::istream& sinput)
 
     for(int i = 0; i < disturbance_samples_num; i++)
     {
-        sinput >> dx;
-        sinput >> dy;
-        sinput >> dz;
+        Vector6D disturbance;
+        for(int j = 0; j < 6; j++)
+        {
+            sinput >> disturbance[j];
+        }
         sinput >> weight;
 
-        disturbance_samples_[i] = std::make_pair(Vector3D(dx, dy, dz), weight);
+        disturbance_samples_[i] = std::make_pair(disturbance, weight);
     }
 }
 
@@ -391,7 +395,7 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
     std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
 
     Translation3D com;
-    Vector3D com_dot;
+    Vector3D com_dot, lmom, amom;
 
     std::string param;
 
@@ -434,8 +438,18 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
         sinput >> com_dot(i);
     }
 
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> lmom(i);
+    }
+
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> amom(i);
+    }
+
     std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
-    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance, com, com_dot, 1);
+    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance, com, com_dot, lmom, amom, 1);
 
     return state;
 }
@@ -1851,7 +1865,9 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     BranchingManipMode branching_manip_mode = BranchingManipMode::ALL;
 
     disturbance_samples_.clear();
-    disturbance_samples_.push_back(std::make_pair(Vector3D(0,0,0), 1.0));
+    Vector6D zero_disturbance;
+    zero_disturbance << 0, 0, 0, 0, 0, 0;
+    disturbance_samples_.push_back(std::make_pair(zero_disturbance, 1.0));
 
     // read the transition models
     while(!sinput.eof())
@@ -2285,7 +2301,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Command Parsing Done. \n");
 
-    // map_grid_->obstacleAndGapMapping(penv_, structures_);
+    map_grid_->obstacleAndGapMapping(penv_, structures_);
     // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});

@@ -8,7 +8,29 @@ float ClassificationModel::predict(Eigen::VectorXd input)
     fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
     fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
 
+    // std::cout << "std vector: " << std::endl;
+    // std::cout << input_std_.transpose() << std::endl;
+    // std::cout << "mean vector: " << std::endl;
+    // std::cout << input_mean_.transpose() << std::endl;
+    // std::cout << "input vector: " << std::endl;
+    // std::cout << input.transpose() << std::endl;
+    // std::cout << "input dim: " << std::endl;
+    // std::cout << input_dim_ << std::endl;
+
     auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+
+    if(isnan(result[0].get(0,0,0)))
+    {
+        std::cout << "std vector: " << std::endl;
+        std::cout << input_std_.transpose() << std::endl;
+        std::cout << "mean vector: " << std::endl;
+        std::cout << input_mean_.transpose() << std::endl;
+        std::cout << "input vector: " << std::endl;
+        std::cout << input.transpose() << std::endl;
+        std::cout << "normalized input: " << normalized_input.transpose() << std::endl;
+        std::cout << "The prediction result is nan. Error!" << std::endl;
+        getchar();
+    }
 
     return result[0].get(0,0,0);
 }
@@ -97,6 +119,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         // load the classification neural network
         std::string calssification_model_parameter_string = "_0.0001_256_0.1";
         std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json"));
 
         auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "zero_step_capture_input_mean_std_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".txt");
 
@@ -111,8 +134,9 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         OneStepCaptureCode one_step_capture_code = static_cast<OneStepCaptureCode>(one_step_capture_code_int);
 
         // load the classification neural network
-        std::string calssification_model_parameter_string = "_0.0001_192_0.1";
+        std::string calssification_model_parameter_string = "_0.0005_256_0.1";
         std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json"));
 
         auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "one_step_capture_input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
 
@@ -275,6 +299,8 @@ bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<Cont
 
     Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, standard_input_state->com_, standard_input_state->com_dot_);
 
+    // std::cout << "Zero Step Capture Code: " << zero_step_capture_code << std::endl;
+
     // decide whether it is zero step capturable
     float zero_step_capturability_prediction = zero_step_capturability_calssification_models_map_.find(zero_step_capture_code)->second.predict(feature_vector);
     bool zero_step_capturable = (zero_step_capturability_prediction >= 0.5);
@@ -294,9 +320,21 @@ bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<Conta
 
     Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->com_dot_);
 
+    // std::cout << "One Step Capture Code: " << one_step_capture_code << std::endl;
+    // std::cout << feature_vector.transpose() << std::endl;
+
     // decide whether it is one step capturable
     float one_step_capturability_prediction = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_vector);
     bool one_step_capturable = (one_step_capturability_prediction >= 0.5);
+
+    // if(one_step_capture_code == 8)
+    // {
+    //     std::cout << feature_vector.transpose() << std::endl;
+    //     std::cout << one_step_capturability_prediction << std::endl;
+    //     // std::cout << "Capturable: " << one_step_capturable << std::endl;
+    //     getchar();
+    //     // one_step_capturable = true;
+    // }
 
     return one_step_capturable;
 }

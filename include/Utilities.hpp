@@ -42,18 +42,21 @@
 // frugally deep
 #include <fdeep/fdeep.hpp>
 
+#define FDEEP_FLOAT_TYPE double
+
 // cddlib
 #define GMPRATIONAL 1
 #include <cdd/setoper.h>
 #include <cdd/cdd.h>
 
-typedef Eigen::Matrix4f          TransformationMatrix;
-typedef Eigen::Matrix3f          RotationMatrix;
-typedef Eigen::Vector2f          Translation2D;
-typedef Eigen::Vector3f          Translation3D;
-typedef Eigen::Vector2f          Vector2D;
-typedef Eigen::Vector3f          Vector3D;
-typedef Eigen::Quaternion<float> Quaternion;
+typedef Eigen::Matrix4f            TransformationMatrix;
+typedef Eigen::Matrix3f            RotationMatrix;
+typedef Eigen::Vector2f            Translation2D;
+typedef Eigen::Vector3f            Translation3D;
+typedef Eigen::Vector2f            Vector2D;
+typedef Eigen::Vector3f            Vector3D;
+typedef Eigen::Matrix<float, 6, 1> Vector6D;
+typedef Eigen::Quaternion<float>   Quaternion;
 
 typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
@@ -368,6 +371,9 @@ Eigen::Vector3d rotateVectorFromOpenraveToSL(Vector3D& t);
 Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t);
 Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
 Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
+
+// check if file exist
+inline bool file_exist(const std::string& file_path) {ifstream f(file_path.c_str()); return f.good();}
 
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);

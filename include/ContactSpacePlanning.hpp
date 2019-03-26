@@ -2,6 +2,7 @@
 #define CONTACTSPACEPLANNING_HPP
 
 void getAllContactPoseCombinations(std::vector< std::vector<RPYTF> >& all_contact_pose_combinations, const std::vector<std::vector<RPYTF> >& possible_contact_pose_representation, size_t vec_index, std::vector<RPYTF>& contact_pose_combination);
+std::vector< std::vector<RPYTF> > getAllContactPoseCombinations(std::vector<RPYTF> contact_poses_vector);
 
 class ContactSpacePlanning
 {
@@ -18,7 +19,7 @@ class ContactSpacePlanning
                              std::shared_ptr<DrawingHandler> _drawing_handler,
                              int _planning_id,
                              bool _use_dynamics_planning,
-                             std::vector<std::pair<Vector3D, float> > _disturbance_samples,
+                             std::vector<std::pair<Vector6D, float> > _disturbance_samples,
                              PlanningApplication _planning_application = PlanningApplication::PLAN_IN_ENV,
                              bool _check_zero_step_capturability=true,
                              bool _check_one_step_capturability=true,
@@ -69,16 +70,17 @@ class ContactSpacePlanning
         const std::vector< std::array<float,2> > hand_transition_model_;
 
         // disturbance samples
-        std::vector<std::pair<Vector3D, float> > disturbance_samples_;
+        std::vector<std::pair<Vector6D, float> > disturbance_samples_;
 
         // cost parameters
         // const float step_cost_weight_ = 10.0;
         const float step_cost_weight_ = 3.0;
-        const float dynamics_cost_weight_ = 0.1; // original
+        const float dynamics_cost_weight_ = 0.0; // test
+        // const float dynamics_cost_weight_ = 0.1; // original
         // const float dynamics_cost_weight_ = 1.0; // simplified
-        const float disturbance_cost_weight_ = 0.0;
+        const float disturbance_cost_weight_ = 500.0;
 
-        // random parameters
+        // random number generator & randomness parameter
         std::mt19937_64 rng_;
         float epsilon_;
 
@@ -111,6 +113,12 @@ class ContactSpacePlanning
         // the general_ik interface
         std::vector< std::shared_ptr<GeneralIKInterface> > general_ik_interface_vector_;
         std::shared_ptr<GeneralIKInterface> general_ik_interface_;
+
+        // training sample config file export path
+        std::string training_sample_config_folder_;
+        std::map<ZeroStepCaptureCode, int> zero_step_capture_file_index_;
+        std::map<OneStepCaptureCode, int> one_step_capture_file_index_;
+        std::map<ContactTransitionCode, int> contact_transition_file_index_;
 
         void setupStateReachabilityIK(std::shared_ptr<ContactState> current_state, std::shared_ptr<GeneralIKInterface> general_ik_interface);
 
