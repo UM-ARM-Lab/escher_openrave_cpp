@@ -1691,6 +1691,32 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
         }
     }
 
+    std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt;
+    TransformationMatrix lf_offset_transform, rf_offset_transform, lh_offset_transform, rh_offset_transform;
+    lf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
+
+    rf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
+
+    lh_offset_transform << 0, 0, 1, 0,
+                           1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
+
+    rh_offset_transform <<  0,  0, 1, 0,
+                           -1,  0, 0, 0,
+                            0, -1, 0, 0,
+                            0,  0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
+
     // if(initial_state->stances_vector_[0]->ee_contact_status_[int(ContactManipulator::L_ARM)])
     // {
     //     second_state = std::make_shared<ContactState>(dummy_second_state->stances_vector_[0], initial_state, ContactManipulator::L_ARM, 1, 1.0);
@@ -1759,7 +1785,9 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
     //     }
     // }
 
-    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME,
+                                                                                "SL_optim_config_template/cfg_kdopt_demo.yaml",
+                                                                                ee_offset_transform_to_dynopt);
 
     float dynamics_cost = 0.0;
     bool dynamically_feasible;

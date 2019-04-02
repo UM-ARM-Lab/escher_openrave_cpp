@@ -20,6 +20,7 @@ import multiprocessing
 # Local Imports
 import load_escher
 import load_athena
+import load_hermes_full
 
 # from config_parameter import *
 from transformation_conversion import *
@@ -89,6 +90,8 @@ def main(start_env_id=0,
         escher = load_escher.escher(env)
     elif robot_name == 'athena':
         escher = load_athena.athena(env)
+    elif robot_name == 'hermes_full':
+        escher = load_hermes_full.hermes_full(env)
 
     # Initialize Escher C++ interface
     escher_cpp = escher_openrave_cpp_wrapper(env)

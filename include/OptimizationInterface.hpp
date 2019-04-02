@@ -93,7 +93,9 @@ class OptimizationInterface
 {
     public:
         OptimizationInterface(float _step_transition_time, float _support_phase_time,
-                              std::string _cfg_file, DynOptApplication _dynamics_optimizer_application = DynOptApplication::CONTACT_TRANSITION_DYNOPT);
+                              std::string _cfg_file,
+                              std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> _ee_offset_transform_to_dynopt,
+                              DynOptApplication _dynamics_optimizer_application = DynOptApplication::CONTACT_TRANSITION_DYNOPT);
 
         // initialization functions
         // void initializeKinematicsInterface();

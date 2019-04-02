@@ -40,6 +40,8 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::L_ARM, "l_arm"));
     manipulator_name_map_.insert(std::make_pair(ContactManipulator::R_ARM, "r_arm"));
 
+    TransformationMatrix lf_offset_transform, rf_offset_transform, lh_offset_transform, rh_offset_transform;
+
     if(name_ == "athena")
     {
         // construct the DOF name - SL index map
@@ -71,6 +73,80 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
         // DOFindex_SLindex_map_[_robot->GetJoint("roll_revolute_joint")->GetJointIndex()] = SL_index_counter++;
         // DOFindex_SLindex_map_[_robot->GetJoint("pitch_revolute_joint")->GetJointIndex()] = SL_index_counter++;
         // DOFindex_SLindex_map_[_robot->GetJoint("yaw_revolute_joint")->GetJointIndex()] = SL_index_counter++;
+
+        lf_offset_transform << 1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 1, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::L_LEG] = lf_offset_transform;
+
+        rf_offset_transform << 1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 1, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::R_LEG] = rf_offset_transform;
+
+        lh_offset_transform << 0, 0, 1, 0,
+                               1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::L_ARM] = lh_offset_transform;
+
+        rh_offset_transform <<  0,  0, 1, 0,
+                               -1,  0, 0, 0,
+                                0, -1, 0, 0,
+                                0,  0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::R_ARM] = rh_offset_transform;
+    }
+    else if(name_ == "hermes_full")
+    {
+        // construct the DOF name - SL index map
+        // SL follows the sequence of left arm, right arm, left leg, right leg, torso joints, and floating base joints. (at least for Athena)
+        // here we only do the mapping for the 4 manipulators
+        const std::vector<ContactManipulator> SL_MANIPULATOR_SEQ = {ContactManipulator::L_ARM, ContactManipulator::R_ARM, ContactManipulator::L_LEG, ContactManipulator::R_LEG};
+        int SL_index_counter = 0;
+        for(auto & manip : SL_MANIPULATOR_SEQ)
+        {
+            auto manipulator = _robot->GetManipulator(manipulator_name_map_[manip]);
+
+            for(auto & rave_index : manipulator->GetArmIndices())
+            {
+                DOFindex_SLindex_map_[rave_index] = SL_index_counter++;
+            }
+        }
+
+        // torso dofs
+        DOFindex_SLindex_map_[_robot->GetJoint("B_TR")->GetJointIndex()] = SL_index_counter++;
+        DOFindex_SLindex_map_[_robot->GetJoint("B_TAA")->GetJointIndex()] = SL_index_counter++;
+        DOFindex_SLindex_map_[_robot->GetJoint("B_TFE")->GetJointIndex()] = SL_index_counter++;
+
+        // SFE and SAA joint index are reversed
+        std::swap(DOFindex_SLindex_map_[_robot->GetJoint("L_SFE")->GetJointIndex()], DOFindex_SLindex_map_[_robot->GetJoint("L_SAA")->GetJointIndex()]);
+        std::swap(DOFindex_SLindex_map_[_robot->GetJoint("R_SFE")->GetJointIndex()], DOFindex_SLindex_map_[_robot->GetJoint("R_SAA")->GetJointIndex()]);
+
+        lf_offset_transform << 1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 1, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::L_LEG] = lf_offset_transform;
+
+        rf_offset_transform << 1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 1, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::R_LEG] = rf_offset_transform;
+
+        lh_offset_transform << 0, 0, 1, 0,
+                               1, 0, 0, 0,
+                               0, 1, 0, 0,
+                               0, 0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::L_ARM] = lh_offset_transform;
+
+        rh_offset_transform <<  0,  0, 1, 0,
+                               -1,  0, 0, 0,
+                                0, -1, 0, 0,
+                                0,  0, 0, 1;
+        ee_offset_transform_to_dynopt_[ContactManipulator::R_ARM] = rh_offset_transform;
     }
     else
     {

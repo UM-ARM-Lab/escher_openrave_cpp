@@ -65,7 +65,9 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
 
     for(unsigned int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
     {
-        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "../data/SL_optim_config_template/cfg_kdopt_demo.yaml");
+        dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME,
+                                                                                          "../data/SL_optim_config_template/cfg_kdopt_demo.yaml",
+                                                                                          _robot_properties->ee_offset_transform_to_dynopt_);
     }
 
     one_step_capture_dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
@@ -73,6 +75,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
     for(unsigned int i = 0; i < one_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
     {
         one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion.yaml",
+                                                                                                           _robot_properties->ee_offset_transform_to_dynopt_,
                                                                                                            DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
         // one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
@@ -96,7 +99,8 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
     for(unsigned int i = 0; i < zero_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
     {
         zero_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.0, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
-                                                                                                           DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
+                                                                                                            _robot_properties->ee_offset_transform_to_dynopt_,
+                                                                                                            DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
     }
 
     if(!use_dynamics_planning_)

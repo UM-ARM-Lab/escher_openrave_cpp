@@ -221,7 +221,9 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
 
 
 OptimizationInterface::OptimizationInterface(float _step_transition_time, float _support_phase_time,
-                                             std::string _cfg_file, DynOptApplication _dynamics_optimizer_application):
+                                             std::string _cfg_file,
+                                             std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> _ee_offset_transform_to_dynopt,
+                                             DynOptApplication _dynamics_optimizer_application):
 step_transition_time_(_step_transition_time),
 support_phase_time_(_support_phase_time),
 dynamics_optimizer_application_(_dynamics_optimizer_application)
@@ -233,33 +235,7 @@ dynamics_optimizer_application_(_dynamics_optimizer_application)
     loadDynamicsOptimizerSetting(_cfg_file);
     //initializeKinematicsInterface();
 
-    TransformationMatrix lf_offset_transform;
-    lf_offset_transform << 1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 1, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
-
-    TransformationMatrix rf_offset_transform;
-    rf_offset_transform << 1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 1, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
-
-    TransformationMatrix lh_offset_transform;
-    lh_offset_transform << 0, 0, 1, 0,
-                           1, 0, 0, 0,
-                           0, 1, 0, 0,
-                           0, 0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
-
-    TransformationMatrix rh_offset_transform;
-    rh_offset_transform <<  0,  0, 1, 0,
-                           -1,  0, 0, 0,
-                            0, -1, 0, 0,
-                            0,  0, 0, 1;
-    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
+    ee_offset_transform_to_dynopt = _ee_offset_transform_to_dynopt;
 }
 
 void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)

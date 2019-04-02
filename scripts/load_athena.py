@@ -36,12 +36,6 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
         [ 0,  0, 0, 1]])
     )
 
-    # athena.manip.l_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0,-1, 0, 0.0],
-    #     [-1, 0, 0,-0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
     athena.manip.l_leg.SetLocalToolTransform(np.array([
         [ 0, 0,-1, 0.1],
         [ 0,-1, 0, 0.0],
@@ -50,12 +44,6 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
     )
     athena.manip.l_leg.SetLocalToolDirection(np.array([0, 0, -1]))
 
-    # athena.manip.r_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0, 1, 0, 0.0],
-    #     [ 1, 0, 0,0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
     athena.manip.r_leg.SetLocalToolTransform(np.array([
         [ 0, 0,-1, 0.1],
         [ 0, 1, 0, 0.0],

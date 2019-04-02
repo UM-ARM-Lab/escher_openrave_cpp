@@ -44,6 +44,8 @@ class RobotProperties
 
         const float mass_;
 
+        std::array<TransformationMatrix, ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt_;
+
     private:
 
 };
