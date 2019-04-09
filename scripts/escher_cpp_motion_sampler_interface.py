@@ -29,7 +29,7 @@ from escher_openrave_cpp_wrapper import escher_openrave_cpp_wrapper
 
 def main(start_env_id=0,
          end_env_id=9999,
-         robot_name='athena'):
+         robot_name='hermes_full'):
 
     escher_planning_data_path = '../data/escher_motion_planning_data/'
 

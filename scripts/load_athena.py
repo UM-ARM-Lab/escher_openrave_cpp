@@ -103,12 +103,6 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
     athena.env.AddKinBody(athena.body_collision_box)
     athena.body_collision_box.SetTransform(out_of_env_transform)
 
-    # Construct the athena robot transform
-    # athena.robot.SetTransform(np.array([[0,1,0,0],
-    #                                     [-1,0,0,0],
-    #                                     [0,0,1,1],
-    #                                     [0,0,0,1]], dtype=float))
-
     athena.body_collision_box_offset = np.array([[1,0,0,0],
                                                  [0,1,0,-0.05],
                                                  [0,0,1,0.33],

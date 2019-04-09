@@ -432,8 +432,12 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_trans
     RotationMatrix SL_openrave_rotation;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
     SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
 
     Translation3D transformed_position = (SL_openrave_transform * (R*t_offset+t).homogeneous()).block(0,0,3,1);

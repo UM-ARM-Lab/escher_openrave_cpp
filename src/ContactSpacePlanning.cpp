@@ -74,7 +74,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
 
     for(unsigned int i = 0; i < one_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
     {
-        one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion.yaml",
+        one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
                                                                                                            _robot_properties->ee_offset_transform_to_dynopt_,
                                                                                                            DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
@@ -122,7 +122,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
     // set up the data collecting steps
     if(planning_application_ == PlanningApplication::COLLECT_DATA)
     {
-        training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test_all/";
+        training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_all/";
         std::string file_path;
 
         for (int motion_code_int = ZeroStepCaptureCode::ONE_FOOT; motion_code_int != ZeroStepCaptureCode::FEET_AND_ONE_HAND; motion_code_int++)
@@ -1812,7 +1812,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         // store the config file
                         exportContactSequenceOptimizationConfigFiles(zero_step_capture_dynamics_optimizer_interface_vector_[0],
                                                                      zero_step_capture_contact_state_sequence,
-                                                                     "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion.yaml",
+                                                                     "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
                                                                      training_sample_path + "cfg_kdopt_zero_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
                                                                      training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
@@ -1944,7 +1944,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                                 // store the config file
                                 exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
                                                                              one_step_capture_contact_state_sequence,
-                                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion.yaml",
+                                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
                                                                              training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
                                                                              training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
@@ -2511,8 +2511,8 @@ bool ContactSpacePlanning::handPoseSampling(ContactManipulator& contact_manipula
                                             RPYTF& projection_pose)
 {
 
-    // std::uniform_real_distribution<double> arm_length_unif(robot_properties_->min_arm_length_, robot_properties_->max_arm_length_);
-    std::uniform_real_distribution<double> arm_length_unif(0.2, 0.5);
+    std::uniform_real_distribution<double> arm_length_unif(robot_properties_->min_arm_length_, robot_properties_->max_arm_length_);
+    // std::uniform_real_distribution<double> arm_length_unif(0.2, 0.5);
 
     float arm_length = arm_length_unif(rng_);
     Vector3D arm_projection_ray(std::cos(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
@@ -2886,7 +2886,7 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
                 Translation3D contact_position = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip].getXYZ();
                 Vector3D contact_com_unit_vector = contact_sequence[0]->com_ - contact_position;
                 contact_com_unit_vector.normalize();
-                float contact_distance = 0.15;
+                float contact_distance = 0.1;
 
                 floating_manip_pose = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip];
                 floating_manip_pose.x_ += contact_distance * contact_com_unit_vector[0];
@@ -2942,6 +2942,17 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     // sample 3 feet stances
     std::uniform_int_distribution<unsigned int> foot_transition_size_unif(0, foot_transition_model_.size()-1);
 
+    float max_com_hand_dist, max_com_foot_dist;
+
+    if(robot_properties_->name_ == "athena")
+    {
+        max_com_hand_dist = 0.8;
+    }
+    else if(robot_propertires_name_ == "hermes_full")
+    {
+        max_com_hand_dist = 0.6;
+    }
+
     for(int i = 0; i < 3; i++)
     {
         unsigned int foot_transition_index = foot_transition_size_unif(rng_);
@@ -2970,7 +2981,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         Translation3D initial_com;
         initial_com[0] = 0.1 * unit_unif(rng_);
         initial_com[1] = 0.1 * unit_unif(rng_);
-        initial_com[2] = 0.95 + 0.1 * unit_unif(rng_);
+        initial_com[2] = robot_properties_->robot_z_ + 0.1 * unit_unif(rng_);
 
         Vector3D initial_com_dot;
         float initial_com_dot_pan_angle = 180.0 * unit_unif(rng_) * DEG2RAD;
@@ -3005,7 +3016,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         std::array<float,2> left_arm_orientation = {mean_horizontal_yaw + 90.0 - 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
         handPoseSampling(left_arm, global_left_shoulder_position, left_arm_orientation, left_hand_pose);
 
-        while((left_hand_pose.getXYZ() - initial_com).norm() > 0.8 && invalid_sampling_counter < 100)
+        while((left_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
         {
             handPoseSampling(left_arm, global_left_shoulder_position, left_arm_orientation, left_hand_pose);
             invalid_sampling_counter++;
@@ -3033,7 +3044,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         std::array<float,2> right_arm_orientation = {mean_horizontal_yaw - 90.0 + 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
         handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
 
-        while((right_hand_pose.getXYZ() - initial_com).norm() > 0.8 && invalid_sampling_counter < 100)
+        while((right_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
         {
             handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
         }

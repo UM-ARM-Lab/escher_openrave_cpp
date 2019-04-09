@@ -18,58 +18,34 @@ def hermes_full(env, active_dof_mode='whole_body', urdf_name=None):
     hermes_full = HumanoidRobot(env, urdf_path=urdf, srdf_path=srdf)
 
     # set up the manipulators
-    hermes_full.manip.l_arm.SetLocalToolDirection(np.array([1, 0, 0]))
     hermes_full.manip.l_arm.SetLocalToolTransform(np.array([
-        [ 0,  1, 0, 0.108],
-        [ 0,  0, 1, 0.0],
-        [ 1,  0, 0, 0.04],
-        [ 0,  0, 0,   1]])
+        [ 0, 1,  0, 0.075],
+        [ 1, 0,  0, 0],
+        [ 0, 0, -1, 0],
+        [ 0, 0,  0, 1]])
     )
+    hermes_full.manip.l_arm.SetLocalToolDirection(np.array([1, 0, 0]))
 
-    hermes_full.manip.r_arm.SetLocalToolDirection(np.array([1, 0, 0]))
     hermes_full.manip.r_arm.SetLocalToolTransform(np.array([
-        [ 0, -1, 0, 0.108],
-        [ 0,  0, 1, 0.0],
-        [-1,  0, 0, -0.04],
+        [ 0, -1, 0, 0.075],
+        [ 1,  0, 0, 0],
+        [ 0,  0, 1, 0],
         [ 0,  0, 0, 1]])
     )
+    hermes_full.manip.r_arm.SetLocalToolDirection(np.array([1, 0, 0]))
 
-    # hermes_full.manip.l_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0,-1, 0, 0.0],
-    #     [-1, 0, 0,-0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
-    # hermes_full.manip.l_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0,-1, 0, 0.0],
-    #     [-1, 0, 0,-0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
-    hermes_full.manip.r_leg.SetLocalToolTransform(np.array([
-        [ 0,-1, 0, 0.0],
-        [ 1, 0, 0, 0.0],
-        [ 0, 0, 1, 0.0],
-        [ 0, 0, 0, 1]])
+    hermes_full.manip.l_leg.SetLocalToolTransform(np.array([
+        [  0,  0, 1, -0.0512],
+        [  0,  1, 0, 0],
+        [ -1,  0, 0, 0],
+        [  0,  0, 0, 1]])
     )
     hermes_full.manip.l_leg.SetLocalToolDirection(np.array([0, 0, -1]))
 
-    # hermes_full.manip.r_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0, 1, 0, 0.0],
-    #     [ 1, 0, 0,0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
-    # hermes_full.manip.r_leg.SetLocalToolTransform(np.array([
-    #     [ 0, 0,-1, 0.1],
-    #     [ 0, 1, 0, 0.0],
-    #     [ 1, 0, 0,0.045],
-    #     [ 0, 0, 0, 1]])
-    # )
     hermes_full.manip.r_leg.SetLocalToolTransform(np.array([
-        [ 0,-1, 0, 0.0],
-        [ 1, 0, 0, 0.0],
-        [ 0, 0, 1, 0.0],
+        [ 0, 0, 1, -0.0512],
+        [ 0, -1, 0, 0],
+        [ 1, 0, 0, 0],
         [ 0, 0, 0, 1]])
     )
     hermes_full.manip.r_leg.SetLocalToolDirection(np.array([0, 0, -1]))
