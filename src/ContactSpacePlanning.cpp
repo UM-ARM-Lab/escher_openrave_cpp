@@ -2948,7 +2948,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     {
         max_com_hand_dist = 0.8;
     }
-    else if(robot_propertires_name_ == "hermes_full")
+    else if(robot_properties_->name_ == "hermes_full")
     {
         max_com_hand_dist = 0.6;
     }

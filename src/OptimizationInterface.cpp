@@ -968,15 +968,22 @@ void OptimizationInterface::storeDynamicsOptimizationFeature(std::shared_ptr<Con
                                   << contact_pose.yaw_ * DEG2RAD << " ";
         }
 
-        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT || dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
         {
             dynopt_feature_fstream << prev_state->com_[0] << " " << prev_state->com_[1] << " " << prev_state->com_[2] << " ";
             dynopt_feature_fstream << prev_state->com_dot_[0] << " " << prev_state->com_dot_[1] << " " << prev_state->com_dot_[2] << " ";
         }
+        else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+        {
+            dynopt_feature_fstream << prev_state->com_[0] << " " << prev_state->com_[1] << " " << prev_state->com_[2] << " ";
+            dynopt_feature_fstream << prev_state->lmom_[0] << " " << prev_state->lmom_[1] << " " << prev_state->lmom_[2] << " ";
+            dynopt_feature_fstream << prev_state->amom_[0] << " " << prev_state->amom_[1] << " " << prev_state->amom_[2] << " ";
+        }
         else if(dynamics_optimizer_application_ == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
         {
             dynopt_feature_fstream << current_state->com_[0] << " " << current_state->com_[1] << " " << current_state->com_[2] << " ";
-            dynopt_feature_fstream << current_state->com_dot_[0] << " " << current_state->com_dot_[1] << " " << current_state->com_dot_[2] << " ";
+            dynopt_feature_fstream << current_state->lmom_[0] << " " << current_state->lmom_[1] << " " << current_state->lmom_[2] << " ";
+            dynopt_feature_fstream << current_state->amom_[0] << " " << current_state->amom_[1] << " " << current_state->amom_[2] << " ";
         }
 
         dynopt_feature_fstream << std::endl;
