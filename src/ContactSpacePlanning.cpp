@@ -122,6 +122,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
     // set up the data collecting steps
     if(planning_application_ == PlanningApplication::COLLECT_DATA)
     {
+        // construct the training sample config file storing path
         training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_all/";
         std::string file_path;
 
@@ -1483,7 +1484,7 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode)
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode, int specified_motion_code)
 {
     std::vector<ContactManipulator> branching_manips;
     std::vector< std::array<float,2> > hand_transition_model;
@@ -1801,26 +1802,29 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         auto motion_code_poses_pair = standard_zero_step_capture_contact_state->getZeroStepCapturabilityCodeAndPoses();
                         ZeroStepCaptureCode motion_code = motion_code_poses_pair.first;
 
-                        std::string motion_code_str = std::to_string(int(motion_code));
-                        std::string file_number_str = std::to_string(zero_step_capture_file_index_[motion_code]);
+                        if(specified_motion_code == -1 || specified_motion_code == int(motion_code))
+                        {
+                            std::string motion_code_str = std::to_string(int(motion_code));
+                            std::string file_number_str = std::to_string(zero_step_capture_file_index_[motion_code]);
 
-                        // store the feature vector file
-                        std::string training_sample_path = training_sample_config_folder_ + "zero_step_capture_" + motion_code_str + "/";
+                            // store the feature vector file
+                            std::string training_sample_path = training_sample_config_folder_ + "zero_step_capture_" + motion_code_str + "/";
 
-                        std::cout << "Export zero step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
+                            std::cout << "Export zero step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
 
-                        // store the config file
-                        exportContactSequenceOptimizationConfigFiles(zero_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                                     zero_step_capture_contact_state_sequence,
-                                                                     "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                                                                     training_sample_path + "cfg_kdopt_zero_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
-                                                                     training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
+                            // store the config file
+                            exportContactSequenceOptimizationConfigFiles(zero_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                        zero_step_capture_contact_state_sequence,
+                                                                        "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
+                                                                        training_sample_path + "cfg_kdopt_zero_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
+                                                                        training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
-                        zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(zero_step_capture_contact_state,
-                                                                                                                    training_sample_path,
-                                                                                                                    zero_step_capture_file_index_[motion_code]);
+                            zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(zero_step_capture_contact_state,
+                                                                                                                        training_sample_path,
+                                                                                                                        zero_step_capture_file_index_[motion_code]);
 
-                        zero_step_capture_file_index_[motion_code]++;
+                            zero_step_capture_file_index_[motion_code]++;
+                        }
 
                         zero_step_dynamically_feasible = false; // for collecting data
                     }
@@ -1933,26 +1937,30 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                                 auto motion_code_poses_pair = standard_one_step_capture_contact_state->getOneStepCapturabilityCodeAndPoses();
                                 OneStepCaptureCode motion_code = motion_code_poses_pair.first;
 
-                                std::string motion_code_str = std::to_string(int(motion_code));
-                                std::string file_number_str = std::to_string(one_step_capture_file_index_[motion_code]);
+                                if(specified_motion_code == -1 || specified_motion_code == int(motion_code))
+                                {
 
-                                // store the feature vector file
-                                std::string training_sample_path = training_sample_config_folder_ + "one_step_capture_" + motion_code_str + "/";
+                                    std::string motion_code_str = std::to_string(int(motion_code));
+                                    std::string file_number_str = std::to_string(one_step_capture_file_index_[motion_code]);
 
-                                std::cout << "Export one step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
+                                    // store the feature vector file
+                                    std::string training_sample_path = training_sample_config_folder_ + "one_step_capture_" + motion_code_str + "/";
 
-                                // store the config file
-                                exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                                             one_step_capture_contact_state_sequence,
-                                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                                                                             training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
-                                                                             training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
+                                    std::cout << "Export one step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
 
-                                one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(one_step_capture_contact_state,
-                                                                                                                           training_sample_path,
-                                                                                                                           one_step_capture_file_index_[motion_code]);
+                                    // store the config file
+                                    exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                                one_step_capture_contact_state_sequence,
+                                                                                "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
+                                                                                training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
+                                                                                training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
-                                one_step_capture_file_index_[motion_code]++;
+                                    one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(one_step_capture_contact_state,
+                                                                                                                            training_sample_path,
+                                                                                                                            one_step_capture_file_index_[motion_code]);
+
+                                    one_step_capture_file_index_[motion_code]++;
+                                }
 
                                 one_step_dynamically_feasible = false; // for collecting data
                             }
@@ -2915,7 +2923,8 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
 }
 
 void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode, bool sample_feet_only_state,
-                                               bool sample_feet_and_one_hand_state, bool sample_feet_and_two_hands_state)
+                                               bool sample_feet_and_one_hand_state, bool sample_feet_and_two_hands_state,
+                                               int specified_motion_code)
 {
     // sample the initial states
     std::vector<std::shared_ptr<ContactState> > initial_states;
@@ -2946,10 +2955,12 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
 
     if(robot_properties_->name_ == "athena")
     {
+        max_com_foot_dist = 1.1;
         max_com_hand_dist = 0.8;
     }
     else if(robot_properties_->name_ == "hermes_full")
     {
+        max_com_foot_dist = 0.8;
         max_com_hand_dist = 0.6;
     }
 
@@ -2960,22 +2971,6 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         auto foot_transition = foot_transition_model_[foot_transition_index];
 
         int invalid_sampling_counter = 0;
-
-        std::array<float,6> l_foot_xyzrpy, r_foot_xyzrpy;
-        l_foot_xyzrpy[0] = foot_transition[0]/2.0; l_foot_xyzrpy[1] = foot_transition[1]/2.0; l_foot_xyzrpy[2] = 99.0;
-        l_foot_xyzrpy[3] = 0; l_foot_xyzrpy[4] = 0; l_foot_xyzrpy[5] = foot_transition[2]/2.0;
-
-        r_foot_xyzrpy[0] = -foot_transition[0]/2.0; r_foot_xyzrpy[1] = -foot_transition[1]/2.0; r_foot_xyzrpy[2] = 99.0;
-        r_foot_xyzrpy[3] = 0; r_foot_xyzrpy[4] = 0; r_foot_xyzrpy[5] = -foot_transition[2]/2.0;
-
-        RPYTF left_foot_pose = RPYTF(l_foot_xyzrpy);
-        RPYTF right_foot_pose = RPYTF(r_foot_xyzrpy);
-
-        float left_leg_projection_height = projection_height_unif(rng_);
-        float right_leg_projection_height = projection_height_unif(rng_);
-
-        footPoseSampling(left_leg, left_foot_pose, left_leg_projection_height);
-        footPoseSampling(right_leg, right_foot_pose, right_leg_projection_height);
 
         // sample the initial CoM and CoM velocity
         Translation3D initial_com;
@@ -2995,6 +2990,46 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         Vector3D initial_amom = Vector3D::Zero();
 
         // sample a feet only state
+
+        // sample feet poses
+        std::array<float,6> l_foot_xyzrpy, r_foot_xyzrpy;
+        l_foot_xyzrpy[0] = foot_transition[0]/2.0; l_foot_xyzrpy[1] = foot_transition[1]/2.0; l_foot_xyzrpy[2] = 99.0;
+        l_foot_xyzrpy[3] = 0; l_foot_xyzrpy[4] = 0; l_foot_xyzrpy[5] = foot_transition[2]/2.0;
+
+        r_foot_xyzrpy[0] = -foot_transition[0]/2.0; r_foot_xyzrpy[1] = -foot_transition[1]/2.0; r_foot_xyzrpy[2] = 99.0;
+        r_foot_xyzrpy[3] = 0; r_foot_xyzrpy[4] = 0; r_foot_xyzrpy[5] = -foot_transition[2]/2.0;
+
+        RPYTF left_foot_pose = RPYTF(l_foot_xyzrpy);
+        RPYTF right_foot_pose = RPYTF(r_foot_xyzrpy);
+
+        float left_leg_projection_height = projection_height_unif(rng_);
+        footPoseSampling(left_leg, left_foot_pose, left_leg_projection_height);
+
+        while((left_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist && invalid_sampling_counter < 100)
+        {
+            left_leg_projection_height = projection_height_unif(rng_);
+            footPoseSampling(left_leg, left_foot_pose, left_leg_projection_height);
+            invalid_sampling_counter++;
+        }
+        if(invalid_sampling_counter >= 100)
+        {
+            continue;
+        }
+
+        float right_leg_projection_height = projection_height_unif(rng_);
+        footPoseSampling(right_leg, right_foot_pose, right_leg_projection_height);
+
+        while((right_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist && invalid_sampling_counter < 100)
+        {
+            right_leg_projection_height = projection_height_unif(rng_);
+            footPoseSampling(right_leg, right_foot_pose, right_leg_projection_height);
+            invalid_sampling_counter++;
+        }
+        if(invalid_sampling_counter >= 100)
+        {
+            continue;
+        }
+
         std::array<bool,ContactManipulator::MANIP_NUM> feet_only_contact_status = {true,true,false,false};
         std::shared_ptr<Stance> feet_only_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose,
                                                                             RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
@@ -3047,6 +3082,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         while((right_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
         {
             handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
+            invalid_sampling_counter++;
         }
         if(invalid_sampling_counter >= 100)
         {
@@ -3070,7 +3106,7 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
     for(auto & initial_state : initial_states)
     {
         // RAVELOG_WARN("New initial state.\n");
-        branchingContacts(initial_state, branching_mode);
+        branchingContacts(initial_state, branching_mode, specified_motion_code);
     }
 }
 

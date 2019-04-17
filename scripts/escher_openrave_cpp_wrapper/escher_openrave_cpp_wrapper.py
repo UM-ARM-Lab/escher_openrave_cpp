@@ -403,7 +403,7 @@ class escher_openrave_cpp_wrapper(object):
                                                  branching_manip_mode='all',check_zero_step_capturability=True,
                                                  check_one_step_capturability=True,check_contact_transition_feasibility=True,
                                                  sample_feet_only_state=True,sample_feet_and_one_hand_state=True,
-                                                 sample_feet_and_two_hands_state=True,disturbance_samples=None):
+                                                 sample_feet_and_two_hands_state=True,disturbance_samples=None,specified_motion_code=None):
 
         start = time.time()
 
@@ -477,6 +477,10 @@ class escher_openrave_cpp_wrapper(object):
             for sample in disturbance_samples:
                 cmd.append(sample[0]); cmd.append(sample[1])
                 cmd.append(sample[2]); cmd.append(sample[3])
+
+        if specified_motion_code is not None:
+            cmd.append('specified_motion_code')
+            cmd.append(specified_motion_code)
 
         cmd_str = " ".join(str(item) for item in cmd)
 

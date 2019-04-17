@@ -35,7 +35,7 @@ class ContactSpacePlanning
 
         void collectTrainingData(BranchingManipMode branching_mode=BranchingManipMode::ALL,
                                  bool sample_feet_only_state=true, bool sample_feet_and_one_hand_state=true,
-                                 bool sample_feet_and_two_hands_state=true);
+                                 bool sample_feet_and_two_hands_state=true, int specified_motion_code=-1);
 
     private:
         // std::set< std::shared_ptr<ContactState>, pointer_less > openHeap;
@@ -132,7 +132,7 @@ class ContactSpacePlanning
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
-        void branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode=BranchingManipMode::ALL);
+        void branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode=BranchingManipMode::ALL, int specified_motion_code=-1);
         bool footProjection(ContactManipulator& contact_manipulator, RPYTF& projection_pose);
         bool handProjection(ContactManipulator& contact_manipulator, Translation3D& shoulder_point, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
         bool feetReprojection(std::shared_ptr<ContactState> state);

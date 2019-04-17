@@ -1885,6 +1885,7 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     bool check_zero_step_capturability = false;
     bool check_one_step_capturability = false;
     bool check_contact_transition_feasibility = false;
+    int specified_motion_code = -1;
 
     bool sample_feet_only_state = false;
     bool sample_feet_and_one_hand_state = false;
@@ -2028,6 +2029,11 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
         {
             parseDisturbanceSamplesCommand(sinput);
         }
+
+        else if(strcmp(param.c_str(), "specified_motion_code") == 0)
+        {
+            sinput >> specified_motion_code;
+        }
     }
 
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
@@ -2047,10 +2053,12 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
     for(int i = 0; i < contact_sampling_iteration; i++)
     {
+        std::cout << "Sampling Round: " <<  i << std::endl;
         contact_pose_sampler.collectTrainingData(branching_manip_mode,
                                                  sample_feet_only_state,
                                                  sample_feet_and_one_hand_state,
-                                                 sample_feet_and_two_hands_state);
+                                                 sample_feet_and_two_hands_state,
+                                                 specified_motion_code);
     }
 }
 

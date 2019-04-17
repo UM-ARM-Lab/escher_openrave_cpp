@@ -402,8 +402,12 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
     RotationMatrix SL_openrave_rotation;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
     SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
 
     Translation3D transformed_position = (SL_openrave_transform * Translation3D(transformed_e.x_, transformed_e.y_, transformed_e.z_).homogeneous()).block(0,0,3,1);
@@ -513,8 +517,12 @@ Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t)
     TransformationMatrix SL_openrave_transform;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
 
     Eigen::Vector3d transformed_position = (SL_openrave_transform * t.homogeneous()).block(0,0,3,1).cast<double>();
 
@@ -526,8 +534,12 @@ Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t)
     TransformationMatrix openrave_SL_transform;
     openrave_SL_transform <<  0, 1, 0, 0,
                              -1, 0, 0, 0,
-                              0, 0, 1, 1.05,
+                              0, 0, 1, 0.75,
                               0, 0, 0, 1;
+	// openrave_SL_transform <<  0, 1, 0, 0,
+    //                          -1, 0, 0, 0,
+    //                           0, 0, 1, 1.05,
+    //                           0, 0, 0, 1;
 
     Translation3D transformed_position = (openrave_SL_transform * t.cast<float>().homogeneous()).block(0,0,3,1);
 
