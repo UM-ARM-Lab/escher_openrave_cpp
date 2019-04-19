@@ -98,6 +98,8 @@ def main(start_env_id=0,
 
     env_id = start_env_id
 
+    # IPython.embed()
+
     while (env_id <= end_env_id):
         rave.raveLogInfo('Initialize the Robot and the C++ Interface.')
         # iniitialize the robot
@@ -111,13 +113,13 @@ def main(start_env_id=0,
                                                             hand_transition_model=hand_transition_model,
                                                             check_zero_step_capturability=False,
                                                             check_one_step_capturability=True,
-                                                            specified_motion_code=5,
+                                                            specified_motion_code=8,
                                                             check_contact_transition_feasibility=False,
                                                             sample_feet_only_state=True,
                                                             sample_feet_and_one_hand_state=True,
                                                             sample_feet_and_two_hands_state=True,
                                                             thread_num=1,
-                                                            contact_sampling_iteration=10,
+                                                            contact_sampling_iteration=200,
                                                             # thread_num=multiprocessing.cpu_count(),
                                                             planning_id=env_id,
                                                             printing=True)

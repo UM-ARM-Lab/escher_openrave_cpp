@@ -59,7 +59,7 @@ def hermes_full(env, active_dof_mode='whole_body', urdf_name=None):
 
     hermes_full.robot_z = 0.7
     hermes_full.top_z = 1.4
-    hermes_full.shoulder_z = 1.1
+    hermes_full.shoulder_z = 1.2
     hermes_full.shoulder_w = 0.392
 
     hermes_full.max_arm_length = 0.4 # 0.5 arm length

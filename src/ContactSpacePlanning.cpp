@@ -2871,14 +2871,14 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
                                                                         std::string optimization_config_output_path,
                                                                         std::string objects_config_output_path)
 {
-    // construct the initial state for the optimization
-    setupStateReachabilityIK(contact_sequence[0], general_ik_interface_);
-    general_ik_interface_->returnClosest() = true;
-    general_ik_interface_->executeMotion() = true;
-    std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
+    // // construct the initial state for the optimization
+    // setupStateReachabilityIK(contact_sequence[0], general_ik_interface_);
+    // general_ik_interface_->returnClosest() = true;
+    // general_ik_interface_->executeMotion() = true;
+    // std::pair<bool,std::vector<OpenRAVE::dReal> > ik_result = general_ik_interface_->solve();
 
-    std::vector<OpenRAVE::dReal> init_robot_config;
-    general_ik_interface_->robot_->GetDOFValues(init_robot_config);
+    // std::vector<OpenRAVE::dReal> init_robot_config;
+    // general_ik_interface_->robot_->GetDOFValues(init_robot_config);
 
     std::map<ContactManipulator, RPYTF> floating_initial_contact_poses;
 
@@ -2894,7 +2894,7 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
                 Translation3D contact_position = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip].getXYZ();
                 Vector3D contact_com_unit_vector = contact_sequence[0]->com_ - contact_position;
                 contact_com_unit_vector.normalize();
-                float contact_distance = 0.1;
+                float contact_distance = 0.05;
 
                 floating_manip_pose = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip];
                 floating_manip_pose.x_ += contact_distance * contact_com_unit_vector[0];
@@ -2903,9 +2903,10 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
             }
             else
             {
-                std::string manip_name = robot_properties_->manipulator_name_map_[manip];
-                OpenRAVE::Transform floating_manip_transform = general_ik_interface_->robot_->GetManipulator(manip_name)->GetTransform();
-                floating_manip_pose = SE3ToXYZRPY(constructTransformationMatrix(floating_manip_transform));
+                // std::string manip_name = robot_properties_->manipulator_name_map_[manip];
+                // OpenRAVE::Transform floating_manip_transform = general_ik_interface_->robot_->GetManipulator(manip_name)->GetTransform();
+                // floating_manip_pose = SE3ToXYZRPY(constructTransformationMatrix(floating_manip_transform));
+                floating_manip_pose = RPYTF(0, 0, 0, 0, 0, 0);
             }
 
             // std::cout << "manip: " << manip << ", " << floating_manip_pose.x_ << ", " << floating_manip_pose.y_ << ", " << floating_manip_pose.z_ << std::endl;
