@@ -7,6 +7,7 @@ from transformation_conversion import *
 LEFT_LEG = 0; RIGHT_LEG = 1; LEFT_ARM = 2; RIGHT_ARM = 3
 manip_dict = {LEFT_LEG:'l_leg', RIGHT_LEG:'r_leg', LEFT_ARM:'l_arm', RIGHT_ARM:'r_arm'}
 manip_inv_dict = {'l_leg':LEFT_LEG, 'r_leg':RIGHT_LEG, 'l_arm':LEFT_ARM, 'r_arm':RIGHT_ARM}
+no_contact = [-99.0, -99.0, -99.0, -99.0, -99.0, -99.0]
 
 class node:
     def __init__(self,left_leg,right_leg,left_arm,right_arm):

@@ -25,23 +25,77 @@ import load_athena
 from transformation_conversion import *
 from environment_handler_2 import environment_handler
 from map_grid import map_grid_dim
-from node import node, manip_dict
+from node import *
+from contact_projection import *
 
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler, robot_obj):
+def sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures):
     # assume the robot is at (x,y) = (0,0), we sample 3 kinds of orientation (0, 30, 60)
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
+    for orientation in range(0,61,30):
+        orientation_rad = orientation * DEG2RAD
+        orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
+        init_node_list = []        
+        
+        # first check what are the available hand contacts for left and right hand
+        # make a dummy node to start sampling all possible hand contacts
+        dummy_init_left_leg = [-0.1*math.sin(orientation_rad),0.1*math.cos(orientation_rad),0,0,0,orientation]
+        dummy_init_right_leg = [0.1*math.sin(orientation_rad),-0.1*math.cos(orientation_rad),0,0,0,orientation]
+        dummy_init_left_arm = np.copy(no_contact)
+        dummy_init_right_arm = np.copy(no_contact)
+        dummy_init_node = node(dummy_init_left_leg, dummy_init_right_leg, dummy_init_left_arm, dummy_init_right_arm)
 
-    # first check what are the available hand contacts for left and right hand
+        init_left_hand_pose_lists = [np.copy(no_contact)]
+        init_right_hand_pose_lists = [np.copy(no_contact)]
 
-    # for each combination of hand contacts, find all the foot projections available to make the torso pose to be (0,0,theta)
-    # here we get a set of initial contact combinations that are with torso pose (0,0,theta)
+        for arm_orientation in hand_transition_model:
+            if arm_orientation[0] != -99.0:
+                if hand_projection(robot_obj, LEFT_ARM, arm_orientation, dummy_init_node, structures):
+                    init_left_hand_pose_lists.append(np.copy(dummy_init_node.left_arm))
+                if hand_projection(robot_obj, RIGHT_ARM, arm_orientation, dummy_init_node, structures):
+                    init_right_hand_pose_lists.append(np.copy(dummy_init_node.right_arm))
 
-    # branch contacts for each one of them, and record the torso pose transition
+        # for each combination of hand contacts, find all the foot combinations to make the torso pose to be (0,0,theta)
+        for init_left_hand_pose in init_left_hand_pose_lists:
+            for init_right_hand_pose in init_right_hand_pose_lists:
+                dummy_init_node.left_arm = init_left_hand_pose
+                dummy_init_node.right_arm = init_right_hand_pose
+                dummy_init_virtual_body_pose = dummy_init_node.get_virtual_body_pose()
 
-def sample_env(robot_obj, surface_source):
+                # based on the dummy init virtual body pose, recenter the node to be at (0,0,orientation)
+                mean_feet_position_offset = np.atleast_2d(np.array(dummy_init_virtual_body_pose[0:2])).T
+
+                # check if the hand contacts are too far away or too close
+                if dummy_init_node.manip_in_contact('l_arm'):
+                    left_hand_mean_feet_dist = np.linalg.norm(np.array(init_left_hand_pose[0:2]+mean_feet_position_offset.T))
+                    if left_hand_mean_feet_dist < robot_obj.min_arm_length or left_hand_mean_feet_dist > robot_obj.max_arm_length:
+                        continue
+
+                if dummy_init_node.manip_in_contact('r_arm'):
+                    right_hand_mean_feet_dist = np.linalg.norm(np.array(init_right_hand_pose[0:2]+mean_feet_position_offset.T))
+                    if right_hand_mean_feet_dist < robot_obj.min_arm_length or right_hand_mean_feet_dist > robot_obj.max_arm_length:
+                        continue
+
+                # sample the initial foot step combinations
+                for foot_transition in foot_transition_model:
+                    init_node = copy.deepcopy(dummy_init_node)
+
+                    init_left_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[-foot_transition[0]/2],[foot_transition[1]/2]])) - mean_feet_position_offset
+                    init_right_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[foot_transition[0]/2],[-foot_transition[1]/2]])) - mean_feet_position_offset
+
+                    init_node.left_leg = [init_left_foot_position[0], init_left_foot_position[1], sys.float_info.max, 0, 0, foot_transition[2]/2 + orientation]
+                    init_node.right_leg = [init_right_foot_position[0], init_right_foot_position[1], sys.float_info.max, 0, 0, -foot_transition[2]/2 + orientation]
+
+                    if foot_projection(robot_obj, init_node, structures):
+                        init_node_list.append(init_node)
+    
+        # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
+        # branch contacts for left arm and leg, and record the torso pose transition
+        # for init_node in initial_node_list:
+
+def sample_env(env_handler, robot_obj, surface_source):
     env_handler.update_environment(robot_obj, surface_source)
 
 def main(robot_name='athena'): # for test
@@ -62,7 +116,7 @@ def main(robot_name='athena'): # for test
 
     ### Construct the hand transition model
     hand_transition_model = []
-    hand_pitch = [-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0]
+    hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0]
     hand_yaw = [-20.0,0.0,20.0]
     for pitch in hand_pitch:
         for yaw in hand_yaw:
@@ -71,16 +125,16 @@ def main(robot_name='athena'): # for test
 
     ### Load the step transition model
     try:
-        print('Load step_transition_model...', end='')
-        f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_2.txt','r')
+        print('Load foot transition model...', end='')
+        f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
         line = ' '
-        step_transition_model = []
+        foot_transition_model = []
 
         while(True):
             line = f.readline()
             if(line == ''):
                 break
-            step_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+            foot_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
 
         f.close()
         print('Done.')
