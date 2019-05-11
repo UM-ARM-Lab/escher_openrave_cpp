@@ -10,30 +10,28 @@
   <author email="linyuchi@umich.edu">Yu-Chi Lin</author>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>Eigen</build_depend>
-  <build_depend>boost</build_depend>
+  <!-- <build_depend>Eigen</build_depend> -->
+  <!-- <build_depend>boost</build_depend> -->
   <build_depend>openrave_catkin</build_depend>
   <build_depend>roslib</build_depend>
   <build_depend>srdfdom</build_depend>
   <build_depend>urdf</build_depend>
-  <build_depend>momentumopt</build_depend>
-  <build_depend>momentumopt_athena</build_depend>
-  <build_depend>generalik</build_depend>
-  <build_depend>libqhull</build_depend>
-  <build_depend>newmat</build_depend>
-  <build_depend>yaml_cpp</build_depend>
+  <!-- <build_depend>momentumopt</build_depend> -->
+  <!-- <build_depend>momentumopt_athena</build_depend> -->
+  <!-- <build_depend>generalik</build_depend> -->
+  <!-- <build_depend>libqhull</build_depend> -->
+  <!-- <build_depend>newmat</build_depend> -->
   <!-- <build_depend>fdeep</build_depend> -->
   <run_depend>boost</run_depend>
   <run_depend>openrave_catkin</run_depend>
   <run_depend>roslib</run_depend>
   <run_depend>srdfdom</run_depend>
   <run_depend>urdf</run_depend>
-  <run_depend>momentumopt</run_depend>
-  <run_depend>momentumopt_athena</run_depend>
-  <run_depend>generalik</run_depend>
-  <run_depend>libqhull</run_depend>
-  <run_depend>newmat</run_depend>
-  <run_depend>yaml_cpp</run_depend>
+  <!-- <run_depend>momentumopt</run_depend> -->
+  <!-- <run_depend>momentumopt_athena</run_depend> -->
+  <!-- <run_depend>generalik</run_depend> -->
+  <!-- <run_depend>libqhull</run_depend> -->
+  <!-- <run_depend>newmat</run_depend> -->
   <!-- <run_depend>fdeep</run_depend> -->
   <!-- <test_depend>python-numpy</test_depend>
   <test_depend>python</test_depend> -->
