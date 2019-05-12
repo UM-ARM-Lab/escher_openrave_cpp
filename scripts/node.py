@@ -96,10 +96,10 @@ class node:
     def get_virtual_body_pose(self):
         mean_feet_pose = self.get_mean_feet_xyzrpy()
         mean_feet_position = np.array(mean_feet_pose[0:2])
-        mean_yaw = mean_feet_pose[5]
+        virtual_body_yaw = self.get_virtual_body_yaw()
 
-        orientation_rotation_matrix = rpy_to_SO3(mean_feet_pose[3:6])
-        orientation_unit_vec = np.array([math.cos(mean_yaw*DEG2RAD), math.sin(mean_yaw*DEG2RAD)])
+        orientation_rotation_matrix = rpy_to_SO3([0, 0, virtual_body_yaw])
+        orientation_unit_vec = np.array([math.cos(virtual_body_yaw*DEG2RAD), math.sin(virtual_body_yaw*DEG2RAD)])
 
         foot_contact_num = 2
         hand_contact_num = 0
@@ -116,9 +116,9 @@ class node:
         if hand_contact_num != 0:
             rotated_x = float(rotated_x) / (hand_contact_num + foot_contact_num)
         
-        virtual_body_position = np.atleast_2d(mean_feet_position).T + np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[rotated_x],[0]]))
+        virtual_body_position = np.round(np.atleast_2d(mean_feet_position).T + np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[rotated_x],[0]])),3)
 
-        return [virtual_body_position[0,0], virtual_body_position[1,0], 0, 0, 0, mean_yaw]
+        return [virtual_body_position[0,0], virtual_body_position[1,0], 0, 0, 0, virtual_body_yaw]
 
     def node_feasibile(self, robot_obj):
         # check if feet are too far away (should not be possible, but check it anyway)
@@ -130,16 +130,37 @@ class node:
 
         # check if hands are too far away from feet mean position
         mean_feet_pose = self.get_mean_feet_xyzrpy()
+        virtual_body_yaw = self.get_virtual_body_yaw()
+        virtual_body_yaw_rad = virtual_body_yaw * DEG2RAD
+
         if self.manip_in_contact('l_arm'):
-            left_hand_mean_feet_dist = np.linalg.norm(np.array(self.left_arm[0:2]) - np.array(mean_feet_pose[0:2]))
-            if left_hand_mean_feet_dist < robot_obj.min_arm_length or left_hand_mean_feet_dist > robot_obj.max_arm_length:
+            relative_shoulder_position = [0, robot_obj.shoulder_w/2.0, robot_obj.shoulder_z]
+            shoulder_position = np.array(mean_feet_pose[0:3])
+            shoulder_position[0] += math.cos(virtual_body_yaw_rad) * relative_shoulder_position[0] - math.sin(virtual_body_yaw_rad) * relative_shoulder_position[1]
+            shoulder_position[1] += math.sin(virtual_body_yaw_rad) * relative_shoulder_position[0] + math.cos(virtual_body_yaw_rad) * relative_shoulder_position[1]
+            shoulder_position[2] += relative_shoulder_position[2]
+
+            left_hand_to_shoulder_dist = np.linalg.norm(np.array(self.left_arm[0:3]) - shoulder_position)
+            if left_hand_to_shoulder_dist < robot_obj.min_arm_length or left_hand_to_shoulder_dist > robot_obj.max_arm_length:
                 return False
 
         if self.manip_in_contact('r_arm'):
-            right_hand_mean_feet_dist = np.linalg.norm(np.array(self.right_arm[0:2]) - np.array(mean_feet_pose[0:2]))
-            if right_hand_mean_feet_dist < robot_obj.min_arm_length or right_hand_mean_feet_dist > robot_obj.max_arm_length:
+            relative_shoulder_position = [0, -robot_obj.shoulder_w/2.0, robot_obj.shoulder_z]
+            shoulder_position = np.array(mean_feet_pose[0:3])
+            shoulder_position[0] += math.cos(virtual_body_yaw_rad) * relative_shoulder_position[0] - math.sin(virtual_body_yaw_rad) * relative_shoulder_position[1]
+            shoulder_position[1] += math.sin(virtual_body_yaw_rad) * relative_shoulder_position[0] + math.cos(virtual_body_yaw_rad) * relative_shoulder_position[1]
+            shoulder_position[2] += relative_shoulder_position[2]
+
+            right_hand_to_shoulder_dist = np.linalg.norm(np.array(self.right_arm[0:3]) - shoulder_position)
+            if right_hand_to_shoulder_dist < robot_obj.min_arm_length or right_hand_to_shoulder_dist > robot_obj.max_arm_length:
                 return False
 
         return True
+
+    def get_contact_manip_num(self):
+        contact_manip_num = 0
+        for manip in manip_dict:
+            contact_manip_num += int(self.manip_in_contact(manip))
+        return contact_manip_num
 
 

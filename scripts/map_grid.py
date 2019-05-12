@@ -7,7 +7,10 @@ class map_grid_dim:
         self.max_x = max_x
         self.min_y = min_y
         self.max_y = max_y
+        self.min_theta = -150
+        self.max_theta = 180
         self.resolution = resolution
+        self.angle_resolution = 30
 
     def update_grid_boundary(self,structures):
         env_min_x = sys.maxint

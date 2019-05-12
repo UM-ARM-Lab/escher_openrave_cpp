@@ -27,12 +27,37 @@ from environment_handler_2 import environment_handler
 from map_grid import map_grid_dim
 from node import *
 from contact_projection import *
+from draw import DrawStance
+
+def position_to_cell_index(position,resolution):
+    angle_resolution = 30
+    resolutions = [resolution, resolution, angle_resolution]
+    adjusted_position = [position[0], position[1], first_terminal_angle(position[2])]
+    cell_index = [None] * len(position)
+
+    for i, v in enumerate(adjusted_position):
+        if abs(v) > resolutions[i]/2.0:
+            v += -np.sign(v) * resolutions[i]/2.0
+            cell_index[i] = int(np.sign(v) * math.ceil(abs(v)/resolutions[i]))
+        else:
+            cell_index[i] = 0
+
+    return cell_index
 
 class contact_transition:
-    def __init__(self,init_node,final_node):
+    def __init__(self,init_node,final_node,grid_resolution):
         self.init_node = init_node
         self.final_node = final_node
+
+        init_virtual_body_pose = init_node.get_virtual_body_pose()
+        final_virtual_body_pose = final_node.get_virtual_body_pose()
+        init_virtual_body_pose_SE2 = init_virtual_body_pose[0:2] + [init_virtual_body_pose[5]]
+        final_virtual_body_pose_SE2 = final_virtual_body_pose[0:2] + [final_virtual_body_pose[5]]
+
+        self.init_virtual_body_cell = position_to_cell_index(init_virtual_body_pose_SE2, grid_resolution)
+        self.final_virtual_body_cell = position_to_cell_index(final_virtual_body_pose_SE2, grid_resolution)
         self.move_manip = final_node.prev_move_manip
+        
         self.contact_transition_type = None
         self.feature_vector = []
 
@@ -44,9 +69,10 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution):
     # assume the robot is at (x,y) = (0,0), we sample 3 kinds of orientation (0, 30, 60)
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
+    handles = []
     for orientation in range(0,61,30):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
@@ -80,24 +106,14 @@ def sample_contact_transitions(env_handler, robot_obj, hand_transition_model, fo
             for init_right_hand_pose in init_right_hand_pose_lists:
                 dummy_init_node.left_arm = copy.copy(init_left_hand_pose)
                 dummy_init_node.right_arm = copy.copy(init_right_hand_pose)
-                dummy_init_virtual_body_pose = dummy_init_node.get_virtual_body_pose()
-
-                # based on the dummy init virtual body pose, recenter the node to be at (0,0,orientation)
-                mean_feet_position_offset = np.atleast_2d(np.array(dummy_init_virtual_body_pose[0:2])).T
 
                 # check if the hand contacts are too far away or too close
-                # TODO: need to find the shoulder point
-                if dummy_init_node.manip_in_contact('l_arm'):
-                    left_hand_mean_feet_dist = np.linalg.norm(np.array(init_left_hand_pose[0:2])+mean_feet_position_offset.T)
-                    if left_hand_mean_feet_dist < robot_obj.min_arm_length or left_hand_mean_feet_dist > robot_obj.max_arm_length:
-                        continue
+                if not dummy_init_node.node_feasibile(robot_obj):
+                    continue                
 
-                if dummy_init_node.manip_in_contact('r_arm'):
-                    right_hand_mean_feet_dist = np.linalg.norm(np.array(init_right_hand_pose[0:2])+mean_feet_position_offset.T)
-                    if right_hand_mean_feet_dist < robot_obj.min_arm_length or right_hand_mean_feet_dist > robot_obj.max_arm_length:
-                        continue
-
-                print('ahhh!!!!!')
+                # based on the dummy init virtual body pose, recenter the node to be at (0,0,orientation)
+                dummy_init_virtual_body_pose = dummy_init_node.get_virtual_body_pose()
+                mean_feet_position_offset = np.atleast_2d(np.array(dummy_init_virtual_body_pose[0:2])).T * (dummy_init_node.get_contact_manip_num()/2.0)
 
                 # sample the initial foot step combinations
                 for foot_transition in foot_transition_model:
@@ -106,21 +122,40 @@ def sample_contact_transitions(env_handler, robot_obj, hand_transition_model, fo
                     init_left_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[-foot_transition[0]/2],[foot_transition[1]/2]])) - mean_feet_position_offset
                     init_right_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[foot_transition[0]/2],[-foot_transition[1]/2]])) - mean_feet_position_offset
 
-                    init_node.left_leg = [init_left_foot_position[0], init_left_foot_position[1], sys.float_info.max, 0, 0, foot_transition[2]/2 + orientation]
-                    init_node.right_leg = [init_right_foot_position[0], init_right_foot_position[1], sys.float_info.max, 0, 0, -foot_transition[2]/2 + orientation]
-
-                    # IPython.embed()
+                    init_node.left_leg = [init_left_foot_position[0,0], init_left_foot_position[1,0], sys.float_info.max, 0, 0, foot_transition[2]/2 + orientation]
+                    init_node.right_leg = [init_right_foot_position[0,0], init_right_foot_position[1,0], sys.float_info.max, 0, 0, -foot_transition[2]/2 + orientation]
 
                     if foot_projection(robot_obj, init_node, structures):
                         init_node_list.append(init_node)
+                        # print('----------------')
+                        # print(mean_feet_position_offset.T)
+                        # print(dummy_init_node.get_virtual_body_pose())
+                        # print(init_node.get_virtual_body_pose())
+                        # DrawStance(init_node, robot_obj, handles)
+                        # raw_input()
+                        # handles = []
     
         # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
         # branch contacts for left arm and leg, and record the torso pose transition
         rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
-        child_node_list = []
+        contact_transition_list = []
         for init_node in init_node_list:
-            print(init_node.get_virtual_body_pose())
-            child_node_list += branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
+            child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
+
+            for child_node in child_node_list:
+                contact_transition_list.append(contact_transition(init_node, child_node, grid_resolution))
+                # print(contact_transition_list[-1].init_virtual_body_cell)
+                # print(init_node.get_virtual_body_pose())
+                # print(contact_transition_list[-1].final_virtual_body_cell)
+                # print(child_node.get_virtual_body_pose())
+                # print('previous move manipulator: ' + str(child_node.prev_move_manip))
+                # DrawStance(init_node, robot_obj, handles)
+                # DrawStance(child_node, robot_obj, handles)
+                # raw_input()
+                # handles = []
+
+        return contact_transition_list
+
 
 def sample_env(env_handler, robot_obj, surface_source):
     env_handler.update_environment(robot_obj, surface_source=surface_source)
@@ -180,13 +215,14 @@ def main(robot_name='athena'): # for test
     elif robot_name == 'hermes_full':
         robot_obj = load_hermes_full.hermes_full(env)
 
+    robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
     ### sample environments, and contact transition
     # while(True):
     #     sample_env(env_handler, robot_obj, 'dynopt_test_env_1')
 
     structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
-    sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures)
+    sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.1)
 
 
 if __name__ == "__main__":
