@@ -180,6 +180,68 @@ class trimesh_surface(structure):
 
 		return p[0:3,0:1]
 
+	# get the projection transformation given an origin and a ray casting from the origin
+	def projection(self,robot_obj,origin,ray,roll,end_effector_type,valid_contact=False):
+		translation = self.projection_global_frame(origin,ray)
+
+		if(translation is None):
+			return None
+
+		if(np.linalg.norm(translation - self.get_center()) > self.circumscribed_radius):
+			return None
+
+		if(end_effector_type == 'foot'):
+			cz = self.get_normal()
+			cx = np.array([[math.cos(roll*DEG2RAD)],[math.sin(roll*DEG2RAD)],[0]])
+			cy = np.cross(cz.T,cx.T).T
+			cy = cy / np.linalg.norm(cy)
+			cx = np.cross(cy.T,cz.T).T
+			
+			contact_type = 'foot'
+		elif(end_effector_type == 'left_hand'):
+			if(abs(np.dot(self.get_normal().T,np.array([0,0,1]))) < 0.9999):
+				cx = -self.get_normal()
+				cy = np.array([[math.sin(roll*DEG2RAD)],[0],[math.cos(roll*DEG2RAD)]])
+				cy = (self.projection_global_frame(translation+cy) - translation)
+				cy = cy / np.linalg.norm(cy)
+				cz = np.cross(cx.T,cy.T).T
+			else:
+				cx = -self.get_normal()
+				cy = np.array([[math.cos(roll*DEG2RAD)],[math.sin(roll*DEG2RAD)],[0]])
+				cy = (self.projection_global_frame(translation+cy) - translation)
+				cy = cy / np.linalg.norm(cy)
+				cz = np.cross(cx.T,cy.T).T
+
+			contact_type = 'hand'
+		elif(end_effector_type == 'right_hand'):
+			if(abs(np.dot(self.get_normal().T,np.array([0,0,1]))) < 0.9999):
+				cx = -self.get_normal()
+				cy = np.array([[-math.sin(roll*DEG2RAD)],[0],[-math.cos(roll*DEG2RAD)]])
+				cy = (self.projection_global_frame(translation+cy) - translation)
+				cy = cy / np.linalg.norm(cy)
+				cz = np.cross(cx.T,cy.T).T
+			else:
+				cx = -self.get_normal()
+				cy = np.array([[-math.cos(roll*DEG2RAD)],[-math.sin(roll*DEG2RAD)],[0]])
+				cy = (self.projection_global_frame(translation+cy) - translation)
+				cy = cy / np.linalg.norm(cy)
+				cz = np.cross(cx.T,cy.T).T
+
+			contact_type = 'hand'
+
+		transform = np.eye(4)
+		transform[0:3,0:1] = cx
+		transform[0:3,1:2] = cy
+		transform[0:3,2:3] = cz
+		transform[0:3,3:4] = translation
+
+		valid_contact = self.contact_inside_polygon(robot_obj,transform,contact_type)
+
+		if(valid_contact):
+			return transform
+		else:
+			return None
+
 	def projection_plane_frame(self,p,ray=None):
 		if(ray is None):
 			p = np.vstack((p,1))
@@ -215,6 +277,30 @@ class trimesh_surface(structure):
 					return proj_p
 
 		return None
+
+	# underlying assumption: the polygon is convex
+	def contact_inside_polygon(self,robot_obj,tf,contact_type):
+		if(contact_type == 'foot'):
+			h = robot_obj.foot_h/2.0
+			w = robot_obj.foot_w/2.0
+			vertices = np.array([[h,h,-h,-h],[w,-w,w,-w],[0,0,0,0],[1,1,1,1]])
+		elif(contact_type == 'hand'):
+			h = robot_obj.hand_h/2.0
+			w = robot_obj.hand_w/2.0
+			vertices = np.array([[0,0,0,0],[h,h,-h,-h],[w,-w,w,-w],[1,1,1,1]])
+
+		else:
+			print('Error: Unexpected contact contact_type: %s'%contact_type)
+			raw_input()
+			return False
+
+		transformed_vertices = np.dot(tf,vertices)
+
+		for i in range(transformed_vertices.shape[1]):
+			if(not self.inside_polygon(transformed_vertices[0:3,i:i+1])):
+				return False
+
+		return True
 
 	def inside_polygon(self,p):
 		error_tolerance = 0.005

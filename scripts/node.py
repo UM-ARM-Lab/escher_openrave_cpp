@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import openrave as rave
+import openravepy as rave
 
 from transformation_conversion import *
 
@@ -28,6 +28,8 @@ class node:
 
         self.manip_pose_list = [self.left_leg, self.right_leg, self.left_arm, self.right_arm]
 
+        self.prev_move_manip = None
+
     def get_left_horizontal_yaw(self):
         l_leg_rotation = rpy_to_SO3(self.left_leg[3:6])
         cy = l_leg_rotation[0:3,1]
@@ -48,6 +50,7 @@ class node:
         return angle_mean(left_horizontal_yaw,right_horizontal_yaw)
 
     def get_manip_pose(self, manip):
+        self.manip_pose_list = [self.left_leg, self.right_leg, self.left_arm, self.right_arm]
         if isinstance(manip, int):
             if manip < len(manip_dict):
                 return self.manip_pose_list[manip]
@@ -73,6 +76,7 @@ class node:
         return [mean_x, mean_y, mean_z, 0, 0, mean_yaw]
 
     def manip_in_contact(self, manip):
+        self.manip_pose_list = [self.left_leg, self.right_leg, self.left_arm, self.right_arm]
         if isinstance(manip, int):
             if manip < len(manip_dict):
                 return self.manip_pose_list[manip][0] != -99.0
@@ -115,4 +119,27 @@ class node:
         virtual_body_position = np.atleast_2d(mean_feet_position).T + np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[rotated_x],[0]]))
 
         return [virtual_body_position[0,0], virtual_body_position[1,0], 0, 0, 0, mean_yaw]
+
+    def node_feasibile(self, robot_obj):
+        # check if feet are too far away (should not be possible, but check it anyway)
+        if np.linalg.norm(np.array(self.left_leg[0:3]) - np.array(self.right_leg[0:3])) > 3.0:
+            rave.raveLogError('Large distance between feet should not be possible.')
+            print("left_leg: ", self.left_leg)
+            print("right_leg: ", self.right_leg)
+            raw_input()
+
+        # check if hands are too far away from feet mean position
+        mean_feet_pose = self.get_mean_feet_xyzrpy()
+        if self.manip_in_contact('l_arm'):
+            left_hand_mean_feet_dist = np.linalg.norm(np.array(self.left_arm[0:2]) - np.array(mean_feet_pose[0:2]))
+            if left_hand_mean_feet_dist < robot_obj.min_arm_length or left_hand_mean_feet_dist > robot_obj.max_arm_length:
+                return False
+
+        if self.manip_in_contact('r_arm'):
+            right_hand_mean_feet_dist = np.linalg.norm(np.array(self.right_arm[0:2]) - np.array(mean_feet_pose[0:2]))
+            if right_hand_mean_feet_dist < robot_obj.min_arm_length or right_hand_mean_feet_dist > robot_obj.max_arm_length:
+                return False
+
+        return True
+
 
