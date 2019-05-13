@@ -93,10 +93,10 @@ class node:
             rave.raveLogError('Unknown manipulator descriptor type.')
             raw_input()
 
-    def get_virtual_body_pose(self):
-        mean_feet_pose = self.get_mean_feet_xyzrpy()
+    def get_virtual_body_pose(self): #map from a node (stance) to a pose in SE(2) space
+        mean_feet_pose = self.get_mean_feet_xyzrpy() # 
         mean_feet_position = np.array(mean_feet_pose[0:2])
-        virtual_body_yaw = self.get_virtual_body_yaw()
+        virtual_body_yaw = self.get_virtual_body_yaw() #orientation
 
         orientation_rotation_matrix = rpy_to_SO3([0, 0, virtual_body_yaw])
         orientation_unit_vec = np.array([math.cos(virtual_body_yaw*DEG2RAD), math.sin(virtual_body_yaw*DEG2RAD)])
@@ -106,7 +106,7 @@ class node:
         rotated_x = 0
 
         if(self.manip_in_contact('l_arm')):
-            rotated_x += np.dot(np.array(self.get_manip_pose('l_arm')[0:2])-mean_feet_position, orientation_unit_vec)
+            rotated_x += np.dot(np.array(self.get_manip_pose('l_arm')[0:2])-mean_feet_position, orientation_unit_vec) # 
             hand_contact_num += 1
 
         if(self.manip_in_contact('r_arm')):

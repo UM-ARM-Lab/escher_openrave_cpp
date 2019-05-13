@@ -196,7 +196,7 @@ class trimesh_surface(structure):
 			cy = np.cross(cz.T,cx.T).T
 			cy = cy / np.linalg.norm(cy)
 			cx = np.cross(cy.T,cz.T).T
-			
+
 			contact_type = 'foot'
 		elif(end_effector_type == 'left_hand'):
 			if(abs(np.dot(self.get_normal().T,np.array([0,0,1]))) < 0.9999):
@@ -336,3 +336,5 @@ class trimesh_surface(structure):
 				return True
 			else:
 				return False
+		else:
+			return False

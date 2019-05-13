@@ -73,11 +73,11 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
     # assume the robot is at (x,y) = (0,0), we sample 3 kinds of orientation (0, 30, 60)
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
     handles = []
+    init_node_list = []
     for orientation in range(0,61,30):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
-        init_node_list = []        
         
         # first check what are the available hand contacts for left and right hand
         # make a dummy node to start sampling all possible hand contacts
@@ -135,26 +135,27 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                         # raw_input()
                         # handles = []
     
-        # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
-        # branch contacts for left arm and leg, and record the torso pose transition
-        rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
-        contact_transition_list = []
-        for init_node in init_node_list:
-            child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
+    # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
+    # branch contacts for left arm and leg, and record the torso pose transition
+    rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
+    contact_transition_list = []
+    for init_node in init_node_list:
+        child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
 
-            for child_node in child_node_list:
-                contact_transition_list.append(contact_transition(init_node, child_node, grid_resolution))
-                # print(contact_transition_list[-1].init_virtual_body_cell)
-                # print(init_node.get_virtual_body_pose())
-                # print(contact_transition_list[-1].final_virtual_body_cell)
-                # print(child_node.get_virtual_body_pose())
-                # print('previous move manipulator: ' + str(child_node.prev_move_manip))
-                # DrawStance(init_node, robot_obj, handles)
-                # DrawStance(child_node, robot_obj, handles)
-                # raw_input()
-                # handles = []
+        for child_node in child_node_list:
+            contact_transition_list.append(contact_transition(init_node, child_node, grid_resolution))
+            # print(contact_transition_list[-1].init_virtual_body_cell)
+            # print(init_node.get_virtual_body_pose())
+            # print(contact_transition_list[-1].final_virtual_body_cell)
+            # print(child_node.get_virtual_body_pose())
+            # print('previous move manipulator: ' + str(child_node.prev_move_manip))
+            # DrawStance(init_node, robot_obj, handles)
+            # DrawStance(child_node, robot_obj, handles)
+            # raw_input()
+            # handles = []
 
-        return contact_transition_list
+    rave.raveLogInfo('Collected ' + repr(len(contact_transition_list)) + ' contact transitions.')
+    return contact_transition_list
 
 
 def sample_env(env_handler, robot_obj, surface_source):
@@ -179,14 +180,14 @@ def main(robot_name='athena'): # for test
 
     ### Construct the hand transition model
     hand_transition_model = []
-    hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0]
-    hand_yaw = [-20.0,0.0,20.0]
+    hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0] #horizontal
+    hand_yaw = [-20.0,0.0,20.0] #vertical
     for pitch in hand_pitch:
         for yaw in hand_yaw:
             hand_transition_model.append((pitch,yaw))
     hand_transition_model.append((-99.0,-99.0))
 
-    ### Load the step transition model
+    ### Load the foot transition model
     try:
         print('Load foot transition model...', end='')
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
@@ -223,6 +224,8 @@ def main(robot_name='athena'): # for test
 
     structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
     sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.1)
+
+    rave.raveLogInfo('Sampling finished!!')
 
 
 if __name__ == "__main__":
