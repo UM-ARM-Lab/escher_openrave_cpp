@@ -130,6 +130,8 @@ class contact_transition:
         elif self.contact_transition_type == 9:
             self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy() + self.final_node.left_arm.copy()
 
+        else:
+            raw_input('Wrong Type.')
         return self.feature_vector
 
 
