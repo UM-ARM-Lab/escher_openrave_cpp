@@ -30,9 +30,9 @@ from contact_projection import *
 from draw import DrawStance
 
 def position_to_cell_index(position,resolution):
-    angle_resolution = 30
-    resolutions = [resolution, resolution, angle_resolution]
-    adjusted_position = [position[0], position[1], first_terminal_angle(position[2])]
+    angle_resolution = 15
+    resolutions = [resolution, resolution, angle_resolution] # resolution is the resolution of x and y, which is 0.1m in this case
+    adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
     cell_index = [None] * len(position)
 
     for i, v in enumerate(adjusted_position):
@@ -74,7 +74,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
     handles = []
     init_node_list = []
-    for orientation in range(0,61,30):
+    for orientation in range(0,76,15):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
@@ -87,10 +87,10 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
         dummy_init_right_arm = copy.copy(no_contact)
         dummy_init_node = node(dummy_init_left_leg, dummy_init_right_leg, dummy_init_left_arm, dummy_init_right_arm)
 
-        init_left_hand_pose_lists = [copy.copy(no_contact)]
-        init_right_hand_pose_lists = [copy.copy(no_contact)]
+        init_left_hand_pose_lists = [copy.copy(no_contact)] # ?????
+        init_right_hand_pose_lists = [copy.copy(no_contact)] # ?????
 
-        for arm_orientation in hand_transition_model:
+        for arm_orientation in hand_transition_model: 
             if arm_orientation[0] != -99.0:
                 if hand_projection(robot_obj, LEFT_ARM, arm_orientation, dummy_init_node, structures):
                     init_left_hand_pose_lists.append(copy.copy(dummy_init_node.left_arm))
@@ -180,8 +180,8 @@ def main(robot_name='athena'): # for test
 
     ### Construct the hand transition model
     hand_transition_model = []
-    hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0] #horizontal
-    hand_yaw = [-20.0,0.0,20.0] #vertical
+    hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0] # horizontal
+    hand_yaw = [-20.0,0.0,20.0] # vertical
     for pitch in hand_pitch:
         for yaw in hand_yaw:
             hand_transition_model.append((pitch,yaw))
@@ -220,10 +220,12 @@ def main(robot_name='athena'): # for test
 
     ### sample environments, and contact transition
     # while(True):
-    #     sample_env(env_handler, robot_obj, 'dynopt_test_env_1')
+    for i in range(1, 9):
+        structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_' + str(i))
+        contact_transition_list = sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
 
-    structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
-    sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.1)
+    # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
+    # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
 
     rave.raveLogInfo('Sampling finished!!')
 

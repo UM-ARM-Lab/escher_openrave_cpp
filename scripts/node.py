@@ -73,9 +73,9 @@ class node:
         mean_y = (self.left_leg[1] + self.right_leg[1])/2.0
         mean_z = (self.left_leg[2] + self.right_leg[2])/2.0
 
-        return [mean_x, mean_y, mean_z, 0, 0, mean_yaw]
+        return [mean_x, mean_y, mean_z, 0, 0, mean_yaw] # why don't need roll and pitch
 
-    def manip_in_contact(self, manip):
+    def manip_in_contact(self, manip): # if manip in contact, return true
         self.manip_pose_list = [self.left_leg, self.right_leg, self.left_arm, self.right_arm]
         if isinstance(manip, int):
             if manip < len(manip_dict):
@@ -83,7 +83,7 @@ class node:
             else:
                 rave.raveLogError('Invalid manipulator index: %d'%(manip))
                 raw_input()
-        elif isinstance(manip, basestring):
+        elif isinstance(manip, basestring): # basestring is the superclass for str and unicode
             if manip in manip_inv_dict:
                 return self.manip_pose_list[manip_inv_dict[manip]][0] != -99.0
             else:
@@ -93,20 +93,20 @@ class node:
             rave.raveLogError('Unknown manipulator descriptor type.')
             raw_input()
 
-    def get_virtual_body_pose(self): #map from a node (stance) to a pose in SE(2) space
-        mean_feet_pose = self.get_mean_feet_xyzrpy() # 
+    def get_virtual_body_pose(self): # map from a node (stance) to a pose in SE(2)
+        mean_feet_pose = self.get_mean_feet_xyzrpy()
         mean_feet_position = np.array(mean_feet_pose[0:2])
-        virtual_body_yaw = self.get_virtual_body_yaw() #orientation
+        virtual_body_yaw = self.get_virtual_body_yaw() # orientation (same as mean_feet_pose[5]?)
 
         orientation_rotation_matrix = rpy_to_SO3([0, 0, virtual_body_yaw])
         orientation_unit_vec = np.array([math.cos(virtual_body_yaw*DEG2RAD), math.sin(virtual_body_yaw*DEG2RAD)])
 
         foot_contact_num = 2
         hand_contact_num = 0
-        rotated_x = 0
+        rotated_x = 0 # initialize to the sum of left_feet_x and right_feet_x, which is also 0 because the origin is the mean_feet_x
 
         if(self.manip_in_contact('l_arm')):
-            rotated_x += np.dot(np.array(self.get_manip_pose('l_arm')[0:2])-mean_feet_position, orientation_unit_vec) # 
+            rotated_x += np.dot(np.array(self.get_manip_pose('l_arm')[0:2])-mean_feet_position, orientation_unit_vec)
             hand_contact_num += 1
 
         if(self.manip_in_contact('r_arm')):
