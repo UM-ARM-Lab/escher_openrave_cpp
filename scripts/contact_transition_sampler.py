@@ -61,11 +61,77 @@ class contact_transition:
         self.contact_transition_type = None
         self.feature_vector = []
 
-    # def get_contact_transition_type(self):
+    def get_contact_transition_type(self):
         # please fill in this part
+        # assume only modify the left side
+        if self.init_node.get_contact_manip_num() == 2 and self.final_node.get_contact_manip_num() == 2:
+            self.contact_transition_type = 0
+        
+        elif self.init_node.get_contact_manip_num() == 2 and self.final_node.get_contact_manip_num() == 3:
+            self.contact_transition_type = 1
+
+        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 3:
+            if self.final_node.prev_move_manip == LEFT_LEG:
+                if self.init_node.manip_in_contact('l_arm'):
+                    self.contact_transition_type = 2
+                else:
+                    self.contact_transition_type = 3
+            else:
+                self.contact_transition_type = 5
+        
+        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 2:
+            self.contact_transition_type = 4
+
+        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 4:
+            self.contact_transition_type = 6
+
+        elif self.init_node.get_contact_manip_num() == 4 and self.final_node.get_contact_manip_num() == 3:
+            self.contact_transition_type = 8
+        # self.init_node.get_contact_manip_num() == 4 and self.final_node.get_contact_manip_num() == 4
+        else:
+            if self.final_node.prev_move_manip == LEFT_LEG:
+                self.contact_transition_type = 7
+            else:
+                self.contact_transition_type = 9
+
+        return self.contact_transition_type
+        # error checking???
+
     
-    # def get_feature_vector(self):
-        # please fill in this part
+    def get_feature_vector(self):
+        get_contact_transition_type()
+        if self.contact_transition_type == 0:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.final_node.left_leg.copy()
+            
+        elif self.contact_transition_type == 1:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.final_node.left_arm.copy()
+            
+        elif self.contact_transition_type == 2:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.final_node.left_leg.copy()
+
+        elif self.contact_transition_type == 3:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.right_arm.copy() + self.final_node.left_leg.copy()
+
+        elif self.contact_transition_type == 4:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy()
+
+        elif self.contact_transition_type == 5:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.final_node.left_arm.copy()
+
+        elif self.contact_transition_type == 6:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.right_arm.copy() + self.final_node.left_arm.copy()
+
+        elif self.contact_transition_type == 7:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy() + self.final_node.left_leg.copy()
+
+        elif self.contact_transition_type == 8:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy()
+
+        elif self.contact_transition_type == 9:
+            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy() + self.final_node.left_arm.copy()
+
+        return self.feature_vector
+
 
 # def extract_env_feature():
 
@@ -220,7 +286,7 @@ def main(robot_name='athena'): # for test
 
     ### sample environments, and contact transition
     # while(True):
-    for i in range(1, 9):
+    for i in range(1, 10):
         structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_' + str(i))
         contact_transition_list = sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
 
