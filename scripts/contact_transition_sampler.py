@@ -29,6 +29,8 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
+import global_variables # ??????????
+
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
     resolutions = [resolution, resolution, angle_resolution] # resolution is the resolution of x and y, which is 0.1m in this case
@@ -225,7 +227,17 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
         child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
 
         for child_node in child_node_list:
-            contact_transition_list.append(contact_transition(init_node, child_node, grid_resolution))
+            # ??????????
+            one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
+            contact_transition_list.append(one_contact_transition)
+            global_variables.output_file_handle.write('transition_number: {} '.format(global_variables.transition_number))
+            global_variables.transition_number += 1
+            global_variables.output_file_handle.write('node1: left_leg {} right_leg {} left_arm {} right_arm {} virtual_body_pose {} '.format(init_node.left_leg, init_node.right_leg, init_node.left_arm, init_node.right_arm, init_node.get_virtual_body_pose()))
+            global_variables.output_file_handle.write('node2: left_leg {} right_leg {} left_arm {} right_arm {} virtual_body_pose {} '.format(child_node.left_leg, child_node.right_leg, child_node.left_arm, child_node.right_arm, child_node.get_virtual_body_pose()))
+            global_variables.output_file_handle.write('contact_transition_type: {} '.format(one_contact_transition.get_contact_transition_type()))
+            global_variables.output_file_handle.write('feature_vector: {}\n'.format(one_contact_transition.get_feature_vector()))
+            # also need COM position and COM velocity
+
             # print(contact_transition_list[-1].init_virtual_body_cell)
             # print(init_node.get_virtual_body_pose())
             # print(contact_transition_list[-1].final_virtual_body_cell)
@@ -300,10 +312,10 @@ def main(robot_name='athena'): # for test
 
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
-    ### sample environments, and contact transition
-    # while(True):
-    for i in range(1, 10):
-        structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_' + str(i))
+    global_variables.init_global_variables() # ??????????
+    # sample environments and contact transitions
+    for i in range(10):
+        structures = sample_env(env_handler, robot_obj, 'one_step_env_1')
         contact_transition_list = sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
 
     # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
