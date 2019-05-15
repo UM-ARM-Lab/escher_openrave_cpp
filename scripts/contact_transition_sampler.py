@@ -29,7 +29,11 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-import global_variables # ??????????
+# write all the transition records to this file
+output_file_handle = open('../data/transitions/all_transitions', 'w')
+records = []
+
+# from global_variables import * # ??????????
 
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
@@ -88,7 +92,7 @@ class contact_transition:
                 elif self.final_node.prev_move_manip == LEFT_ARM:
                     self.contact_transition_type = 5
                 else:
-                    raw_input('Invalid Node')
+                    raw_input('Invalid Transition')
             elif self.final_node.get_contact_manip_num() == 4:
                 self.contact_transition_type = 6
             else:
@@ -115,39 +119,64 @@ class contact_transition:
 
 
     def get_feature_vector(self):
-        get_contact_transition_type()
+        self.get_contact_transition_type()
+
+        # center the poses about the mean feet pose
+        inv_mean_feet_transform = xyzrpy_to_inverse_SE3(self.init_node.get_mean_feet_xyzrpy())
+
+        init_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_leg)))
+        init_right_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_leg)))
+        final_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_leg)))
+
+        if self.init_node.manip_in_contact('l_arm'):
+            init_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_arm)))
+        
+        if self.init_node.manip_in_contact('r_arm'):
+            init_right_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_arm)))
+
+        if self.final_node.manip_in_contact('l_arm'):
+            final_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_arm)))
+
+        # construct the feature vector
         if self.contact_transition_type == 0:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.final_node.left_leg
+            self.feature_vector = init_left_leg + init_right_leg + final_left_leg
 
         elif self.contact_transition_type == 1:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.final_node.left_arm
+            self.feature_vector = init_left_leg + init_right_leg + final_left_arm
 
         elif self.contact_transition_type == 2:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.final_node.left_leg
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + final_left_leg
 
         elif self.contact_transition_type == 3:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.right_arm + self.final_node.left_leg
+            self.feature_vector = init_left_leg + init_right_leg + init_right_arm + final_left_leg
 
         elif self.contact_transition_type == 4:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm
 
         elif self.contact_transition_type == 5:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.final_node.left_arm
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + final_left_arm
 
         elif self.contact_transition_type == 6:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.right_arm + self.final_node.left_arm
+            self.feature_vector = init_left_leg + init_right_leg + init_right_arm + final_left_arm
 
         elif self.contact_transition_type == 7:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm + self.final_node.left_leg
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg
 
         elif self.contact_transition_type == 8:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm
 
         elif self.contact_transition_type == 9:
-            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm + self.final_node.left_arm
+            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm
 
         else:
             raw_input('Wrong Type.')
+
+        # sample the initial CoM position and CoM velocity
+        # get those information from dynopt_result/dataset
+
+        # remember to normalize the feature vector using information in data/dynopt_result/*nn_models before sending to the network.
+
+
         return self.feature_vector
 
 
@@ -230,12 +259,17 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
             # ??????????
             one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
             contact_transition_list.append(one_contact_transition)
-            global_variables.output_file_handle.write('transition_number: {} '.format(global_variables.transition_number))
-            global_variables.transition_number += 1
-            global_variables.output_file_handle.write('node1: left_leg {} right_leg {} left_arm {} right_arm {} virtual_body_pose {} '.format(init_node.left_leg, init_node.right_leg, init_node.left_arm, init_node.right_arm, init_node.get_virtual_body_pose()))
-            global_variables.output_file_handle.write('node2: left_leg {} right_leg {} left_arm {} right_arm {} virtual_body_pose {} '.format(child_node.left_leg, child_node.right_leg, child_node.left_arm, child_node.right_arm, child_node.get_virtual_body_pose()))
-            global_variables.output_file_handle.write('contact_transition_type: {} '.format(one_contact_transition.get_contact_transition_type()))
-            global_variables.output_file_handle.write('feature_vector: {}\n'.format(one_contact_transition.get_feature_vector()))
+            temp_dict = {}
+            temp_dict['structures'] = []
+            for s in structures:
+                temp_dict['structures'].append(s.vertices)
+            temp_dict['node1'] = init_node
+            temp_dict['p1'] = init_node.get_virtual_body_pose()
+            temp_dict['node2'] = child_node
+            temp_dict['p2'] = child_node.get_virtual_body_pose()
+            temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
+            temp_dict['feature_vector'] = one_contact_transition.get_feature_vector()
+            records.append(temp_dict)
             # also need COM position and COM velocity
 
             # print(contact_transition_list[-1].init_virtual_body_cell)
@@ -280,10 +314,12 @@ def main(robot_name='athena'): # for test
         for yaw in hand_yaw:
             hand_transition_model.append((pitch,yaw))
     hand_transition_model.append((-99.0,-99.0))
+  
 
     ### Load the foot transition model
     try:
         print('Load foot transition model...', end='')
+        
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
         line = ' '
         foot_transition_model = []
@@ -312,15 +348,17 @@ def main(robot_name='athena'): # for test
 
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
-    global_variables.init_global_variables() # ??????????
+    # init_global_variables() # ??????????
     # sample environments and contact transitions
     for i in range(10):
         structures = sample_env(env_handler, robot_obj, 'one_step_env_1')
-        contact_transition_list = sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+        structures = sample_env(env_handler, robot_obj, 'one_step_env_2')
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
 
     # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
     # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-
+    pickle.dump(records, output_file_handle)
     rave.raveLogInfo('Sampling finished!!')
 
 
