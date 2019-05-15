@@ -57,78 +57,92 @@ class contact_transition:
         self.init_virtual_body_cell = position_to_cell_index(init_virtual_body_pose_SE2, grid_resolution)
         self.final_virtual_body_cell = position_to_cell_index(final_virtual_body_pose_SE2, grid_resolution)
         self.move_manip = final_node.prev_move_manip
-        
+
         self.contact_transition_type = None
         self.feature_vector = []
 
     def get_contact_transition_type(self):
         # please fill in this part
         # assume only modify the left side
-        if self.init_node.get_contact_manip_num() == 2 and self.final_node.get_contact_manip_num() == 2:
-            self.contact_transition_type = 0
-        
-        elif self.init_node.get_contact_manip_num() == 2 and self.final_node.get_contact_manip_num() == 3:
-            self.contact_transition_type = 1
+        if self.init_node.get_contact_manip_num() == 2:
+            if self.final_node.get_contact_manip_num() == 2:
+                self.contact_transition_type = 0
+            elif self.final_node.get_contact_manip_num() == 3:
+                self.contact_transition_type = 1
+            else:
+                raw_input('Invalid Transition')
 
-        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 3:
-            if self.final_node.prev_move_manip == LEFT_LEG:
-                if self.init_node.manip_in_contact('l_arm'):
-                    self.contact_transition_type = 2
+        elif self.init_node.get_contact_manip_num() == 3:
+            if self.final_node.get_contact_manip_num() == 2:
+                self.contact_transition_type = 4
+            elif self.final_node.get_contact_manip_num() == 3:
+                if self.final_node.prev_move_manip == LEFT_LEG:
+                    if self.init_node.manip_in_contact('l_arm'):
+                        self.contact_transition_type = 2
+                    elif self.init_node.manip_in_contact('r_arm'):
+                        self.contact_transition_type = 3
+                    else:
+                        raw_input('Invalid Transition')
+                elif self.final_node.prev_move_manip == LEFT_ARM:
+                    self.contact_transition_type = 5
                 else:
-                    self.contact_transition_type = 3
+                    raw_input('Invalid Node')
+            elif self.final_node.get_contact_manip_num() == 4:
+                self.contact_transition_type = 6
             else:
-                self.contact_transition_type = 5
-        
-        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 2:
-            self.contact_transition_type = 4
+                raw_input('Invalid Transition')
 
-        elif self.init_node.get_contact_manip_num() == 3 and self.final_node.get_contact_manip_num() == 4:
-            self.contact_transition_type = 6
+        elif self.init_node.get_contact_manip_num() == 4:
+            if self.final_node.get_contact_manip_num() == 3:
+                self.contact_transition_type = 8
+            elif self.final_node.get_contact_manip_num() == 4:
+                if self.final_node.prev_move_manip == LEFT_LEG:
+                    self.contact_transition_type = 7
+                elif self.final_node.prev_move_manip == LEFT_ARM:
+                    self.contact_transition_type = 9
+                else:
+                    raw_input('Invalid Transition')
+            else:
+                raw_input('Invalid Transition')
 
-        elif self.init_node.get_contact_manip_num() == 4 and self.final_node.get_contact_manip_num() == 3:
-            self.contact_transition_type = 8
-        # self.init_node.get_contact_manip_num() == 4 and self.final_node.get_contact_manip_num() == 4
         else:
-            if self.final_node.prev_move_manip == LEFT_LEG:
-                self.contact_transition_type = 7
-            else:
-                self.contact_transition_type = 9
+            raw_input('Invalid Transition')
 
         return self.contact_transition_type
-        # error checking???
+        # more error checking???
 
-    
+
     def get_feature_vector(self):
         get_contact_transition_type()
         if self.contact_transition_type == 0:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.final_node.left_leg.copy()
-            
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.final_node.left_leg
+
         elif self.contact_transition_type == 1:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.final_node.left_arm.copy()
-            
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.final_node.left_arm
+
         elif self.contact_transition_type == 2:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.final_node.left_leg.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.final_node.left_leg
 
         elif self.contact_transition_type == 3:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.right_arm.copy() + self.final_node.left_leg.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.right_arm + self.final_node.left_leg
 
         elif self.contact_transition_type == 4:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm
 
         elif self.contact_transition_type == 5:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.final_node.left_arm.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.final_node.left_arm
 
         elif self.contact_transition_type == 6:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.right_arm.copy() + self.final_node.left_arm.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.right_arm + self.final_node.left_arm
 
         elif self.contact_transition_type == 7:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy() + self.final_node.left_leg.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm + self.final_node.left_leg
 
         elif self.contact_transition_type == 8:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm
 
         elif self.contact_transition_type == 9:
-            self.feature_vector = self.init_node.left_leg.copy() + self.init_node.right_leg.copy() + self.init_node.left_arm.copy() + self.init_node.right_arm.copy() + self.final_node.left_arm.copy()
+            self.feature_vector = self.init_node.left_leg + self.init_node.right_leg + self.init_node.left_arm + self.init_node.right_arm + self.final_node.left_arm
 
         else:
             raw_input('Wrong Type.')
@@ -146,7 +160,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
-        
+
         # first check what are the available hand contacts for left and right hand
         # make a dummy node to start sampling all possible hand contacts
         dummy_init_left_leg = [-0.1*math.sin(orientation_rad),0.1*math.cos(orientation_rad),0,0,0,orientation]
@@ -158,7 +172,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
         init_left_hand_pose_lists = [copy.copy(no_contact)] # ?????
         init_right_hand_pose_lists = [copy.copy(no_contact)] # ?????
 
-        for arm_orientation in hand_transition_model: 
+        for arm_orientation in hand_transition_model:
             if arm_orientation[0] != -99.0:
                 if hand_projection(robot_obj, LEFT_ARM, arm_orientation, dummy_init_node, structures):
                     init_left_hand_pose_lists.append(copy.copy(dummy_init_node.left_arm))
@@ -177,7 +191,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
 
                 # check if the hand contacts are too far away or too close
                 if not dummy_init_node.node_feasibile(robot_obj):
-                    continue                
+                    continue
 
                 # based on the dummy init virtual body pose, recenter the node to be at (0,0,orientation)
                 dummy_init_virtual_body_pose = dummy_init_node.get_virtual_body_pose()
@@ -202,7 +216,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                         # DrawStance(init_node, robot_obj, handles)
                         # raw_input()
                         # handles = []
-    
+
     # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
     # branch contacts for left arm and leg, and record the torso pose transition
     rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
