@@ -1,0 +1,6 @@
+If you want to change the com combinations set for each contact transition type, run "python com_combinations.py".
+
+Procedure to update all the data:
+1. python contact_transition_sampler.py
+2. python divide_transitions.py
+3. python compute_ddyn.py
