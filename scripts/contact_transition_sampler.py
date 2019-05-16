@@ -31,9 +31,8 @@ from draw import DrawStance
 
 # write all the transition records to this file
 output_file_handle = open('../data/transitions/all_transitions', 'w')
-records = []
+transitions = []
 
-# from global_variables import * # ??????????
 
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
@@ -115,10 +114,9 @@ class contact_transition:
             raw_input('Invalid Transition')
 
         return self.contact_transition_type
-        # more error checking???
 
 
-    def get_feature_vector(self):
+    def get_feature_vector_contact_part(self):
         self.get_contact_transition_type()
 
         # center the poses about the mean feet pose
@@ -187,7 +185,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
     handles = []
     init_node_list = []
-    for orientation in range(0,76,15):
+    for orientation in range(0,91,15):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
@@ -263,24 +261,23 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
             temp_dict['structures'] = []
             for s in structures:
                 temp_dict['structures'].append(s.vertices)
-            temp_dict['node1'] = init_node
+            # temp_dict['node1'] = init_node
             temp_dict['p1'] = init_node.get_virtual_body_pose()
-            temp_dict['node2'] = child_node
+            # temp_dict['node2'] = child_node
             temp_dict['p2'] = child_node.get_virtual_body_pose()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
-            temp_dict['feature_vector'] = one_contact_transition.get_feature_vector()
-            records.append(temp_dict)
-            # also need COM position and COM velocity
+            temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
+            transitions.append(temp_dict)
 
-            # print(contact_transition_list[-1].init_virtual_body_cell)
-            # print(init_node.get_virtual_body_pose())
-            # print(contact_transition_list[-1].final_virtual_body_cell)
-            # print(child_node.get_virtual_body_pose())
-            # print('previous move manipulator: ' + str(child_node.prev_move_manip))
-            # DrawStance(init_node, robot_obj, handles)
-            # DrawStance(child_node, robot_obj, handles)
-            # raw_input()
-            # handles = []
+            print(contact_transition_list[-1].init_virtual_body_cell)
+            print(init_node.get_virtual_body_pose())
+            print(contact_transition_list[-1].final_virtual_body_cell)
+            print(child_node.get_virtual_body_pose())
+            print('previous move manipulator: ' + str(child_node.prev_move_manip))
+            DrawStance(init_node, robot_obj, handles)
+            DrawStance(child_node, robot_obj, handles)
+            raw_input()
+            handles = []
 
     rave.raveLogInfo('Collected ' + repr(len(contact_transition_list)) + ' contact transitions.')
     return contact_transition_list
@@ -353,12 +350,14 @@ def main(robot_name='athena'): # for test
     for i in range(10):
         structures = sample_env(env_handler, robot_obj, 'one_step_env_1')
         sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-        structures = sample_env(env_handler, robot_obj, 'one_step_env_2')
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+        # structures = sample_env(env_handler, robot_obj, 'one_step_env_2')
+        # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+
 
     # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
     # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-    pickle.dump(records, output_file_handle)
+    pickle.dump(transitions, output_file_handle)
+    # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
 
 

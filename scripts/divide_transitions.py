@@ -1,8 +1,8 @@
 import pickle
 
 def main():
-    file_handle = open('../data/transitions/all_transitions', 'r')
-    all_transitions = pickle.load(file_handle)
+    file = open('../data/transitions/all_transitions', 'r')
+    all_transitions = pickle.load(file)
     types = {}
     for i in range(10):
         types[i] = []

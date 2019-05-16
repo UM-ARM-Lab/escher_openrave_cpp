@@ -2,7 +2,7 @@ import pickle
 import random
 
 random.seed(20190515)
-SAMPLE_SIZE = 1000
+SAMPLE_SIZE = 5
 
 def main():
     for i in range(10):

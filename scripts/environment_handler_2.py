@@ -877,8 +877,8 @@ class environment_handler:
                                           (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
             for row in range(row_num): # rows of stepping stones forward
                 for col in range(col_num): # columns of stepping stones
-                    surface_transform = [row*stepping_stone_size[0],
-                                         col*stepping_stone_size[1],
+                    surface_transform = [(row - 1)*stepping_stone_size[0] - 0.2,
+                                         (col - 1)*stepping_stone_size[1] - 0.2,
                                          random.uniform(-0.05,0.05),
                                          random.uniform(-20,20),
                                          random.uniform(-20,20),
@@ -889,16 +889,14 @@ class environment_handler:
 
             # side wall
             x_wall_length = row_num*stepping_stone_size[0]
-            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] - x_wall_length/2.0 - 0.2, -0.5*stepping_stone_size[1] - 0.25, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
-            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] + x_wall_length/2.0 - 0.2, (col_num-0.5)*stepping_stone_size[1] + 0.25, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-1)*stepping_stone_size[0] - x_wall_length/2.0 - 0.2, (-0.5-1)*stepping_stone_size[1] - 0.25, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-1)*stepping_stone_size[0] + x_wall_length/2.0 - 0.2, (col_num-0.5-1)*stepping_stone_size[1] + 0.25, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
 
             y_wall_length = col_num*stepping_stone_size[1]
-            self.construct_tilted_rectangle_wall(structures, [-0.5*stepping_stone_size[0] - 0.25, 0.5*col_num*stepping_stone_size[1] + y_wall_length/2.0 - 0.3, 0, 0, 0, 270], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
-            self.construct_tilted_rectangle_wall(structures, [(row_num-0.5)*stepping_stone_size[0] + 0.25, 0.5*col_num*stepping_stone_size[1] - y_wall_length/2.0 - 0.3, 0, 0, 0, 90], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [(-0.5-1)*stepping_stone_size[0] - 0.25, (0.5*col_num-1)*stepping_stone_size[1] + y_wall_length/2.0 - 0.3, 0, 0, 0, 270], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [(row_num-0.5-1)*stepping_stone_size[0] + 0.25, (0.5*col_num-1)*stepping_stone_size[1] - y_wall_length/2.0 - 0.3, 0, 0, 0, 90], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
 
-            # self.goal_x = (row_num-1) * stepping_stone_size[0]
-            # self.goal_y = (col_num-1) * stepping_stone_size[1]
-
+            IPython.embed()
 
         elif surface_source == 'one_step_env_2':
             # stepping stones
@@ -930,8 +928,6 @@ class environment_handler:
             # self.construct_tilted_rectangle_wall(structures, [-0.5*stepping_stone_size[0] - 0.25, 0.5*col_num*stepping_stone_size[1] + y_wall_length/2.0 - 0.3, 0, 0, 0, 270], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
             # self.construct_tilted_rectangle_wall(structures, [(row_num-0.5)*stepping_stone_size[0] + 0.25, 0.5*col_num*stepping_stone_size[1] - y_wall_length/2.0 - 0.3, 0, 0, 0, 90], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
 
-            # self.goal_x = (row_num-1) * stepping_stone_size[0]
-            # self.goal_y = (col_num-1) * stepping_stone_size[1]
 
 
         else:
