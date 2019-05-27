@@ -1,6 +1,14 @@
-If you want to change the com combinations set for each contact transition type, run "python com_combinations.py".
+Sample COM combinations:
+python sample_com_combinations.py
+Visualize sampled COM combinations:
+python visualize_sampled_com_combinations.py
 
 Procedure to update all the data:
-1. python contact_transition_sampler.py
-2. python divide_transitions.py
-3. python compute_ddyn.py
+1. sample contact transitions:
+python contact_transition_sampler.py
+2. check transition types:
+python check_transitions_type.py
+3. compute dynamic cost
+python compute_ddyn.py
+4. generate depth maps for environments
+python generate_depth_map.py

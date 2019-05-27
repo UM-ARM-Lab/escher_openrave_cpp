@@ -29,10 +29,14 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-# write all the transition records to this file
-output_file_handle = open('../data/transitions/all_transitions', 'w')
+# save all transitions to this file
+transition_file = open('../data/transitions_2', 'w')
 transitions = []
 
+# save all environments to this file
+environment_file = open('../data/environments_2', 'w')
+environments = []
+environment_index = 0
 
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
@@ -49,6 +53,7 @@ def position_to_cell_index(position,resolution):
 
     return cell_index
 
+
 class contact_transition:
     def __init__(self,init_node,final_node,grid_resolution):
         self.init_node = init_node
@@ -64,11 +69,15 @@ class contact_transition:
         self.move_manip = final_node.prev_move_manip
 
         self.contact_transition_type = None
-        self.feature_vector = []
+        self.feature_vector_contact_part = []
+        self.normalized_init_l_leg = None
+        self.normalized_init_r_leg = None
+        self.normalized_init_l_arm = None
+        self.normalized_init_r_arm = None
 
     def get_contact_transition_type(self):
         # please fill in this part
-        # assume only modify the left side
+        # only consider the left side
         if self.init_node.get_contact_manip_num() == 2:
             if self.final_node.get_contact_manip_num() == 2:
                 self.contact_transition_type = 0
@@ -126,56 +135,57 @@ class contact_transition:
         init_right_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_leg)))
         final_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_leg)))
 
+        self.normalized_init_l_leg = init_left_leg
+        self.normalized_init_r_leg = init_right_leg
+
         if self.init_node.manip_in_contact('l_arm'):
             init_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_arm)))
+            self.normalized_init_l_arm = init_left_arm
         
         if self.init_node.manip_in_contact('r_arm'):
             init_right_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_arm)))
+            self.normalized_init_r_arm = init_right_arm
 
         if self.final_node.manip_in_contact('l_arm'):
             final_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_arm)))
 
         # construct the feature vector
         if self.contact_transition_type == 0:
-            self.feature_vector = init_left_leg + init_right_leg + final_left_leg
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + final_left_leg
 
         elif self.contact_transition_type == 1:
-            self.feature_vector = init_left_leg + init_right_leg + final_left_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + final_left_arm
 
         elif self.contact_transition_type == 2:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + final_left_leg
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + final_left_leg
 
         elif self.contact_transition_type == 3:
-            self.feature_vector = init_left_leg + init_right_leg + init_right_arm + final_left_leg
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_right_arm + final_left_leg
 
         elif self.contact_transition_type == 4:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm
 
         elif self.contact_transition_type == 5:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + final_left_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + final_left_arm
 
         elif self.contact_transition_type == 6:
-            self.feature_vector = init_left_leg + init_right_leg + init_right_arm + final_left_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_right_arm + final_left_arm
 
         elif self.contact_transition_type == 7:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg
 
         elif self.contact_transition_type == 8:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm
 
         elif self.contact_transition_type == 9:
-            self.feature_vector = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm
+            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm
 
         else:
             raw_input('Wrong Type.')
 
-        # sample the initial CoM position and CoM velocity
-        # get those information from dynopt_result/dataset
-
+        # sample the initial CoM position and CoM velocity from data/dynopt_result/dataset
         # remember to normalize the feature vector using information in data/dynopt_result/*nn_models before sending to the network.
-
-
-        return self.feature_vector
+        return self.feature_vector_contact_part
 
 
 # def extract_env_feature():
@@ -258,26 +268,27 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
             one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
             contact_transition_list.append(one_contact_transition)
             temp_dict = {}
-            temp_dict['structures'] = []
-            for s in structures:
-                temp_dict['structures'].append(s.vertices)
-            # temp_dict['node1'] = init_node
+            temp_dict['environment_index'] = environment_index
             temp_dict['p1'] = init_node.get_virtual_body_pose()
-            # temp_dict['node2'] = child_node
             temp_dict['p2'] = child_node.get_virtual_body_pose()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
+            temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
+            temp_dict['normalized_init_r_leg'] = one_contact_transition.normalized_init_r_leg
+            temp_dict['normalized_init_l_arm'] = one_contact_transition.normalized_init_l_arm
+            temp_dict['normalized_init_r_arm'] = one_contact_transition.normalized_init_r_arm
+
             transitions.append(temp_dict)
 
-            print(contact_transition_list[-1].init_virtual_body_cell)
-            print(init_node.get_virtual_body_pose())
-            print(contact_transition_list[-1].final_virtual_body_cell)
-            print(child_node.get_virtual_body_pose())
-            print('previous move manipulator: ' + str(child_node.prev_move_manip))
-            DrawStance(init_node, robot_obj, handles)
-            DrawStance(child_node, robot_obj, handles)
-            raw_input()
-            handles = []
+            # print(contact_transition_list[-1].init_virtual_body_cell)
+            # print(init_node.get_virtual_body_pose())
+            # print(contact_transition_list[-1].final_virtual_body_cell)
+            # print(child_node.get_virtual_body_pose())
+            # print('previous move manipulator: ' + str(child_node.prev_move_manip))
+            # DrawStance(init_node, robot_obj, handles)
+            # DrawStance(child_node, robot_obj, handles)
+            # raw_input()
+            # handles = []
 
     rave.raveLogInfo('Collected ' + repr(len(contact_transition_list)) + ' contact transitions.')
     return contact_transition_list
@@ -345,18 +356,31 @@ def main(robot_name='athena'): # for test
 
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
-    # init_global_variables() # ??????????
+    global environment_index
     # sample environments and contact transitions
-    for i in range(10):
-        structures = sample_env(env_handler, robot_obj, 'one_step_env_1')
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-        # structures = sample_env(env_handler, robot_obj, 'one_step_env_2')
-        # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+    for i in range(10): #100
+        for j in range(1, 7):
+            structures = sample_env(env_handler, robot_obj, 'one_step_env_' + str(j))
+
+            # save the environment
+            env = {}
+            env['ground'] = []
+            env['others'] = []
+            for structure in structures:
+                if structure.type == 'ground':
+                    env['ground'].append(structure.vertices)
+                elif structure.type == 'others':
+                    env['others'].append(structure.vertices)
+            environments.append(env)
+
+            sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+            environment_index += 1
 
 
     # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
     # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-    pickle.dump(transitions, output_file_handle)
+    pickle.dump(transitions, transition_file)
+    pickle.dump(environments, environment_file)
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
 

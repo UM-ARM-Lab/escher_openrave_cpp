@@ -7,11 +7,11 @@ RESOLUTION = 10
 
 def main():
     for i in range(10):
-        print('sample COM combinations for type ' + str(i))
+        print('sample CoM combinations for type ' + str(i))
         file_handle = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         data = pickle.load(file_handle)
         com_combinations = data[:, -13:-7]
-        print('number of all com combinations: {}'.format(com_combinations.shape[0]))
+        print('number of all CoM combinations: {}'.format(com_combinations.shape[0]))
         
         # normalize
         mean = np.mean(com_combinations, axis=0)
@@ -46,7 +46,7 @@ def main():
         assert(total_idx == RESOLUTION ** 6)
         indices = tree.query(query_com_combinations, k=1, return_distance=False).reshape(-1,)
         unique_indices = np.unique(indices, axis=0)
-        print('number of sampled com combinations: {}'.format(unique_indices.shape[0]))
+        print('number of sampled CoM combinations: {}'.format(unique_indices.shape[0]))
 
         sampled_com_combinations = com_combinations[unique_indices]
                                 
