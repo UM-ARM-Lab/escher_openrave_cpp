@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from sklearn.neighbors import KDTree
 
-RESOLUTION = 10
+RESOLUTION = 10.0
 
 
 def main():

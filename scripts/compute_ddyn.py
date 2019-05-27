@@ -138,7 +138,7 @@ def main():
         print('transition type: {}'.format(i))
         print('all sampled com: {}'.format(debug_all_sampled_com[i]))
         print('com after position check: {}, {:6.2f} percent of all coms are valid'.format(debug_com_after_position_check[i], debug_com_after_position_check[i] * 100.0 / debug_all_sampled_com[i]))
-        print('com after feasibility check: {}, {:6.2f} percent of all coms are valid'.format(debug_com_after_feasibility_check[i], debug_com_after_feasibility_check[i] * 100.0 / debug_all_sampled_com[i]))
+        print('com after feasibility check: {}, {:6.2f} percent of all coms are feasible'.format(debug_com_after_feasibility_check[i], debug_com_after_feasibility_check[i] * 100.0 / debug_all_sampled_com[i]))
         file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         data = pickle.load(file)
         all_ddyn = data[:, -1]

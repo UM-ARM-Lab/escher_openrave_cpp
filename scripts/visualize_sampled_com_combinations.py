@@ -14,24 +14,24 @@ def main():
         fig = plt.figure()
 
         subfig1 = fig.add_subplot(211, projection='3d')
-        # xs = all_com_combinations[:, 0]
-        # ys = all_com_combinations[:, 1]
-        # zs = all_com_combinations[:, 2]
-        xs = all_com_combinations[:, 3]
-        ys = all_com_combinations[:, 4]
-        zs = all_com_combinations[:, 5]
+        xs = all_com_combinations[:, 0]
+        ys = all_com_combinations[:, 1]
+        zs = all_com_combinations[:, 2]
+        # xs = all_com_combinations[:, 3]
+        # ys = all_com_combinations[:, 4]
+        # zs = all_com_combinations[:, 5]
         subfig1.scatter(xs, ys, zs, marker='o')
         subfig1.set_xlabel('X label')
         subfig1.set_ylabel('Y label')
         subfig1.set_zlabel('Z label')
 
         subfig2 = fig.add_subplot(212, projection='3d')
-        # xs = sampled_com_combinations[:, 0]
-        # ys = sampled_com_combinations[:, 1]
-        # zs = sampled_com_combinations[:, 2]
-        xs = sampled_com_combinations[:, 3]
-        ys = sampled_com_combinations[:, 4]
-        zs = sampled_com_combinations[:, 5]
+        xs = sampled_com_combinations[:, 0]
+        ys = sampled_com_combinations[:, 1]
+        zs = sampled_com_combinations[:, 2]
+        # xs = sampled_com_combinations[:, 3]
+        # ys = sampled_com_combinations[:, 4]
+        # zs = sampled_com_combinations[:, 5]
         subfig2.scatter(xs, ys, zs, marker='o')
         subfig2.set_xlabel('X label')
         subfig2.set_ylabel('Y label')

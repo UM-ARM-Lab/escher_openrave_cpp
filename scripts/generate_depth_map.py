@@ -3,11 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 RESOLUTION = 0.025
-SIDE = 3.0
-GROUND_MAX_DEPTH = 4.0
-RADIUS = 1.5
-WALL_MAX_DEPTH = 2.0
+SIDE = 1.5
+GROUND_DEFAULT_DEPTH = -1.0
+RADIUS = 1.0
+WALL_DEFAULT_DEPTH = 2.0
+WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
+# WALL_START = np.pi * 3.0 / 4
+# WALL_RANGE = np.pi * 3.0 / 2
 
 
 def rotate_coordinate_system(coordinates, theta):
@@ -64,6 +67,19 @@ def point_inside_polygon(point, vertices):
     return True
 
 
+def angle(x, y):
+    """
+    Inputs:
+    x: 1d numpy array
+
+    y: 1d numpy array
+
+    Output:
+    angle (in radian) between the point (xi, yi) and WALL_START_ANGLE
+    """
+    return WALL_START - np.arctan(y * 1.0 / x) + (x < 0).astype(int) * ((y < 0).astype(int) * 2 - 1) * np.pi
+
+
 def patch_depth_map(entire_map, map_type, resolution, vertices):
     """
     Inputs:
@@ -76,34 +92,36 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
     "vertices" should be the coordinates of vertices of a quadrilateral patch.
     """
     vertices_array = np.array(vertices)
+    # can also use the normal attribute of 'structure'
     normal = np.cross(vertices[0] - vertices[1], vertices[0] - vertices[2])
+
     if map_type == "ground":
         x_min, x_max = np.min(vertices_array[:, 0]), np.max(vertices_array[:, 0])
         y_min, y_max = np.min(vertices_array[:, 1]), np.max(vertices_array[:, 1])
-        if x_min > SIDE / 2 or x_max < -SIDE / 2 or y_min > SIDE / 2 or y_max < -SIDE / 2:
+        if x_min > SIDE / 2.0 or x_max < -SIDE / 2.0 or y_min > SIDE / 2.0 or y_max < -SIDE / 2.0:
             return
 
         for x_temp in range(int(math.ceil(x_min / resolution)), int(math.ceil(x_max / resolution))):
             x = x_temp * resolution
-            if x < -SIDE / 2:
+            if x < -SIDE / 2.0:
                 continue
 
-            if x > SIDE / 2:
+            if x > SIDE / 2.0:
                 break
 
             for y_temp in range(int(math.ceil(y_min / resolution)), int(math.ceil(y_max / resolution))):
                 y = y_temp * resolution
-                if y < -SIDE / 2:
+                if y < -SIDE / 2.0:
                     continue
 
-                if y > SIDE / 2:
+                if y > SIDE / 2.0:
                     break
 
                 z = vertices[0][2] - ((x - vertices[0][0]) * normal[0] + (y - vertices[0][1]) * normal[1]) / normal[2]
                 z = round(z, 2)
                 if point_inside_polygon(np.array([x, y, z]), vertices_array):
-                    idx_1 = int(math.ceil((SIDE / 2 - y) / resolution))
-                    idx_2 = int(math.ceil((SIDE / 2 - x) / resolution))
+                    idx_1 = int(SIDE / 2.0 / resolution) - y_temp 
+                    idx_2 = int(SIDE / 2.0 / resolution) - x_temp
                     if entire_map[idx_1][idx_2] > WALL_MAX_HEIGHT - z:
                         entire_map[idx_1][idx_2] = WALL_MAX_HEIGHT - z
                         print(round(x, 3), round(y, 3), WALL_MAX_HEIGHT - z)
@@ -111,7 +129,16 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
         # IPython.embed()
 
     elif map_type == "wall":
+        # z_min, z_max = np.min(vertices_array[:, 2]), np.min(vertices_array[:, 2])
+        # theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
+        # if z_min > WALL_MAX_HEIGHT or z_max < WALL_MIN_HEIGHT or (theta_min < 0 and theta_max < 0) or (theta_min > WALL_RANGE and theta_max > WALL_RANGE) or (theta_min < 0 and theta_max > WALL_RANGE):
+        #     return
+
+        # for z_temp in range(int(math.ceil()))
         pass
+
+
+        
 
 
     else:
@@ -134,13 +161,13 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
     a 2d numpy array which represents a depth map.
     """
     if map_type == "ground":
-        entire_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=float) * GROUND_MAX_DEPTH
+        entire_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=float) * GROUND_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "ground", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
         IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int(WALL_MAX_HEIGHT / resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_MAX_DEPTH
+        entire_map = np.ones((int(WALL_MAX_HEIGHT / resolution) + 1, int(WALL_RANGE * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
 
@@ -168,6 +195,8 @@ def main():
     example_id = 0
     final_status_list = []
     minimal_ddyn_list = []
+
+    # IPython.embed()
 
     for environment_index in environ_pose_to_ddyn:
         pose_to_ddyn = environ_pose_to_ddyn[environment_index]
