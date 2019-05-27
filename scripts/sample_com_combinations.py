@@ -50,7 +50,7 @@ def main():
 
         sampled_com_combinations = com_combinations[unique_indices]
                                 
-        file_handle = open('../data/COM/com_combinations_' + str(i), 'w')
+        file_handle = open('../data/CoM/com_combinations_' + str(i), 'w')
         pickle.dump(sampled_com_combinations, file_handle)
 
 if __name__ == "__main__":

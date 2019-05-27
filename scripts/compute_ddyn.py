@@ -6,7 +6,7 @@ def main():
     # load sampled COM combinations of all types
     com_combinations = {}
     for i in range(10):
-        file = open('../data/COM/com_combinations_' + str(i), 'r')
+        file = open('../data/CoM/com_combinations_' + str(i), 'r')
         com_combinations[i] = pickle.load(file)
 
     # load the normalize parameters for the classification model of all types

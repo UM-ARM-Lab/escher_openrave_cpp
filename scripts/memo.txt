@@ -1,6 +1,6 @@
-Sample COM combinations:
+Sample CoM combinations:
 python sample_com_combinations.py
-Visualize sampled COM combinations:
+Visualize sampled CoM combinations:
 python visualize_sampled_com_combinations.py
 
 Procedure to update all the data:

@@ -8,7 +8,7 @@ def main():
         file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         all_com_combinations = pickle.load(file)[:, -13:-7]
 
-        file = open('../data/COM/com_combinations_' + str(i), 'r')
+        file = open('../data/CoM/com_combinations_' + str(i), 'r')
         sampled_com_combinations = pickle.load(file)
 
         fig = plt.figure()
