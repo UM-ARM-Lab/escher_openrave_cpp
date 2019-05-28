@@ -9,8 +9,6 @@ RADIUS = 1.0
 WALL_DEFAULT_DEPTH = 2.0
 WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
-# WALL_START = np.pi * 3.0 / 4
-# WALL_RANGE = np.pi * 3.0 / 2
 
 
 def rotate_coordinate_system(coordinates, theta):
@@ -37,7 +35,7 @@ def rotate_coordinate_system(coordinates, theta):
     return rotated_xyz
 
 
-def point_inside_polygon(point, vertices):
+def point_inside_polygon(point, vertices, normal):
     """
     Inputs:
     "point" should be a numpy array
@@ -47,13 +45,26 @@ def point_inside_polygon(point, vertices):
     Output:
     If the point is inside of the polygon, return True; otherwise, return False.
     """
+    if abs(normal[2]) > 1e-10:
+        coords = np.array(vertices)[:, [0,1]]
+        point_coords = point[[0, 1]]
+    elif abs(normal[1]) > 1e-10:
+        coords = np.array(vertices)[:, [0,2]]
+        point_coords = point[[0, 2]]
+    elif abs(normal[0]) > 1e-10:
+        coords = np.array(vertices)[:, [1,2]]
+        point_coords = point[[1, 2]]
+    else:
+        print('invalid normal vector')
+        exit(1)
+
     prev_value = None
-    num_vertices = len(vertices)
+    num_vertices = coords.shape[0]
     for i in range(num_vertices):
-        begin = vertices[i]
-        end = vertices[(i + 1) % num_vertices]
+        begin = coords[i]
+        end = coords[(i + 1) % num_vertices]
         vector1 = end - begin
-        vector2 = point - begin
+        vector2 = point_coords - begin
         value = vector1[0] * vector2[1] - vector1[1] * vector2[0]
         if value == 0:
             return False
@@ -75,9 +86,9 @@ def angle(x, y):
     y: 1d numpy array
 
     Output:
-    angle (in radian) between the point (xi, yi) and WALL_START_ANGLE
+    angle (in radian) between the point (xi, yi) and pi
     """
-    return WALL_START - np.arctan(y * 1.0 / x) + (x < 0).astype(int) * ((y < 0).astype(int) * 2 - 1) * np.pi
+    return np.pi - np.arctan(y * 1.0 / x) + (x < 0).astype(int) * ((y < 0).astype(int) * 2 - 1) * np.pi
 
 
 def patch_depth_map(entire_map, map_type, resolution, vertices):
@@ -105,41 +116,46 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
             x = x_temp * resolution
             if x < -SIDE / 2.0:
                 continue
-
             if x > SIDE / 2.0:
                 break
-
             for y_temp in range(int(math.ceil(y_min / resolution)), int(math.ceil(y_max / resolution))):
                 y = y_temp * resolution
                 if y < -SIDE / 2.0:
                     continue
-
                 if y > SIDE / 2.0:
                     break
-
                 z = vertices[0][2] - ((x - vertices[0][0]) * normal[0] + (y - vertices[0][1]) * normal[1]) / normal[2]
                 z = round(z, 2)
-                if point_inside_polygon(np.array([x, y, z]), vertices_array):
-                    idx_1 = int(SIDE / 2.0 / resolution) - y_temp 
+                if point_inside_polygon(np.array([x, y, z]), vertices_array, normal):
+                    idx_1 = int(SIDE / 2.0 / resolution) - y_temp
                     idx_2 = int(SIDE / 2.0 / resolution) - x_temp
-                    if entire_map[idx_1][idx_2] > WALL_MAX_HEIGHT - z:
-                        entire_map[idx_1][idx_2] = WALL_MAX_HEIGHT - z
-                        print(round(x, 3), round(y, 3), WALL_MAX_HEIGHT - z)
+                    if entire_map[idx_1][idx_2] < z:
+                        entire_map[idx_1][idx_2] = z
 
         # IPython.embed()
 
     elif map_type == "wall":
-        # z_min, z_max = np.min(vertices_array[:, 2]), np.min(vertices_array[:, 2])
-        # theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
-        # if z_min > WALL_MAX_HEIGHT or z_max < WALL_MIN_HEIGHT or (theta_min < 0 and theta_max < 0) or (theta_min > WALL_RANGE and theta_max > WALL_RANGE) or (theta_min < 0 and theta_max > WALL_RANGE):
-        #     return
+        z_min, z_max = np.min(vertices_array[:, 2]), np.max(vertices_array[:, 2])
+        theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
+        if z_min > WALL_MAX_HEIGHT or z_max < WALL_MIN_HEIGHT:
+            return
 
-        # for z_temp in range(int(math.ceil()))
-        pass
-
-
-        
-
+        for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
+            z = z_temp * resolution
+            if z < WALL_MIN_HEIGHT:
+                continue
+            if z > WALL_MAX_HEIGHT:
+                break
+            for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
+                theta = np.pi - (theta_temp * resolution / RADIUS)
+                # four quadrants different situation ?????
+                # print(z, theta)
+                rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
+                if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
+                    idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
+                    idx_2 = theta_temp
+                    if entire_map[idx_1][idx_2] > rho:
+                        entire_map[idx_1][idx_2] = rho
 
     else:
         print('wrong type')
@@ -164,12 +180,13 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
         entire_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=float) * GROUND_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "ground", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
-        IPython.embed()
+        # IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int(WALL_MAX_HEIGHT / resolution) + 1, int(WALL_RANGE * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
+        entire_map = np.ones((int((WALL_MAX_HEIGHT - WALL_MIN_HEIGHT)/ resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
+        # IPython.embed()
 
     else:
         print('wrong type')
@@ -225,3 +242,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
