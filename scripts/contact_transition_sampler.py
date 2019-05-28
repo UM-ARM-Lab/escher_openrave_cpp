@@ -30,11 +30,11 @@ from contact_projection import *
 from draw import DrawStance
 
 # save all transitions to this file
-transition_file = open('../data/transitions_2', 'w')
+transition_file = open('../data/transitions', 'w')
 transitions = []
 
 # save all environments to this file
-environment_file = open('../data/environments_2', 'w')
+environment_file = open('../data/environments', 'w')
 environments = []
 environment_index = 0
 
@@ -358,7 +358,7 @@ def main(robot_name='athena'): # for test
 
     global environment_index
     # sample environments and contact transitions
-    for i in range(10): #100
+    for i in range(50): #100
         for j in range(1, 7):
             structures = sample_env(env_handler, robot_obj, 'one_step_env_' + str(j))
 
@@ -372,6 +372,7 @@ def main(robot_name='athena'): # for test
                 elif structure.type == 'others':
                     env['others'].append(structure.vertices)
             environments.append(env)
+            # IPython.embed()
 
             sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
             environment_index += 1

@@ -107,7 +107,6 @@ def main():
         ddyns = prediction[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
         if ddyns.shape[0] != 0:
-            # print('ddyn', '10percentile', np.percentile(ddyns, 10), '50percentile', np.percentile(ddyns, 50), '90percentile', np.percentile(ddyns, 90))
             ddyns = ddyns.tolist()
 
             debug_ddyns[transition_type] += ddyns
@@ -135,7 +134,7 @@ def main():
                 environ_pose_to_ddyn[environ][pose] += ddyns
 
     for i in range(10):
-        print('transition type: {}'.format(i))
+        print('\ntransition type: {}'.format(i))
         print('all sampled com: {}'.format(debug_all_sampled_com[i]))
         print('com after position check: {}, {:6.2f} percent of all coms are valid'.format(debug_com_after_position_check[i], debug_com_after_position_check[i] * 100.0 / debug_all_sampled_com[i]))
         print('com after feasibility check: {}, {:6.2f} percent of all coms are feasible'.format(debug_com_after_feasibility_check[i], debug_com_after_feasibility_check[i] * 100.0 / debug_all_sampled_com[i]))

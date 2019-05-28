@@ -136,26 +136,49 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
 
     elif map_type == "wall":
         z_min, z_max = np.min(vertices_array[:, 2]), np.max(vertices_array[:, 2])
-        theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
         if z_min > WALL_MAX_HEIGHT or z_max < WALL_MIN_HEIGHT:
             return
 
-        for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
-            z = z_temp * resolution
-            if z < WALL_MIN_HEIGHT:
-                continue
-            if z > WALL_MAX_HEIGHT:
-                break
-            for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
-                theta = np.pi - (theta_temp * resolution / RADIUS)
-                # four quadrants different situation ?????
-                # print(z, theta)
-                rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
-                    idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
-                    idx_2 = theta_temp
-                    if entire_map[idx_1][idx_2] > rho:
-                        entire_map[idx_1][idx_2] = rho
+        if np.min(vertices_array[:, 0] < 0) and np.min(vertices_array[:, 1]) < 0 and np.max(vertices_array[:, 1]) > 0:
+            theta_min1 = 0
+            p = vertices_array[np.argwhere(vertices_array[:, 1] > 0).reshape(-1,)]
+            theta_max1 = np.max(angle(p[:, 0], p[:, 1]))
+            n = vertices_array[np.argwhere(vertices_array[:, 1] < 0).reshape(-1,)]
+            theta_min2 = np.min(angle(n[:, 0], n[:, 1]))
+            theta_max2 = 2 * np.pi
+            for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
+                z = z_temp * resolution
+                if z < WALL_MIN_HEIGHT:
+                    continue
+                if z > WALL_MAX_HEIGHT:
+                    break
+                for theta_temp in range(int(math.ceil(theta_min1 * RADIUS / resolution)), int(math.ceil(theta_max1 * RADIUS / resolution))) + range(int(math.ceil(theta_min2 * RADIUS / resolution)), int(math.ceil(theta_max2 * RADIUS / resolution))):
+                    theta = np.pi - (theta_temp * resolution / RADIUS)
+                    rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
+                    assert(rho > 0)
+                    if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
+                        idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
+                        idx_2 = theta_temp
+                        if entire_map[idx_1][idx_2] > rho:
+                            entire_map[idx_1][idx_2] = rho
+
+
+        else:
+            theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
+            for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
+                z = z_temp * resolution
+                if z < WALL_MIN_HEIGHT:
+                    continue
+                if z > WALL_MAX_HEIGHT:
+                    break
+                for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
+                    theta = np.pi - (theta_temp * resolution / RADIUS)
+                    rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
+                    if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
+                        idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
+                        idx_2 = theta_temp
+                        if entire_map[idx_1][idx_2] > rho:
+                            entire_map[idx_1][idx_2] = rho
 
     else:
         print('wrong type')
@@ -199,8 +222,8 @@ def main():
     file = open('../data/environments', 'r')
     environments = pickle.load(file)
 
-    file = open('../data/environ_pose_to_ddyn', 'r')
-    environ_pose_to_ddyn = pickle.load(file)
+    # file = open('../data/environ_pose_to_ddyn', 'r')
+    # environ_pose_to_ddyn = pickle.load(file)
 
     if os.path.exists('../data/minimal'):
         shutil.rmtree('../data/minimal')
@@ -209,34 +232,45 @@ def main():
     os.makedirs('../data/minimal/ground_depth_maps')
     os.makedirs('../data/minimal/wall_depth_maps')
 
-    example_id = 0
-    final_status_list = []
-    minimal_ddyn_list = []
+    # example_id = 0
+    # final_status_list = []
+    # minimal_ddyn_list = []
 
-    # IPython.embed()
+    # # IPython.embed()
 
-    for environment_index in environ_pose_to_ddyn:
-        pose_to_ddyn = environ_pose_to_ddyn[environment_index]
-        for pose in pose_to_ddyn:
-            # pose has six entries:
-            # (init_x, init_y, init_theta, final_x, final_y, final_theta)
-            assert(pose[0] == 0.0 and pose[1] == 0.0)
-            ground_patch_coordinates = rotate_coordinate_system(environments[environment_index]['ground'], pose[2])
-            ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
-            file = open('../data/minimal/ground_depth_maps/' + str(example_id), 'w')
-            pickle.dump(ground_depth_map, file)
-            wall_patch_coordinates = rotate_coordinate_system(environments[environment_index]['others'], pose[2])
-            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
-            file = open('../data/minimal/wall_depth_maps/' + str(example_id), 'w')
-            pickle.dump(wall_depth_map, file)
-            final_status_list.append(pose[3:6])
-            minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
-            example_id += 1
+    # for environment_index in environ_pose_to_ddyn:
+    #     pose_to_ddyn = environ_pose_to_ddyn[environment_index]
+    #     for pose in pose_to_ddyn:
+    #         # pose has six entries:
+    #         # (init_x, init_y, init_theta, final_x, final_y, final_theta)
+    #         assert(pose[0] == 0.0 and pose[1] == 0.0)
+    #         ground_patch_coordinates = rotate_coordinate_system(environments[environment_index]['ground'], pose[2])
+    #         ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
+    #         file = open('../data/minimal/ground_depth_maps/' + str(example_id), 'w')
+    #         pickle.dump(ground_depth_map, file)
+    #         wall_patch_coordinates = rotate_coordinate_system(environments[environment_index]['others'], pose[2])
+    #         wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
+    #         file = open('../data/minimal/wall_depth_maps/' + str(example_id), 'w')
+    #         pickle.dump(wall_depth_map, file)
+    #         final_status_list.append(pose[3:6])
+    #         minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
+    #         example_id += 1
 
-    file = open('../data/minimal/final_status', 'w')
-    pickle.dump(np.array(final_status_list), file)
-    file = open('../data/minimal/minimal_ddyn', 'w')
-    pickle.dump(np.array(minimal_ddyn_list), file)
+    for idx, environment in enumerate(environments):
+        ground_depth_map = entire_depth_map(np.array(environment['ground']).reshape(-1, 3), 'ground', RESOLUTION)
+        file = open('../data/minimal/ground_depth_maps/' + str(idx), 'w')
+        pickle.dump(ground_depth_map, file)
+        wall_depth_map = entire_depth_map(np.array(environment['others']).reshape(-1, 3), 'wall', RESOLUTION)
+        file = open('../data/minimal/wall_depth_maps/' + str(idx), 'w')
+        pickle.dump(wall_depth_map, file)
+        
+
+    
+
+    # file = open('../data/minimal/final_status', 'w')
+    # pickle.dump(np.array(final_status_list), file)
+    # file = open('../data/minimal/minimal_ddyn', 'w')
+    # pickle.dump(np.array(minimal_ddyn_list), file)
 
 
 
