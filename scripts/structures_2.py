@@ -3,7 +3,7 @@ import math
 
 from transformation_conversion import *
 
-surface_slice_resolution = 0.005
+surface_slice_resolution = 0.001
 
 class structure:
 	def __init__(self,identity,geometry,kinbody=None):

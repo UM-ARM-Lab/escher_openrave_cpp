@@ -1,19 +1,19 @@
 import pickle
 
 def main():
-    file = open('../data/transitions', 'r')
+    file = open('../data/transitions_test', 'r')
     all_transitions = pickle.load(file)
     types = {}
     for i in range(10):
         types[i] = []
 
     for transition in all_transitions:
-        types[transition['contact_transition_type']].append(transition)
+        types[transition['contact_transition_type']].append(transition['feature_vector_contact_part'])
 
     for i in range(10):
-        # file_handle = open('../data/transitions/transitions_type_' + str(i), 'w')
+        file_handle = open('../data/transitions_type_' + str(i), 'w')
         print('There are {} transitions of type {}'.format(len(types[i]), i))
-        # pickle.dump(types[i], file_handle)
+        pickle.dump(types[i], file_handle)
     
 
 if __name__ == "__main__":

@@ -76,7 +76,7 @@ def main():
         prediction_i = classification_models[i].predict((infeasible_X - classification_input_normalize_params[i][0]) / classification_input_normalize_params[i][1])
         accuracy = (np.sum(prediction_f.reshape(-1,) > 0.5) + np.sum(prediction_i.reshape(-1,) < 0.5)) * 100.0 / (feasible_X.shape[0] + infeasible_X.shape[0])
 
-        indices = np.argwhere(feasible_X[:, -1] < 50000).reshape(-1,)
+        indices = np.argwhere(feasible_y < 50000).reshape(-1,)
         feasible_X = feasible_X[indices]
         feasible_y = feasible_y[indices]
         prediction = regression_models[i].predict((feasible_X - regression_input_normalize_params[i][0]) / regression_input_normalize_params[i][1]) * regression_output_denormalize_params[i][1] + regression_output_denormalize_params[i][0]

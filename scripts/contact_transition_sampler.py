@@ -30,13 +30,25 @@ from contact_projection import *
 from draw import DrawStance
 
 # save all transitions to this file
-transition_file = open('../data/transitions', 'w')
+transition_file = open('../data/transitions_test', 'w')
 transitions = []
 
 # save all environments to this file
-environment_file = open('../data/environments', 'w')
+environment_file = open('../data/environments_test', 'w')
 environments = []
 environment_index = 0
+
+def contact_degree_to_radian(long_list):
+    """
+    Input:
+    long_list should be a list
+    """
+    new_list = list(long_list)
+    for i in range(len(long_list) // 6):
+        for j in range(3, 6):
+            new_list[6 * i + j] = long_list[6 * i + j] * np.pi / 180
+    return new_list
+
 
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
@@ -151,34 +163,34 @@ class contact_transition:
 
         # construct the feature vector
         if self.contact_transition_type == 0:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + final_left_leg
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + final_left_leg)
 
         elif self.contact_transition_type == 1:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + final_left_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + final_left_arm)
 
         elif self.contact_transition_type == 2:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + final_left_leg
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + final_left_leg)
 
         elif self.contact_transition_type == 3:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_right_arm + final_left_leg
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_right_arm + final_left_leg)
 
         elif self.contact_transition_type == 4:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm)
 
         elif self.contact_transition_type == 5:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + final_left_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + final_left_arm)
 
         elif self.contact_transition_type == 6:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_right_arm + final_left_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_right_arm + final_left_arm)
 
         elif self.contact_transition_type == 7:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg)
 
         elif self.contact_transition_type == 8:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm)
 
         elif self.contact_transition_type == 9:
-            self.feature_vector_contact_part = init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm
+            self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm)
 
         else:
             raw_input('Wrong Type.')
@@ -208,6 +220,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
         dummy_init_right_arm = copy.copy(no_contact)
         dummy_init_node = node(dummy_init_left_leg, dummy_init_right_leg, dummy_init_left_arm, dummy_init_right_arm)
 
+        # all possible hand contacts from (0, 0, theta)
         init_left_hand_pose_lists = [copy.copy(no_contact)] # ?????
         init_right_hand_pose_lists = [copy.copy(no_contact)] # ?????
 
@@ -243,9 +256,18 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                     init_left_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[-foot_transition[0]/2],[foot_transition[1]/2]])) - mean_feet_position_offset
                     init_right_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[foot_transition[0]/2],[-foot_transition[1]/2]])) - mean_feet_position_offset
 
-                    init_node.left_leg = [init_left_foot_position[0,0], init_left_foot_position[1,0], sys.float_info.max, 0, 0, foot_transition[2]/2 + orientation]
-                    init_node.right_leg = [init_right_foot_position[0,0], init_right_foot_position[1,0], sys.float_info.max, 0, 0, -foot_transition[2]/2 + orientation]
+                    init_node.left_leg = [init_left_foot_position[0,0], init_left_foot_position[1,0], LARGE_NUMBER, 0, 0, foot_transition[2]/2 + orientation]
+                    init_node.right_leg = [init_right_foot_position[0,0], init_right_foot_position[1,0], LARGE_NUMBER, 0, 0, -foot_transition[2]/2 + orientation]
 
+                    # init_node.left_leg = [init_left_foot_position[0,0], init_left_foot_position[1,0], 0.1, 0, 0, foot_transition[2]/2 + orientation]
+                    # init_node.right_leg = [init_right_foot_position[0,0], init_right_foot_position[1,0], 0.1, 0, 0, -foot_transition[2]/2 + orientation]
+
+                    # DrawStance(init_node, robot_obj, handles)
+                    # if not foot_projection(robot_obj, init_node, structures):
+                    #     IPython.embed()
+                    # handles = []
+
+                    # contact is in polygon
                     if foot_projection(robot_obj, init_node, structures):
                         init_node_list.append(init_node)
                         # print('----------------')
@@ -358,8 +380,8 @@ def main(robot_name='athena'): # for test
 
     global environment_index
     # sample environments and contact transitions
-    for i in range(50): #100
-        for j in range(1, 7):
+    for i in range(100): #100
+        for j in range(1,9):
             structures = sample_env(env_handler, robot_obj, 'one_step_env_' + str(j))
 
             # save the environment
@@ -372,14 +394,11 @@ def main(robot_name='athena'): # for test
                 elif structure.type == 'others':
                     env['others'].append(structure.vertices)
             environments.append(env)
-            # IPython.embed()
-
+            
             sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
+            # IPython.embed()
             environment_index += 1
 
-
-    # structures = sample_env(env_handler, robot_obj, 'dynopt_test_env_6')
-    # sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
     pickle.dump(transitions, transition_file)
     pickle.dump(environments, environment_file)
     # IPython.embed()

@@ -3,12 +3,18 @@ python sample_com_combinations.py
 Visualize sampled CoM combinations:
 python visualize_sampled_com_combinations.py
 
+Check if the queried model is correct
+check_model.py
+
+
 Procedure to update all the data:
 1. sample contact transitions:
 python contact_transition_sampler.py
 2. check transition types:
 python check_transitions_type.py
-3. compute dynamic cost
+3. check the distribution of the sampled contacts:
+python check_data.py
+4. compute dynamic cost
 python compute_ddyn.py
-4. generate depth maps for environments
+5. generate depth maps for environments
 python generate_depth_map.py

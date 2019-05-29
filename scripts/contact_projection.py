@@ -1,5 +1,7 @@
 __author__ = 'yu-chi'
 
+LARGE_NUMBER = 99.0
+
 # System Imports
 
 # 3rd-Party Imports
@@ -34,10 +36,10 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
         checking_right_foot = True
 
     if checking_left_foot:
-        left_foot_height = -sys.float_info.max
+        left_foot_height = -LARGE_NUMBER
 
         for struct in structures:
-            left_foot_projection = struct.projection(robot_obj,np.array([[node.left_leg[0]],[node.left_leg[1]],[sys.float_info.max]]),np.array([[0],[0],[-1]],dtype=float),node.get_left_horizontal_yaw(),'foot')
+            left_foot_projection = struct.projection(robot_obj,np.array([[node.left_leg[0]],[node.left_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_left_horizontal_yaw(),'foot')
 
             if left_foot_projection is not None and left_foot_height < left_foot_projection[2,3]:
                 left_foot_height = left_foot_projection[2,3]
@@ -45,13 +47,13 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
                 node.left_leg[0:3] = [round(i,3) for i in left_foot_projection_xyzrpy[0:3]]
                 node.left_leg[3:6] = [round(i,1) for i in left_foot_projection_xyzrpy[3:6]]
 
-        if left_foot_height == -sys.float_info.max:
+        if left_foot_height == -LARGE_NUMBER:
             return False # No projection
 
     if checking_right_foot:
-        right_foot_height = -sys.float_info.max
+        right_foot_height = -LARGE_NUMBER
         for struct in structures:
-            right_foot_projection = struct.projection(robot_obj,np.array([[node.right_leg[0]],[node.right_leg[1]],[sys.float_info.max]]),np.array([[0],[0],[-1]],dtype=float),node.get_right_horizontal_yaw(),'foot')
+            right_foot_projection = struct.projection(robot_obj,np.array([[node.right_leg[0]],[node.right_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_right_horizontal_yaw(),'foot')
             
             if right_foot_projection is not None and right_foot_height < right_foot_projection[2,3]:
                 right_foot_height = right_foot_projection[2,3]
@@ -59,7 +61,7 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
                 node.right_leg[0:3] = [round(i,3) for i in right_foot_projection_xyzrpy[0:3]]
                 node.right_leg[3:6] = [round(i,1) for i in right_foot_projection_xyzrpy[3:6]]
 
-        if right_foot_height == -sys.float_info.max:
+        if right_foot_height == -LARGE_NUMBER:
             return False # No projection
 
     return True
@@ -119,7 +121,7 @@ def hand_projection(robot_obj, manip, arm_orientation, node, structures):
                     if(arm_length >= robot_obj.min_arm_length and arm_length <= robot_obj.max_arm_length):
                         valid_contact = True
                         arm_pose = SE3_to_xyzrpy(contact_transform)
-
+            # take out invalid contact 
             else:
                 translation = struct.projection_global_frame(current_shoulder_position[0:3,0:1],arm_ray)
 
@@ -204,7 +206,7 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
             for arm_orientation in hand_transition_model:
                 contact_exist = True
                 child_node = node(current_left_leg, current_right_leg, current_left_arm, current_right_arm)
-
+                # break a hand contact
                 if(arm_orientation[0] == -99.0 and arm_orientation[1] == -99.0):
                     if(current_node.manip_in_contact('l_arm') and manip == LEFT_ARM):
                         child_node.left_arm = copy.copy(no_contact)

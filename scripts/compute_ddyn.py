@@ -151,8 +151,8 @@ def main():
                 np.min(debug_ddyns[i]), np.percentile(debug_ddyns[i], 25), np.percentile(debug_ddyns[i], 50), np.percentile(debug_ddyns[i], 75), np.max(debug_ddyns[i])))
         
     # IPython.embed()
-    file = open('../data/environ_pose_to_ddyn', 'w')
-    pickle.dump(environ_pose_to_ddyn, file)
+    # file = open('../data/environ_pose_to_ddyn', 'w')
+    # pickle.dump(environ_pose_to_ddyn, file)
 
     
 
