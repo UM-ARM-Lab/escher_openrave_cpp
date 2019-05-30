@@ -15,6 +15,7 @@ import time
 import pickle
 import sys
 import IPython
+import getopt
 
 # Local Imports
 # import load_escher
@@ -29,14 +30,13 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-# save all transitions to this file
-transition_file = open('../data/transitions_test', 'w')
+# save all transitions to this list
 transitions = []
 
-# save all environments to this file
-environment_file = open('../data/environments_test', 'w')
+# save all environments to this list
 environments = []
-environment_index = 0
+
+SAMPLE_SIZE_EACH_ENVIRONMENT = 50
 
 def contact_degree_to_radian(long_list):
     """
@@ -202,7 +202,7 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution, environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 3 kinds of orientation (0, 30, 60)
     # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
     handles = []
@@ -320,7 +320,27 @@ def sample_env(env_handler, robot_obj, surface_source):
     env_handler.update_environment(robot_obj, surface_source=surface_source)
     return env_handler.structures
 
+
 def main(robot_name='athena'): # for test
+    environment_file = None
+    transition_file = None
+    environment_type = None
+    try:
+        inputs, _ = getopt.getopt(sys.argv[1:], "a:b:c:", ['environment_type', 'environments_file', 'transitions_file'])
+
+        for opt, arg in inputs:
+            if opt == '-a':
+                environment_type = arg
+
+            elif opt == '-b':
+                environment_file = arg
+
+            elif opt == '-c':
+                transition_file = arg
+
+    except getopt.GetoptError:
+        print('usage: -a: [environment_type] -b: [environments_file] -c: [transitions_file]')
+        exit(1)
 
     ### Initialize the environment handler
     rave.raveLogInfo('Load the Environment Handler.')
@@ -378,31 +398,31 @@ def main(robot_name='athena'): # for test
 
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
-    global environment_index
     # sample environments and contact transitions
-    for i in range(100): #100
-        for j in range(1,9):
-            structures = sample_env(env_handler, robot_obj, 'one_step_env_' + str(j))
+    for i in range(SAMPLE_SIZE_EACH_ENVIRONMENT):
+        structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
 
-            # save the environment
-            env = {}
-            env['ground'] = []
-            env['others'] = []
-            for structure in structures:
-                if structure.type == 'ground':
-                    env['ground'].append(structure.vertices)
-                elif structure.type == 'others':
-                    env['others'].append(structure.vertices)
-            environments.append(env)
-            
-            sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05)
-            # IPython.embed()
-            environment_index += 1
+        # save the environment
+        env = {}
+        env['ground'] = []
+        env['others'] = []
+        for structure in structures:
+            if structure.type == 'ground':
+                env['ground'].append(structure.vertices)
+            elif structure.type == 'others':
+                env['others'].append(structure.vertices)
+        environments.append(env)
+                
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05, i)
+        # IPython.embed()
 
-    pickle.dump(transitions, transition_file)
-    pickle.dump(environments, environment_file)
+    with open('../data/' + transition_file, 'w') as file:
+        pickle.dump(transitions, file)
+    with open('../data/' + environment_file, 'w') as file:
+        pickle.dump(environments, file)
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
+    print('data is saved in file: {} and {}'.format(environment_file, transition_file))
 
 
 if __name__ == "__main__":
