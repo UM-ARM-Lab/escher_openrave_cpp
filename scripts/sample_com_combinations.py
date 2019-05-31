@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from sklearn.neighbors import KDTree
 
-RESOLUTION = 10.0
+RESOLUTION = 10
 
 
 def main():
@@ -26,15 +26,15 @@ def main():
             variables_min[j] = np.min(normalized_com_combinations[:, j])
             variables_diff[j] = (np.max(normalized_com_combinations[:, j]) - np.min(normalized_com_combinations[:, j])) / RESOLUTION
 
-        query_com_combinations = np.zeros((RESOLUTION ** 6, 6), dtype=float)
+        query_com_combinations = np.zeros(((RESOLUTION + 1) ** 6, 6), dtype=float)
 
         total_idx = 0
-        for idx0 in range(RESOLUTION):
-            for idx1 in range(RESOLUTION):
-                for idx2 in range(RESOLUTION):
-                    for idx3 in range(RESOLUTION):
-                        for idx4 in range(RESOLUTION):
-                            for idx5 in range(RESOLUTION):
+        for idx0 in range(RESOLUTION + 1):
+            for idx1 in range(RESOLUTION + 1):
+                for idx2 in range(RESOLUTION + 1):
+                    for idx3 in range(RESOLUTION + 1):
+                        for idx4 in range(RESOLUTION + 1):
+                            for idx5 in range(RESOLUTION + 1):
                                 query_com_combinations[total_idx, 0] = variables_min[0] + idx0 * variables_diff[0]
                                 query_com_combinations[total_idx, 1] = variables_min[1] + idx1 * variables_diff[1]
                                 query_com_combinations[total_idx, 2] = variables_min[2] + idx2 * variables_diff[2]
@@ -43,7 +43,7 @@ def main():
                                 query_com_combinations[total_idx, 5] = variables_min[5] + idx5 * variables_diff[5]
                                 total_idx += 1
                                 
-        assert(total_idx == RESOLUTION ** 6)
+        assert(total_idx == (RESOLUTION + 1) ** 6)
         indices = tree.query(query_com_combinations, k=1, return_distance=False).reshape(-1,)
         unique_indices = np.unique(indices, axis=0)
         print('number of sampled CoM combinations: {}'.format(unique_indices.shape[0]))

@@ -3,12 +3,6 @@ import numpy as np
 from keras.models import load_model
 
 def main():
-    # load sampled COM combinations of all types
-    # com_combinations = {}
-    # for i in range(10):
-    #     file = open('../data/CoM/com_combinations_' + str(i), 'r')
-    #     com_combinations[i] = pickle.load(file)
-
     # load the normalize parameters for the classification model of all types
     classification_input_normalize_params = []
     for i in range(10):
@@ -52,16 +46,6 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    # environ_pose_to_ddyn is a nested dictionary.
-    # the first key is environment index. The environments represented by environment indices are saved in the file "environments"
-    # the second key is initial pose and final pose
-    # the value is a vector of dynamic cost
-    # environ_pose_to_ddyn = {}
-
-    # load sampled transitions
-    # file = open('../data/transitions', 'r')
-    # transitions = pickle.load(file)
-
     for i in range(10):
         file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         data = pickle.load(file)
@@ -91,10 +75,6 @@ def main():
         print('percentiles of predicted ddyns')
         print('25%: {:.2f}, 50%: {:.2f}, 75%: {:.2f}, mean: {:.2f}'.format(
             np.percentile(debug_ddyns, 25), np.percentile(debug_ddyns, 50), np.percentile(debug_ddyns, 75), np.mean(debug_ddyns)))
-        
-    # IPython.embed()
-    # file = open('../data/environ_pose_to_ddyn', 'w')
-    # pickle.dump(environ_pose_to_ddyn, file)
 
     
 

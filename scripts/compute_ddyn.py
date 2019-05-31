@@ -1,8 +1,23 @@
-import pickle, IPython
+import pickle, IPython, math, sys, getopt
 import numpy as np
 from keras.models import load_model
 
+GRID_RESOLUTION = 0.05
+ANGLE_RESOLUTION = 15.0
+
 def main():
+    environment_type = None
+    try:
+        inputs, _ = getopt.getopt(sys.argv[1:], "t:", ['environment_type'])
+
+        for opt, arg in inputs:
+            if opt == '-t':
+                environment_type = arg
+
+    except getopt.GetoptError:
+        print('usage: -t: [environment_type]')
+        exit(1)
+
     # load sampled COM combinations of all types
     com_combinations = {}
     for i in range(10):
@@ -52,25 +67,27 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    # environ_pose_to_ddyn is a nested dictionary.
-    # the first key is environment index. The environments represented by environment indices are saved in the file "environments"
-    # the second key is initial pose and final pose
-    # the value is a vector of dynamic cost
-    environ_pose_to_ddyn = {}
-
-    # load sampled transitions
-    file = open('../data/transitions', 'r')
-    transitions = pickle.load(file)
-
     debug_all_sampled_com = {}
     debug_com_after_position_check = {}
     debug_com_after_feasibility_check = {}
     debug_ddyns = {}
+    debug_distance = {}
     for i in range(10):
         debug_all_sampled_com[i] = 0
         debug_com_after_position_check[i] = 0
         debug_com_after_feasibility_check[i] = 0
         debug_ddyns[i] = []
+        debug_distance[i] = []
+    
+    # environ_pose_to_ddyn is a nested dictionary.
+    # the first key is environment index in each environment type;
+    # the second key is initial pose and final pose;
+    # the value is a vector of dynamic cost.
+    environ_pose_to_ddyn = {}
+
+    # load sampled transitions
+    file = open('../data/ground_truth/transitions_' + environment_type, 'r')
+    transitions = pickle.load(file)
 
     for transition in transitions:
         transition_type = transition['contact_transition_type']
@@ -111,48 +128,53 @@ def main():
 
             debug_ddyns[transition_type] += ddyns
 
-            environ = transition['environment_index']
+            environment_index = transition['environment_index']
 
             p1 = transition['p1']
             pose1 = []
-            pose1.append(round(p1[0], 2))
-            pose1.append(round(p1[1], 2))
-            pose1.append(round(p1[5], 0))
+            pose1.append(int(round(p1[0] / GRID_RESOLUTION, 0)))
+            pose1.append(int(round(p1[1] / GRID_RESOLUTION, 0)))
+            pose1.append(int(round(p1[5] / ANGLE_RESOLUTION, 0)))
             p2 = transition['p2']
             pose2 = []
-            pose2.append(round(p2[0], 2))
-            pose2.append(round(p2[1], 2))
-            pose2.append(round(p2[5], 0))
+            pose2.append(int(round(p2[0] / GRID_RESOLUTION, 0)))
+            pose2.append(int(round(p2[1] / GRID_RESOLUTION, 0)))
+            pose2.append(int(round(p2[5] / ANGLE_RESOLUTION, 0)))
             pose = tuple(pose1 + pose2)
 
-            if environ not in environ_pose_to_ddyn:
-                environ_pose_to_ddyn[environ] = {}
+            distance = math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
+            debug_distance[transition_type].append(distance)
 
-            if pose not in environ_pose_to_ddyn[environ]:
-                environ_pose_to_ddyn[environ][pose] = ddyns
+            if environment_index not in environ_pose_to_ddyn:
+                environ_pose_to_ddyn[environment_index] = {}
+
+            if pose not in environ_pose_to_ddyn[environment_index]:
+                environ_pose_to_ddyn[environment_index][pose] = ddyns
             else:
-                environ_pose_to_ddyn[environ][pose] += ddyns
+                environ_pose_to_ddyn[environment_index][pose] += ddyns
 
     for i in range(10):
-        print('\ntransition type: {}'.format(i))
-        print('all sampled com: {}'.format(debug_all_sampled_com[i]))
-        print('com after position check: {}, {:6.2f} percent of all coms are valid'.format(debug_com_after_position_check[i], debug_com_after_position_check[i] * 100.0 / debug_all_sampled_com[i]))
-        print('com after feasibility check: {}, {:6.2f} percent of all coms are feasible'.format(debug_com_after_feasibility_check[i], debug_com_after_feasibility_check[i] * 100.0 / debug_all_sampled_com[i]))
-        file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
-        data = pickle.load(file)
-        all_ddyn = data[:, -1]
-        print('percentiles of all ddyns in data')
-        print('min: {}, 25%: {}, 50%: {}, 75%: {}, max: {}'.format(
-            np.min(all_ddyn), np.percentile(all_ddyn, 25), np.percentile(all_ddyn, 50), np.percentile(all_ddyn, 75), np.max(all_ddyn)))
-        if len(debug_ddyns[i]) != 0:
-            debug_ddyns[i] = np.array(debug_ddyns[i])
-            print('percentiles of all ddyns in this program')
-            print('min: {}, 25%: {}, 50%: {}, 75%: {}, max: {}'.format(
-                np.min(debug_ddyns[i]), np.percentile(debug_ddyns[i], 25), np.percentile(debug_ddyns[i], 50), np.percentile(debug_ddyns[i], 75), np.max(debug_ddyns[i])))
-        
+        if debug_all_sampled_com[i] != 0:
+            print('\ntransition type: {}'.format(i))
+            print('all sampled com: {}'.format(debug_all_sampled_com[i]))
+            print('com after position check: {}, {:4.2f} percent of all coms are valid'.format(debug_com_after_position_check[i], debug_com_after_position_check[i] * 100.0 / debug_all_sampled_com[i]))
+            print('com after feasibility check: {}, {:4.2f} percent of all coms are feasible'.format(debug_com_after_feasibility_check[i], debug_com_after_feasibility_check[i] * 100.0 / debug_all_sampled_com[i]))
+            file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
+            data = pickle.load(file)
+            all_ddyn = data[:, -1]
+            print('percentiles of all ddyns in data')
+            print('min: {:4.2f}, 25%: {:4.2f}, 50%: {:4.2f}, 75%: {:4.2f}, max: {:4.2f}'.format(
+                np.min(all_ddyn), np.percentile(all_ddyn, 25), np.percentile(all_ddyn, 50), np.percentile(all_ddyn, 75), np.max(all_ddyn)))
+            if len(debug_ddyns[i]) != 0:
+                debug_ddyns[i] = np.array(debug_ddyns[i])
+                print('percentiles of all ddyns in this program')
+                print('min: {:4.2f}, 25%: {:4.2f}, 50%: {:4.2f}, 75%: {:4.2f}, max: {:4.2f}'.format(
+                    np.min(debug_ddyns[i]), np.percentile(debug_ddyns[i], 25), np.percentile(debug_ddyns[i], 50), np.percentile(debug_ddyns[i], 75), np.max(debug_ddyns[i])))
+            print('average distance between initial status and final status: {:4.2f}'.format(np.mean(np.array(debug_distance[i]))))
+
     # IPython.embed()
-    # file = open('../data/environ_pose_to_ddyn', 'w')
-    # pickle.dump(environ_pose_to_ddyn, file)
+    with open('../data/environ_pose_to_ddyn_' + environment_type, 'w') as file:
+        pickle.dump(environ_pose_to_ddyn, file)
 
     
 

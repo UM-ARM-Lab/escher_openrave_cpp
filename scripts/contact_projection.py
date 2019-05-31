@@ -169,7 +169,7 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
                 if manip == LEFT_LEG:
                     l_leg_x = r_leg_x + math.cos(r_leg_horizontal_yaw*DEG2RAD) * step[0] - math.sin(r_leg_horizontal_yaw*DEG2RAD) * step[1]
                     l_leg_y = r_leg_y + math.sin(r_leg_horizontal_yaw*DEG2RAD) * step[0] + math.cos(r_leg_horizontal_yaw*DEG2RAD) * step[1]
-                    l_leg_z = sys.float_info.max
+                    l_leg_z = LARGE_NUMBER
                     l_leg_roll = 0
                     l_leg_pitch = 0
                     l_leg_yaw = r_leg_horizontal_yaw + step[2]
@@ -183,7 +183,7 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
                 elif manip == RIGHT_LEG:
                     r_leg_x = l_leg_x + math.cos(l_leg_horizontal_yaw*DEG2RAD) * step[0] - math.sin(l_leg_horizontal_yaw*DEG2RAD) * (-step[1])
                     r_leg_y = l_leg_y + math.sin(l_leg_horizontal_yaw*DEG2RAD) * step[0] + math.cos(l_leg_horizontal_yaw*DEG2RAD) * (-step[1])
-                    r_leg_z = sys.float_info.max
+                    r_leg_z = LARGE_NUMBER
                     r_leg_roll = 0
                     r_leg_pitch = 0
                     r_leg_yaw = l_leg_horizontal_yaw - step[2]

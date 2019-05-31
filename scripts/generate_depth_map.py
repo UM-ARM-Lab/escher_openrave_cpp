@@ -2,6 +2,9 @@ import pickle, IPython, os, math, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 
+GRID_RESOLUTION = 0.05
+ANGLE_RESOLUTION = 15.0
+
 RESOLUTION = 0.025
 SIDE = 1.5
 GROUND_DEFAULT_DEPTH = -1.0
@@ -9,6 +12,8 @@ RADIUS = 1.0
 WALL_DEFAULT_DEPTH = 2.0
 WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
+
+NUM_ENVIRONMENT_TYPE = 24
 
 
 def rotate_coordinate_system(coordinates, theta):
@@ -219,12 +224,6 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
 
 
 def main():
-    file = open('../data/environments', 'r')
-    environments = pickle.load(file)
-
-    file = open('../data/environ_pose_to_ddyn', 'r')
-    environ_pose_to_ddyn = pickle.load(file)
-
     if os.path.exists('../data/minimal'):
         shutil.rmtree('../data/minimal')
     os.makedirs('../data/minimal')
@@ -236,25 +235,30 @@ def main():
     final_status_list = []
     minimal_ddyn_list = []
 
-    # # IPython.embed()
+    for i in range(NUM_ENVIRONMENT_TYPE):
+        file = open('../data/ground_truth/environments_' + str(i), 'r')
+        environments = pickle.load(file)
 
-    for environment_index in environ_pose_to_ddyn:
-        pose_to_ddyn = environ_pose_to_ddyn[environment_index]
-        for pose in pose_to_ddyn:
-            # pose has six entries:
-            # (init_x, init_y, init_theta, final_x, final_y, final_theta)
-            assert(pose[0] == 0.0 and pose[1] == 0.0)
-            ground_patch_coordinates = rotate_coordinate_system(environments[environment_index]['ground'], pose[2])
-            ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
-            file = open('../data/minimal/ground_depth_maps/' + str(example_id), 'w')
-            pickle.dump(ground_depth_map, file)
-            wall_patch_coordinates = rotate_coordinate_system(environments[environment_index]['others'], pose[2])
-            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
-            file = open('../data/minimal/wall_depth_maps/' + str(example_id), 'w')
-            pickle.dump(wall_depth_map, file)
-            final_status_list.append(pose[3:6])
-            minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
-            example_id += 1
+        file = open('../data/environ_pose_to_ddyn_' + str(i), 'r')
+        environ_pose_to_ddyn = pickle.load(file)
+
+        for environment_index in environ_pose_to_ddyn:
+            pose_to_ddyn = environ_pose_to_ddyn[environment_index]
+            for pose in pose_to_ddyn:
+                # pose has six entries:
+                # (init_x, init_y, init_theta, final_x, final_y, final_theta)
+                assert(pose[0] == 0 and pose[1] == 0)
+                # ground_patch_coordinates = rotate_coordinate_system(environments[environment_index]['ground'], pose[2] * ANGLE_RESOLUTION)
+                # ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
+                # file = open('../data/minimal/ground_depth_maps/' + str(example_id), 'w')
+                # pickle.dump(ground_depth_map, file)
+                # wall_patch_coordinates = rotate_coordinate_system(environments[environment_index]['others'], pose[2] * ANGLE_RESOLUTION)
+                # wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
+                # file = open('../data/minimal/wall_depth_maps/' + str(example_id), 'w')
+                # pickle.dump(wall_depth_map, file)
+                final_status_list.append([pose[3]*GRID_RESOLUTION, pose[4]*GRID_RESOLUTION, pose[5]*ANGLE_RESOLUTION])
+                minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
+                example_id += 1
     
     file = open('../data/minimal/final_status', 'w')
     pickle.dump(np.array(final_status_list), file)

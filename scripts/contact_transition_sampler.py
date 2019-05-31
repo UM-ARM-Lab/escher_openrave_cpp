@@ -36,7 +36,7 @@ transitions = []
 # save all environments to this list
 environments = []
 
-SAMPLE_SIZE_EACH_ENVIRONMENT = 50
+SAMPLE_SIZE_EACH_ENVIRONMENT = 100
 
 def contact_degree_to_radian(long_list):
     """
@@ -52,7 +52,7 @@ def contact_degree_to_radian(long_list):
 
 def position_to_cell_index(position,resolution):
     angle_resolution = 15
-    resolutions = [resolution, resolution, angle_resolution] # resolution is the resolution of x and y, which is 0.1m in this case
+    resolutions = [resolution, resolution, angle_resolution] # resolution is the resolution of x and y, which is 0.05m in this case
     adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
     cell_index = [None] * len(position)
 
@@ -203,11 +203,11 @@ class contact_transition:
 # def extract_env_feature():
 
 def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution, environment_index):
-    # assume the robot is at (x,y) = (0,0), we sample 3 kinds of orientation (0, 30, 60)
-    # other orientations are just those 3 orientations plus 90*n, so we do not need to sample them.
+    # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
+    # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     handles = []
     init_node_list = []
-    for orientation in range(0,91,15):
+    for orientation in range(-75,91,15):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
