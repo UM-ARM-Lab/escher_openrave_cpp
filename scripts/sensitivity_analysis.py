@@ -1,4 +1,4 @@
-import pickle, random
+import pickle, random, os
 import numpy as np
 import matplotlib.pyplot as plt
 from keras.models import load_model
@@ -61,8 +61,9 @@ def main():
             predicted_perturbed_ddyn = predicted_perturbed_ddyn[:, -1]
 
             diff = (predicted_perturbed_ddyn - predicted_ddyn) * 100.0 / range_ddyn
+            np.clip(diff, -4, 2, out=diff)
             plt.figure(1000 * i + j)
-            plt.hist(diff, bins=range(int(np.floor(np.min(diff) / 2) * 2) - 1, int(np.ceil(np.max(diff) / 2) * 2) + 1, 2))
+            plt.hist(diff, bins=np.arange(-4.0, 2.0, 0.1))
             plt.title('transition type {}, dimension {}'.format(i, j))
             plt.savefig('../data/figures/t{}_d{}.png'.format(i, j))
 

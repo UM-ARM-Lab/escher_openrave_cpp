@@ -1,7 +1,7 @@
 import pickle
 
 def main():
-    file = open('../data/ground_truth/transitions_19', 'r')
+    file = open('../data/ground_truth/transitions_2', 'r')
     all_transitions = pickle.load(file)
     types = {}
     for i in range(10):

@@ -291,8 +291,8 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
             contact_transition_list.append(one_contact_transition)
             temp_dict = {}
             temp_dict['environment_index'] = environment_index
-            temp_dict['p1'] = init_node.get_virtual_body_pose()
-            temp_dict['p2'] = child_node.get_virtual_body_pose()
+            temp_dict['p1'] = one_contact_transition.init_virtual_body_cell
+            temp_dict['p2'] = one_contact_transition.final_virtual_body_cell
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg

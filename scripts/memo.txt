@@ -3,8 +3,13 @@ python sample_com_combinations.py
 Visualize sampled CoM combinations:
 python visualize_sampled_com_combinations.py
 
-Check if the queried model is correct
-check_model.py
+Check if the queried model is correct:
+python check_model.py
+Check how sensitive the dynamic cost is to each dimension:
+python sensitivity_analysis.py
+
+Generate depth map:
+python generate_depth_map.py
 
 Procedure to generate ground truth:
 1. sample contact transitions of a specific environment type:
@@ -13,5 +18,5 @@ python contact_transition_sampler.py -a: [environment_type] -b: [environments_fi
 python check_transitions_type.py
 3. compute dynamic cost for the transitions in the environments of a specific environment type
 python compute_ddyn.py -t: [environment_type]
-4. find the minimal dynamic cost and generate depth maps for environments
-python generate_depth_map.py
+4. generate ground truth (minimal)
+python generate_ground_truth.py

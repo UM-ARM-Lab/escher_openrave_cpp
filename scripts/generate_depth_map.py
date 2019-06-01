@@ -13,10 +13,10 @@ WALL_DEFAULT_DEPTH = 2.0
 WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
 
+# currently unused
 NUM_ENVIRONMENT_TYPE = 24
 
-
-def rotate_coordinate_system(coordinates, theta):
+def rotate_quadrilaterals(coordinates, theta):
     """
     Inputs:
     "coordinates" should be a list of a list of tuples.
@@ -24,10 +24,10 @@ def rotate_coordinate_system(coordinates, theta):
         each inner list represents the vertices of a quadrilateral;
         the outer list represents a list of quadrilaterals.
 
-    "theta" should be the angle (in degree), by which the coordinate system will be rotated counter clockwise.
+    "theta" should be the angle (in degree), by which the points will be rotated clockwise.
 
     Output:
-    a 2d numpy array which represents the coordinates of the vertices in the rotated coordinate system.
+    a 2d numpy array which represents the coordinates of the vertices after rotation.
     """
     theta_in_radian = theta * np.pi / 180
     # rotating the coordinate system counter clockwise is the same as rotating the points clockwise
@@ -38,7 +38,6 @@ def rotate_coordinate_system(coordinates, theta):
     rotated_xyz[:, 0:2] = np.matmul(rotation_matrix, xyz[:, 0:2].transpose()).transpose()
     rotated_xyz[:, 2] = xyz[:, 2]
     return rotated_xyz
-
 
 def point_inside_polygon(point, vertices, normal):
     """
@@ -223,57 +222,26 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
     return entire_map
 
 
-def main():
-    if os.path.exists('../data/minimal'):
-        shutil.rmtree('../data/minimal')
-    os.makedirs('../data/minimal')
+# def main():
+#     if os.path.exists('../data/test_depth_map'):
+#         shutil.rmtree('../data/test_depth_map')
+#     os.makedirs('../data/test_depth_map')
 
-    os.makedirs('../data/minimal/ground_depth_maps')
-    os.makedirs('../data/minimal/wall_depth_maps')
+#     os.makedirs('../data/test_depth_map/ground_depth_maps')
+#     os.makedirs('../data/test_depth_map/wall_depth_maps')
 
-    example_id = 0
-    final_status_list = []
-    minimal_ddyn_list = []
+#     file = open('../data/ground_truth/environments_0', 'r')
+#     environments = pickle.load(file)
 
-    for i in range(NUM_ENVIRONMENT_TYPE):
-        file = open('../data/ground_truth/environments_' + str(i), 'r')
-        environments = pickle.load(file)
-
-        file = open('../data/environ_pose_to_ddyn_' + str(i), 'r')
-        environ_pose_to_ddyn = pickle.load(file)
-
-        for environment_index in environ_pose_to_ddyn:
-            pose_to_ddyn = environ_pose_to_ddyn[environment_index]
-            for pose in pose_to_ddyn:
-                # pose has six entries:
-                # (init_x, init_y, init_theta, final_x, final_y, final_theta)
-                assert(pose[0] == 0 and pose[1] == 0)
-                # ground_patch_coordinates = rotate_coordinate_system(environments[environment_index]['ground'], pose[2] * ANGLE_RESOLUTION)
-                # ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
-                # file = open('../data/minimal/ground_depth_maps/' + str(example_id), 'w')
-                # pickle.dump(ground_depth_map, file)
-                # wall_patch_coordinates = rotate_coordinate_system(environments[environment_index]['others'], pose[2] * ANGLE_RESOLUTION)
-                # wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
-                # file = open('../data/minimal/wall_depth_maps/' + str(example_id), 'w')
-                # pickle.dump(wall_depth_map, file)
-                final_status_list.append([pose[3]*GRID_RESOLUTION, pose[4]*GRID_RESOLUTION, pose[5]*ANGLE_RESOLUTION])
-                minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
-                example_id += 1
-    
-    file = open('../data/minimal/final_status', 'w')
-    pickle.dump(np.array(final_status_list), file)
-    file = open('../data/minimal/minimal_ddyn', 'w')
-    pickle.dump(np.array(minimal_ddyn_list), file)
-
-    # for idx, environment in enumerate(environments):
-    #     ground_depth_map = entire_depth_map(np.array(environment['ground']).reshape(-1, 3), 'ground', RESOLUTION)
-    #     file = open('../data/minimal/ground_depth_maps/' + str(idx), 'w')
-    #     pickle.dump(ground_depth_map, file)
-    #     wall_depth_map = entire_depth_map(np.array(environment['others']).reshape(-1, 3), 'wall', RESOLUTION)
-    #     file = open('../data/minimal/wall_depth_maps/' + str(idx), 'w')
-    #     pickle.dump(wall_depth_map, file)
+#     for idx, environment in enumerate(environments):
+#         ground_depth_map = entire_depth_map(np.array(environment['ground']).reshape(-1, 3), 'ground', RESOLUTION)
+#         file = open('../data/test_depth_map/ground_depth_maps/' + str(idx), 'w')
+#         pickle.dump(ground_depth_map, file)
+#         wall_depth_map = entire_depth_map(np.array(environment['others']).reshape(-1, 3), 'wall', RESOLUTION)
+#         file = open('../data/test_depth_map/wall_depth_maps/' + str(idx), 'w')
+#         pickle.dump(wall_depth_map, file)
         
     
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
 
