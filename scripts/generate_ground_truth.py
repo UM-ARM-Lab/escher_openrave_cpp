@@ -40,20 +40,24 @@ def rotate_one_point(x, y, theta):
 
 
 def main():
-    if os.path.exists('../data/minimal'):
-        shutil.rmtree('../data/minimal')
-    os.makedirs('../data/minimal')
+    # if os.path.exists('../data/minimal'):
+    #     shutil.rmtree('../data/minimal')
+    # os.makedirs('../data/minimal')
 
-    os.makedirs('../data/minimal/ground_depth_maps')
-    os.makedirs('../data/minimal/wall_depth_maps')
+    # os.makedirs('../data/minimal/ground_depth_maps')
+    # os.makedirs('../data/minimal/wall_depth_maps')
+
+    if os.path.exists('../data/test'):
+        shutil.rmtree('../data/test')
+    os.makedirs('../data/test')
 
     example_id = 0
-    final_status_list = []
-    minimal_ddyn_list = []
+    # final_status_list = []
+    # minimal_ddyn_list = []
 
-    for i in [1]:
-        file = open('../data/ground_truth/environments_' + str(i), 'r')
-        environments = pickle.load(file)
+    for i in [0]:
+        # file = open('../data/ground_truth/environments_' + str(i), 'r')
+        # environments = pickle.load(file)
 
         file = open('../data/environ_pose_to_ddyn_' + str(i), 'r')
         environ_pose_to_ddyn = pickle.load(file)
@@ -74,13 +78,21 @@ def main():
                 # pickle.dump(wall_depth_map, file)
                 # rotated_final_x, rotated_final_y = rotate_one_point(pose[3]*GRID_RESOLUTION, pose[4]*GRID_RESOLUTION, pose[2]*ANGLE_RESOLUTION)
                 # final_status_list.append([rotated_final_x, rotated_final_y, (pose[5] - pose[2])*ANGLE_RESOLUTION])
-                minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
+                # minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
+
+                clipped = np.clip(pose_to_ddyn[pose], 0, 8000)
+                # IPython.embed()
+                plt.figure(example_id)
+                plt.hist(clipped, bins=range(-50, 8001, 50))
+                plt.title('e: {} p1: {} p2: {}'.format(environment_index, pose[0:3], pose[3:]))
+                plt.savefig('../data/test/{}.png'.format(example_id))
+
                 example_id += 1
     
     # file = open('../data/minimal/final_status', 'w')
     # pickle.dump(np.array(final_status_list), file)
-    file = open('../data/minimal/minimal_ddyn', 'w')
-    pickle.dump(np.array(minimal_ddyn_list), file)
+    # file = open('../data/minimal/minimal_ddyn', 'w')
+    # pickle.dump(np.array(minimal_ddyn_list), file)
 
     
 if __name__ == '__main__':

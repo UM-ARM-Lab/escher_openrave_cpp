@@ -1,8 +1,10 @@
-import pickle, IPython, math, sys, getopt
+import pickle, IPython, math, sys, getopt, random
 # import keras
 import numpy as np
 # from keras.models import load_model
 from sklearn.neighbors import BallTree
+
+SAMPLE_SIZE = 10000
 
 def main():
     # # load the normalize parameters for the classification model of all types
@@ -48,7 +50,7 @@ def main():
     # for i in range(10):
     #     regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    file = open('../data/zero_ddyn_0', 'r')
+    file = open('../data/zero_ddyn_0_tiny', 'r')
     data = pickle.load(file)
     
     for transition_type in range(10):
@@ -65,15 +67,37 @@ def main():
         
             file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(transition_type), 'r')
             original_data = pickle.load(file)
+            
+            original_X = original_data[:, 1:-7]
 
-            mean = np.mean(original_data, axis=0)
-            std = np.std(original_data, axis=0)
-            IPython.embed()
-            normalized_original_data = (original_data - mean) / std
+            mean = np.mean(original_X, axis=0)
+            print(mean)
+            std = np.std(original_X, axis=0)
+            normalized_original_X = (original_X - mean) / std
 
-            tree = BallTree(normalized_original_data)
-            dist, indices = tree.query(normalized_original_data[0:5], k=10)
-            IPython.embed()
+            tree = BallTree(normalized_original_X)
+
+            # original data
+            # random.seed(20190602)
+            # indices = random.sample(range(normalized_original_data.shape[0]), SAMPLE_SIZE)
+            indices = np.argwhere(original_data[:, -1] < 30.0).reshape(-1,)
+            dist, _ = tree.query(normalized_original_X[indices], k=10)
+            avg_dist = np.mean(dist)
+
+            # zero dynamic cost data
+            normalized_X = (X - mean) / std
+            dist, _ = tree.query(normalized_X, k=10)
+            zero_avg_dist = np.mean(dist)
+
+            print('original small dynamic cost X:')
+            print(np.mean(normalized_original_X[indices], axis=0))
+            print(avg_dist)
+            print('zero dynamic cost X:')
+            print(np.mean(normalized_X, axis=0))
+            print(zero_avg_dist)
+
+
+
 
 
 

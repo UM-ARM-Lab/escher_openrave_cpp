@@ -88,7 +88,7 @@ def main():
 
     # load sampled transitions
     file = open('../data/ground_truth/transitions_' + environment_type, 'r')
-    transitions = pickle.load(file)[:100]
+    transitions = pickle.load(file)
 
     for transition in transitions:
         transition_type = transition['contact_transition_type']
