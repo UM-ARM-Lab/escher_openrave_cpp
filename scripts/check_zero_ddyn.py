@@ -79,7 +79,7 @@ def main():
 
             # original data
             # random.seed(20190602)
-            # indices = random.sample(range(normalized_original_data.shape[0]), SAMPLE_SIZE)
+            # indices = random.sample(range(normalized_original_X.shape[0]), SAMPLE_SIZE)
             indices = np.argwhere(original_data[:, -1] < 30.0).reshape(-1,)
             dist, _ = tree.query(normalized_original_X[indices], k=10)
             avg_dist = np.mean(dist)

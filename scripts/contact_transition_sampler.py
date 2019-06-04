@@ -30,13 +30,16 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
+SAMPLE_SIZE_EACH_ENVIRONMENT = 20
+GRID_RESOLUTION = 0.15
+ANGLE_RESOLUTION = 15.0
+
 # save all transitions to this list
 transitions = []
 
 # save all environments to this list
 environments = []
 
-SAMPLE_SIZE_EACH_ENVIRONMENT = 100
 
 def contact_degree_to_radian(long_list):
     """
@@ -51,8 +54,7 @@ def contact_degree_to_radian(long_list):
 
 
 def position_to_cell_index(position,resolution):
-    angle_resolution = 15
-    resolutions = [resolution, resolution, angle_resolution] # resolution is the resolution of x and y, which is 0.05m in this case
+    resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.05m in this case
     adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
     cell_index = [None] * len(position)
 
@@ -413,7 +415,7 @@ def main(robot_name='athena'): # for test
                 env['others'].append(structure.vertices)
         environments.append(env)
                 
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, 0.05, i)
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
     with open('../data/' + transition_file, 'w') as file:
