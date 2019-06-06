@@ -47,7 +47,7 @@ def main():
         sampled_X = X[indices]
 
         variables_range = np.percentile(X, 99, axis=0) - np.percentile(X, 1, axis=0)
-        variables_perturbation = variables_range / 100.0
+        variables_perturbation = variables_range / 98.0
 
         range_ddyn = np.percentile(ddyns, 99) - np.percentile(ddyns, 1)
 
@@ -63,7 +63,7 @@ def main():
             diff = (predicted_perturbed_ddyn - predicted_ddyn) * 100.0 / range_ddyn
             np.clip(diff, -4, 2, out=diff)
             plt.figure(1000 * i + j)
-            plt.hist(diff, bins=np.arange(-4.0, 2.0, 0.1))
+            plt.hist(diff, bins=np.arange(-3.9, 2.1, 0.1))
             plt.title('transition type {}, dimension {}'.format(i, j))
             plt.savefig('../data/figures/t{}_d{}.png'.format(i, j))
 

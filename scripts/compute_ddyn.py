@@ -1,10 +1,42 @@
 import pickle, IPython, math, sys, getopt, keras
 import numpy as np
+import mkl
+mkl.get_max_threads()
+import faiss
 from keras.models import load_model
-from sklearn.neighbors import BallTree
+import tensorflow as tf
+# import timeit
 
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
+
+
+# com_dict
+# x
+# 0: (-Inf, -0.3)
+# 1: [-0.3, -0.2)
+# 2: [-0.2, -0.1)
+# 3: [-0.1, 0.0)
+# 4: [0.0, 0.1)
+# 5: [0.1, 0.2)
+# 6: [0.2, Inf)
+# y
+# 0: (-Inf, -0.1)
+# 1: [-0.1, 0.0)
+# 2: [0.0, 0.1)
+# 3: [0.1, 0.2)
+# 4: [0.2, Inf)
+# z
+# 0: (-Inf, 0.8)
+# 1: [0.8, 0.9)
+# 2: [0.9, 1.0)
+# 3: [1.0, 1.1)
+# 4: [1.1, Inf)
+def com_index(x):
+    idxx = max(min(int(math.floor(x[-6] * 10) + 4), 6), 0)
+    idxy = max(min(int(math.floor(x[-5] * 10) + 2), 4), 0)
+    idxz = max(min(int(math.floor(x[-4] * 10) - 7), 4), 0)
+    return (idxx, idxy, idxz)
 
 
 def main():
@@ -27,8 +59,7 @@ def main():
     if device == 'cpu':
         pass
     elif device == 'gpu':
-        import tensorflow as tf
-        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.2))
+        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.80))
         sess = tf.Session(config=config)
         keras.backend.set_session(sess)
     else:
@@ -94,18 +125,20 @@ def main():
     for i in range(10):
         file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         original_X = pickle.load(file)[:, 1:-7]
-        regression_training_data_mean[i] = np.mean(original_X, axis=0)
-        regression_training_data_std[i] = np.std(original_X, axis=0)
+        regression_training_data_mean[i] = np.mean(original_X, axis=0, dtype=np.float32)
+        regression_training_data_std[i] = np.std(original_X, axis=0, dtype=np.float32)
         normalized_original_X = (original_X - regression_training_data_mean[i]) / regression_training_data_std[i]
-        regression_training_data_tree[i] = BallTree(normalized_original_X)
+        regression_training_data_tree[i] = faiss.IndexFlatL2(normalized_original_X.shape[1])
+        regression_training_data_tree[i].add(np.float32(normalized_original_X))
 
         file = open('../data/dynopt_result/dataset/dynopt_infeasible_total_data_' + str(i), 'r')
         infeasible_original_X = pickle.load(file)[:, 1:-1]
         all_original_X = np.concatenate((original_X, infeasible_original_X), axis=0)
-        classification_training_data_mean[i] = np.mean(all_original_X, axis=0)
-        classification_training_data_std[i] = np.std(all_original_X, axis=0)
+        classification_training_data_mean[i] = np.mean(all_original_X, axis=0, dtype=np.float32)
+        classification_training_data_std[i] = np.std(all_original_X, axis=0, dtype=np.float32)
         normalized_all_original_X = (all_original_X - classification_training_data_mean[i]) / classification_training_data_std[i]
-        classification_training_data_tree[i] = BallTree(normalized_all_original_X)
+        classification_training_data_tree[i] = faiss.IndexFlatL2(normalized_all_original_X.shape[1])
+        classification_training_data_tree[i].add(np.float32(normalized_all_original_X))
     
     # environ_pose_to_ddyn is a nested dictionary.
     # the first key is environment index in each environment type;
@@ -115,66 +148,104 @@ def main():
 
     # load sampled transitions
     file = open('../data/transitions_' + environment_type + '_tiny', 'r')
-    # Don't forget to change here !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    transitions = pickle.load(file)[0:100]
+    transitions = pickle.load(file)[:30000]
 
-    for transition in transitions:
+    for idx, transition in enumerate(transitions):
+        print(idx)
+
+        # start = timeit.default_timer()
+
         transition_type = transition['contact_transition_type']
         com = com_combinations[transition_type]
-
-        # the distance between com position and each foot contact should be in [0, 1.1]
-        valid_com_indices = np.sum((np.array(transition['normalized_init_l_leg'][:3]) - com[:, :3]) ** 2, axis=1) <= 1.1 ** 2
-        valid_com_indices = np.logical_and(np.sum((np.array(transition['normalized_init_r_leg'][:3]) - com[:, :3]) ** 2, axis=1) <= 1.1 ** 2, valid_com_indices)
-        
-        # the distance between com position and each palm contact (if exists) should be in [0, 0.8]
-        if transition['normalized_init_l_arm']:
-            valid_com_indices = np.logical_and(np.sum((np.array(transition['normalized_init_l_arm'][:3]) - com[:, :3]) ** 2, axis=1) <= 0.8 ** 2, valid_com_indices)
-        if transition['normalized_init_r_arm']:
-            valid_com_indices = np.logical_and(np.sum((np.array(transition['normalized_init_r_arm'][:3]) - com[:, :3]) ** 2, axis=1) <= 0.8 ** 2, valid_com_indices)
 
         X = np.zeros((len(com), len(transition['feature_vector_contact_part']) + 6), dtype=float)
         X[:, 0:-6] = np.tile(np.array(transition['feature_vector_contact_part']), (len(com), 1))
         X[:, -6:] = np.array(com)
 
+        # print("construct X", timeit.default_timer() - start)
+
+        # the distance between com position and each foot contact should be in [0, 1.1]
+        valid_com_indices = np.sum((np.array(transition['normalized_init_l_leg'][:3]) - X[:, -6:-3]) ** 2, axis=1) <= 1.1 ** 2
+        if np.sum(valid_com_indices) == 0:
+            continue
+        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        valid_com_indices = np.sum((np.array(transition['normalized_init_r_leg'][:3]) - X[:, -6:-3]) ** 2, axis=1) <= 1.1 ** 2
+        if np.sum(valid_com_indices) == 0:
+            continue
+        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        
+        # the distance between com position and each palm contact (if exists) should be in [0, 0.8]
+        if transition['normalized_init_l_arm']:
+            valid_com_indices = np.sum((np.array(transition['normalized_init_l_arm'][:3]) - X[:, -6:-3]) ** 2, axis=1) <= 0.8 ** 2
+            if np.sum(valid_com_indices) == 0:
+                continue
+            X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        if transition['normalized_init_r_arm']:
+            valid_com_indices = np.sum((np.array(transition['normalized_init_r_arm'][:3]) - X[:, -6:-3]) ** 2, axis=1) <= 0.8 ** 2
+            if np.sum(valid_com_indices) == 0:
+                continue
+            X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+
+        # print("check position", timeit.default_timer() - start)
+
         # check the distance to the training data of classification model
-        dist, _ = classification_training_data_tree[transition_type].query((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type], k=10)
-        dist = np.mean(dist, axis=1)
-        valid_com_indices = np.logical_and(dist < 3.0, valid_com_indices)
+        dist, _ = classification_training_data_tree[transition_type].search(np.float32((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type]), 10)
+        dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
+        valid_com_indices = dist < 3.0
+        if np.sum(valid_com_indices) == 0:
+            continue
+        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+
+        # print("check distance", timeit.default_timer() - start)
 
         # query the classification model
         prediction = classification_models[transition_type].predict((X - classification_input_normalize_params[transition_type][0]) / classification_input_normalize_params[transition_type][1])
-        prediction = prediction.reshape(-1,)
-        valid_com_indices = np.logical_and(prediction > 0.5, valid_com_indices)
+        valid_com_indices = prediction.reshape(-1,) > 0.5
+        if np.sum(valid_com_indices) == 0:
+            continue
+        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+
+        # print("query classification model", timeit.default_timer() - start)
 
         # check the distance to the training data of the regression model
-        dist, _ = regression_training_data_tree[transition_type].query((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type], k=10)
-        dist = np.mean(dist, axis=1)
-        valid_com_indices = np.logical_and(dist < 3.0, valid_com_indices)
+        dist, _ = regression_training_data_tree[transition_type].search(np.float32((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type]), 10)
+        dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
+        valid_com_indices = dist < 3.0
+        if np.sum(valid_com_indices) == 0:
+            continue
+        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+
+        # print("check distance", timeit.default_timer() - start)
 
         # query the regression model
         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]
-        prediction = prediction[:, -1]
-        ddyns = prediction[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        ddyns = prediction[:, -1]
+
+        # print("query regression model", timeit.default_timer() - start)
 
         if ddyns.shape[0] != 0:
-            ddyns = ddyns.tolist()
-
             environment_index = transition['environment_index']
+
+            if environment_index not in environ_pose_to_ddyn:
+                environ_pose_to_ddyn[environment_index] = {}
 
             p1 = transition['p1']
             p2 = transition['p2']
             pose = tuple(p1 + p2)
 
-            if environment_index not in environ_pose_to_ddyn:
-                environ_pose_to_ddyn[environment_index] = {}
-
             if pose not in environ_pose_to_ddyn[environment_index]:
-                environ_pose_to_ddyn[environment_index][pose] = ddyns
-            else:
-                environ_pose_to_ddyn[environment_index][pose] += ddyns
+                environ_pose_to_ddyn[environment_index][pose] = {}
+
+            for j in range(X.shape[0]):
+                com_idx = com_index(X[j])
+                if com_idx in environ_pose_to_ddyn[environment_index][pose]:
+                    environ_pose_to_ddyn[environment_index][pose][com_idx].append(ddyns[j])
+                else:
+                    environ_pose_to_ddyn[environment_index][pose][com_idx] = [ddyns[j]] 
+           
 
     # IPython.embed()
-    with open('../data/environ_pose_to_ddyn_' + environment_type, 'w') as file:
+    with open('../data/com_diff_environ_pose_to_ddyn_' + environment_type, 'w') as file:
         pickle.dump(environ_pose_to_ddyn, file)
 
 

@@ -2,7 +2,7 @@ import pickle, IPython, math, sys, getopt, keras
 import numpy as np
 from keras.models import load_model
 
-GRID_RESOLUTION = 0.05
+GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
 def main():

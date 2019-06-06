@@ -33,7 +33,7 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-GRID_RESOLUTION = 0.10
+GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
 # first key: x

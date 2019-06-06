@@ -2,7 +2,7 @@ import pickle, IPython, os, math, shutil
 import numpy as np
 import matplotlib.pyplot as plt
 
-GRID_RESOLUTION = 0.05
+GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
 RESOLUTION = 0.025
