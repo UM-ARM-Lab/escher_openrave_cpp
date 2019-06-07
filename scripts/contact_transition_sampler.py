@@ -30,7 +30,7 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-SAMPLE_SIZE_EACH_ENVIRONMENT = 20
+SAMPLE_SIZE_EACH_ENVIRONMENT = 50
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
@@ -54,7 +54,7 @@ def contact_degree_to_radian(long_list):
 
 
 def position_to_cell_index(position,resolution):
-    resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.05m in this case
+    resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.15m in this case
     adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
     cell_index = [None] * len(position)
 
@@ -204,7 +204,7 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution, environment_index):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution,environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     handles = []
@@ -324,25 +324,20 @@ def sample_env(env_handler, robot_obj, surface_source):
 
 
 def main(robot_name='athena'): # for test
-    environment_file = None
-    transition_file = None
     environment_type = None
     try:
-        inputs, _ = getopt.getopt(sys.argv[1:], "a:b:c:", ['environment_type', 'environments_file', 'transitions_file'])
+        inputs, _ = getopt.getopt(sys.argv[1:], "e:", ['environment_type'])
 
         for opt, arg in inputs:
-            if opt == '-a':
+            if opt == '-e' or opt == '--environment_type':
                 environment_type = arg
 
-            elif opt == '-b':
-                environment_file = arg
-
-            elif opt == '-c':
-                transition_file = arg
-
     except getopt.GetoptError:
-        print('usage: -a: [environment_type] -b: [environments_file] -c: [transitions_file]')
+        print('usage: -e: [environment_type]')
         exit(1)
+
+    environment_file = "large_environments_" + environment_type
+    transition_file = "large_transitions_" + environment_type
 
     ### Initialize the environment handler
     rave.raveLogInfo('Load the Environment Handler.')
@@ -406,13 +401,20 @@ def main(robot_name='athena'): # for test
 
         # save the environment
         env = {}
-        env['ground'] = []
-        env['others'] = []
-        for structure in structures:
-            if structure.type == 'ground':
-                env['ground'].append(structure.vertices)
-            elif structure.type == 'others':
-                env['others'].append(structure.vertices)
+        env['ground_vertices'] = []
+        env['ground_normals'] = []
+        env['others_vertices'] = []
+        env['others_normals'] = []
+        for s in structures:
+            if s.type == 'ground':
+                env['ground_vertices'].append(s.vertices)
+                env['ground_normals'].append(s.get_normal())
+            elif s.type == 'others':
+                env['others_vertices'].append(s.vertices)
+                env['others_normals'].append(s.get_normal())
+            else:
+                print('invalid structure type')
+                exit(1)
         environments.append(env)
                 
         sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, GRID_RESOLUTION, i)

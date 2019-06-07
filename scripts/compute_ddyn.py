@@ -11,49 +11,70 @@ GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
 
-# com_dict
-# x
-# 0: (-Inf, -0.3)
-# 1: [-0.3, -0.2)
-# 2: [-0.2, -0.1)
-# 3: [-0.1, 0.0)
-# 4: [0.0, 0.1)
-# 5: [0.1, 0.2)
-# 6: [0.2, Inf)
-# y
-# 0: (-Inf, -0.1)
-# 1: [-0.1, 0.0)
-# 2: [0.0, 0.1)
-# 3: [0.1, 0.2)
-# 4: [0.2, Inf)
-# z
-# 0: (-Inf, 0.8)
-# 1: [0.8, 0.9)
-# 2: [0.9, 1.0)
-# 3: [1.0, 1.1)
-# 4: [1.1, Inf)
-def com_index(x):
-    idxx = max(min(int(math.floor(x[-6] * 10) + 4), 6), 0)
-    idxy = max(min(int(math.floor(x[-5] * 10) + 2), 4), 0)
-    idxz = max(min(int(math.floor(x[-4] * 10) - 7), 4), 0)
-    return (idxx, idxy, idxz)
+# # com_dict
+# # x
+# # 0: (-Inf, -0.3)
+# # 1: [-0.3, -0.2)
+# # 2: [-0.2, -0.1)
+# # 3: [-0.1, 0.0)
+# # 4: [0.0, 0.1)
+# # 5: [0.1, 0.2)
+# # 6: [0.2, Inf)
+# # y
+# # 0: (-Inf, -0.1)
+# # 1: [-0.1, 0.0)
+# # 2: [0.0, 0.1)
+# # 3: [0.1, 0.2)
+# # 4: [0.2, Inf)
+# # z
+# # 0: (-Inf, 0.8)
+# # 1: [0.8, 0.9)
+# # 2: [0.9, 1.0)
+# # 3: [1.0, 1.1)
+# # 4: [1.1, Inf)
+# def com_index(x):
+#     idxx = max(min(int(math.floor(x[-6] * 10) + 4), 6), 0)
+#     idxy = max(min(int(math.floor(x[-5] * 10) + 2), 4), 0)
+#     idxz = max(min(int(math.floor(x[-4] * 10) - 7), 4), 0)
+#     return (idxx, idxy, idxz)
+
+
+def rotate_one_point(x, y, theta):
+    """
+    Inputs:
+    "x" should be the x coordinate of a point.
+
+    "y" should be the y coordinate of a point.
+
+    "theta" should be the angle (in degree), by which the point will be rotated clockwise.
+
+    Outputs:
+    new coordinate after rotation
+    """
+    theta_in_radian = theta * np.pi / 180
+    # rotate the points clockwise
+    rotation_matrix = np.array([[np.cos(-theta_in_radian), -np.sin(-theta_in_radian)],
+                                [np.sin(-theta_in_radian), np.cos(-theta_in_radian)]])
+    vector = np.array([x, y])
+    new_vector = np.matmul(rotation_matrix, vector)
+    return new_vector[0], new_vector[1]
 
 
 def main():
     device = None
     environment_type = None
     try:
-        inputs, _ = getopt.getopt(sys.argv[1:], "d:t:", ['device', 'environment_type'])
+        inputs, _ = getopt.getopt(sys.argv[1:], "d:e:", ['device', 'environment_type'])
 
         for opt, arg in inputs:
             if opt == '-d':
                 device = arg
 
-            if opt == '-t':
+            if opt == '-e':
                 environment_type = arg
 
     except getopt.GetoptError:
-        print('usage: -d: [cpu / gpu] -t: [environment_type]')
+        print('usage: -d: [cpu / gpu] -e: [environment_type]')
         exit(1)
 
     if device == 'cpu':
@@ -148,9 +169,12 @@ def main():
 
     # load sampled transitions
     file = open('../data/transitions_' + environment_type + '_tiny', 'r')
-    transitions = pickle.load(file)[:30000]
+    transitions = pickle.load(file)
 
     for idx, transition in enumerate(transitions):
+        environment_index = transition['environment_index']
+        if environment_index > 0:
+            break
         print(idx)
 
         # start = timeit.default_timer()
@@ -224,8 +248,6 @@ def main():
         # print("query regression model", timeit.default_timer() - start)
 
         if ddyns.shape[0] != 0:
-            environment_index = transition['environment_index']
-
             if environment_index not in environ_pose_to_ddyn:
                 environ_pose_to_ddyn[environment_index] = {}
 
@@ -233,19 +255,24 @@ def main():
             p2 = transition['p2']
             pose = tuple(p1 + p2)
 
-            if pose not in environ_pose_to_ddyn[environment_index]:
-                environ_pose_to_ddyn[environment_index][pose] = {}
+            # if pose not in environ_pose_to_ddyn[environment_index]:
+            #     environ_pose_to_ddyn[environment_index][pose] = {}
 
-            for j in range(X.shape[0]):
-                com_idx = com_index(X[j])
-                if com_idx in environ_pose_to_ddyn[environment_index][pose]:
-                    environ_pose_to_ddyn[environment_index][pose][com_idx].append(ddyns[j])
-                else:
-                    environ_pose_to_ddyn[environment_index][pose][com_idx] = [ddyns[j]] 
+            # for j in range(X.shape[0]):
+            #     com_idx = com_index(X[j])
+            #     if com_idx in environ_pose_to_ddyn[environment_index][pose]:
+            #         environ_pose_to_ddyn[environment_index][pose][com_idx].append(ddyns[j])
+            #     else:
+            #         environ_pose_to_ddyn[environment_index][pose][com_idx] = [ddyns[j]] 
+
+            if pose in environ_pose_to_ddyn[environment_index]:
+                environ_pose_to_ddyn[environment_index][pose] += ddyns.tolist()
+            else:
+                environ_pose_to_ddyn[environment_index][pose] = ddyns.tolist()
            
 
     # IPython.embed()
-    with open('../data/com_diff_environ_pose_to_ddyn_' + environment_type, 'w') as file:
+    with open('../data/com_same_environ_pose_to_ddyn_' + environment_type, 'w') as file:
         pickle.dump(environ_pose_to_ddyn, file)
 
 

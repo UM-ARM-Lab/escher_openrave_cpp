@@ -1767,7 +1767,7 @@ class environment_handler:
             col_num = 7
 
             x_random = random.uniform(-0.3, 0.3)
-            y_random = random.uniform(1.3, 1.5)
+            y_random = random.uniform(1.1, 1.5)
             
             surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
                                           (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
