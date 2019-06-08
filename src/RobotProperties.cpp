@@ -136,16 +136,16 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
                                0, 0, 0, 1;
         ee_offset_transform_to_dynopt_[ContactManipulator::R_LEG] = rf_offset_transform;
 
-        lh_offset_transform << 0, 0, 1, 0,
-                               1, 0, 0, 0,
-                               0, 1, 0, 0,
-                               0, 0, 0, 1;
+        lh_offset_transform << 0,  0, -1, 0,
+                               1,  0,  0, 0,
+                               0, -1,  0, 0,
+                               0,  0,  0, 1;
         ee_offset_transform_to_dynopt_[ContactManipulator::L_ARM] = lh_offset_transform;
 
-        rh_offset_transform <<  0,  0, 1, 0,
-                               -1,  0, 0, 0,
-                                0, -1, 0, 0,
-                                0,  0, 0, 1;
+        rh_offset_transform <<  0,  0, -1, 0,
+                               -1,  0,  0, 0,
+                                0,  1,  0, 0,
+                                0,  0,  0, 1;
         ee_offset_transform_to_dynopt_[ContactManipulator::R_ARM] = rh_offset_transform;
     }
     else

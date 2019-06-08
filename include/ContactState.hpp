@@ -95,7 +95,10 @@ class ContactState
         std::pair<OneStepCaptureCode, std::vector<RPYTF> > getOneStepCapturabilityCodeAndPoses();
         std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > getZeroStepCapturabilityCodeAndPoses();
 
-        std::vector<CapturePose> capture_poses_vector_; // a list of capture states during the motion from prev_state to current_state
+        // std::vector<CapturePose> capture_poses_vector_; // a list of possible capture states during the motion from prev_state to current_state
+
+        std::vector<CapturePose> support_phase_capture_poses_vector_; // a list of possible capture states during the motion from prev_state to current_state
+        std::vector<CapturePose> transition_phase_capture_poses_vector_; // a list of possible capture states in current_state
 
     private:
 
@@ -104,15 +107,11 @@ class ContactState
 class CapturePose
 {
     public:
-        CapturePose(ContactManipulator _contact_manip, RPYTF _capture_pose, Vector3D _post_impact_lmom, Vector3D _post_impact_amom) :
+        CapturePose(ContactManipulator _contact_manip, RPYTF _capture_pose) :
         contact_manip_(_contact_manip),
-        capture_pose_(_capture_pose),
-        post_impact_lmom_(_post_impact_lmom),
-        post_impact_amom_(_post_impact_amom) {};
+        capture_pose_(_capture_pose) {};
         ContactManipulator contact_manip_;
         RPYTF capture_pose_;
-        Vector3D post_impact_lmom_;
-        Vector3D post_impact_amom_;
 };
 
 

@@ -137,7 +137,7 @@ def main(meta_path_generation_method='all_planning',
          recording_data=False,
          use_env_transition_bias=False,
          load_planning_result=False,
-         robot_name='athena'):
+         robot_name='hermes_full'):
 
     ### Initialize the ros node
     rave.raveLogInfo('Using %s method...'%(meta_path_generation_method))
@@ -146,7 +146,7 @@ def main(meta_path_generation_method='all_planning',
 
     ### Initialize the environment handler
     rave.raveLogInfo('Load the Environment Handler.')
-    env_handler = environment_handler()
+    env_handler = environment_handler(enable_viewer=True)
     env = env_handler.env
     structures = env_handler.structures
     env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.135)
@@ -168,7 +168,9 @@ def main(meta_path_generation_method='all_planning',
         print('Load step_transition_model...', end='')
         # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
         f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_dynopt_test.txt','r')
@@ -217,6 +219,8 @@ def main(meta_path_generation_method='all_planning',
 
         goal = [goal_x, goal_y, goal_theta]
 
+        env_handler.DrawRegion(env_handler.env, xyzrpy_to_SE3([goal_x,goal_y,0.02,0,0,goal_theta]), 0.2)
+
         # set up the structures
         structures = env_handler.structures
         structures_dict = {}
@@ -244,16 +248,47 @@ def main(meta_path_generation_method='all_planning',
         # IPython.embed()
 
         disturbance_samples = []
-        disturbance_magnitude = 0.2
+        robot_mass = 63.47
+        disturbance_magnitude = 0.2 * robot_mass
         disturbance_sample_num = 8
         for i in range(disturbance_sample_num):
             disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
                                         disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
-                                        0, 1.0/disturbance_sample_num])
+                                        0, 0, 0, 0, 1.0/disturbance_sample_num])
+        # disturbance_sample_num = 1
+        # for i in range(disturbance_sample_num):
+        #     disturbance_samples.append([0, 0, 0, 0, 0, 0, 1.0])
 
-        generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+        # generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+        # # for collect data
+        # escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
+        #                                         escher=escher,
+        #                                         initial_state=initial_node,
+        #                                         goal=goal,
+        #                                         epsilon=0.3,
+        #                                         foot_transition_model=step_transition_model,
+        #                                         hand_transition_model=hand_transition_model,
+        #                                         structures=structures,
+        #                                         map_grid_dim=env_map_grid_dim,
+        #                                         goal_radius=0.2,
+        #                                         time_limit=300.0,
+        #                                         planning_heuristics='euclidean',
+        #                                         branching_method='contact_projection',
+        #                                         output_first_solution=False,
+        #                                         goal_as_exact_poses=False,
+        #                                         use_dynamics_planning=True,
+        #                                         use_learned_dynamics_model=False,
+        #                                         enforce_stop_in_the_end=False,
+        #                                         check_zero_step_capturability=False,
+        #                                         check_one_step_capturability=False,
+        #                                         check_contact_transition_feasibility=True,
+        #                                         disturbance_samples=disturbance_samples,
+        #                                         thread_num=1,
+        #                                         # thread_num=multiprocessing.cpu_count(),
+        #                                         planning_id=env_id,
+        #                                         printing=False)
 
-        # for collect data
+        # for planning test
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
                                                 escher=escher,
                                                 initial_state=initial_node,
@@ -274,35 +309,11 @@ def main(meta_path_generation_method='all_planning',
                                                 enforce_stop_in_the_end=False,
                                                 check_zero_step_capturability=True,
                                                 check_one_step_capturability=True,
-                                                check_contact_transition_feasibility=True,
                                                 disturbance_samples=disturbance_samples,
                                                 thread_num=1,
                                                 # thread_num=multiprocessing.cpu_count(),
                                                 planning_id=env_id,
                                                 printing=True)
-
-        # escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
-        #                                         escher=escher,
-        #                                         initial_state=initial_node,
-        #                                         goal=goal,
-        #                                         epsilon=0.1,
-        #                                         foot_transition_model=step_transition_model,
-        #                                         hand_transition_model=hand_transition_model,
-        #                                         structures=structures,
-        #                                         map_grid_dim=env_map_grid_dim,
-        #                                         goal_radius=0.2,
-        #                                         time_limit=30.0,
-        #                                         planning_heuristics='dijkstra',
-        #                                         branching_method='contact_projection',
-        #                                         output_first_solution=False,
-        #                                         goal_as_exact_poses=False,
-        #                                         use_dynamics_planning=True,
-        #                                         use_learned_dynamics_model=True,
-        #                                         enforce_stop_in_the_end=False,
-        #                                         thread_num=1,
-        #                                         # thread_num=multiprocessing.cpu_count(),
-        #                                         planning_id=env_id,
-        #                                         printing=True)
 
         env_id += 1
 

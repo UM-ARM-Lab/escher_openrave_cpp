@@ -88,7 +88,8 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
     this->mean_feet_position_[0] /= feet_contact_num;
     this->mean_feet_position_[1] /= feet_contact_num;
     this->mean_feet_position_[2] /= feet_contact_num;
-    this->nominal_com_[2] += 1.0;
+    // this->nominal_com_[2] += 1.0;
+    this->nominal_com_[2] += 0.7;
 
     this->max_manip_x_ = -9999.0;
 

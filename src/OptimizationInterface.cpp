@@ -496,14 +496,15 @@ bool OptimizationInterface::dynamicsOptimization(float& dynamics_cost)
     // optimize a motion
     solver::ExitCode solver_exitcode = dynamics_optimizer_.optimize(initial_state_, reference_dynamics_sequence_);
 
-    dynamics_cost = dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_PrimalCost);
+    // dynamics_cost = dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_PrimalCost);
+    dynamics_cost = dynamics_optimizer_.objective_expr.getValue();
 
     int final_time_id = optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) - 1;
     // std::cout << "Total Timesteps: " << optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) << std::endl;
-    std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
+    // std::cout << "solver code: " << int(solver_exitcode) << ", dynamics_cost: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualCost) << ", duality gap: " << dynamics_optimizer_.problemInfo().get(solver::SolverDoubleParam_DualityGap) << std::endl;
 
-    std::cout << "using ang limit: " << optimizer_setting_.get(momentumopt::PlannerBoolParam::PlannerBoolParam_UseAngularMomentumLimits)
-              << ", ang limit: " << optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_MaxAngularMomentumLimits)[0] << ", ";
+    // std::cout << "using ang limit: " << optimizer_setting_.get(momentumopt::PlannerBoolParam::PlannerBoolParam_UseAngularMomentumLimits)
+    //           << ", ang limit: " << optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_MaxAngularMomentumLimits)[0] << ", ";
 
     // storeResultDigest(solver_exitcode, dynopt_result_digest_);
 
@@ -1315,4 +1316,19 @@ void OptimizationInterface::exportSLObjectsFile(std::string output_path, std::sh
     }
 
     dump_object_stream.close();
+}
+
+Translation3D OptimizationInterface::getCoM(int time_id)
+{
+    return transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).centerOfMass());
+}
+
+Vector3D OptimizationInterface::getLinearMomentum(int time_id)
+{
+    return rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum());
+}
+
+Vector3D OptimizationInterface::getAngularMomentum(int time_id)
+{
+    return rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum());
 }

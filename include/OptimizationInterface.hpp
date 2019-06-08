@@ -143,6 +143,14 @@ class OptimizationInterface
                                           std::shared_ptr<RobotProperties> robot_properties);
         void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
 
+        // std::vector<Translation3D> getCoMTrajectory();
+        // std::vector<Vector3D> getLinearMomentumTrajectory();
+        // std::vector<Vector3D> getAngularMomentumTrajectory();
+
+        Translation3D getCoM(int time_id);
+        Vector3D getLinearMomentum(int time_id);
+        Vector3D getAngularMomentum(int time_id);
+
         float step_transition_time_;
         float support_phase_time_;
 

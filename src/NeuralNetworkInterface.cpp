@@ -8,6 +8,7 @@ float ClassificationModel::predict(Eigen::VectorXd input)
     fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
     fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
 
+    // std::cout << "classification model prediction." << std::endl;
     // std::cout << "std vector: " << std::endl;
     // std::cout << input_std_.transpose() << std::endl;
     // std::cout << "mean vector: " << std::endl;
@@ -17,9 +18,9 @@ float ClassificationModel::predict(Eigen::VectorXd input)
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
 
-    auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
 
-    if(isnan(result[0].get(0,0,0)))
+    if(isnan(result[0].get(0,0,0,0,0)))
     {
         std::cout << "std vector: " << std::endl;
         std::cout << input_std_.transpose() << std::endl;
@@ -32,7 +33,7 @@ float ClassificationModel::predict(Eigen::VectorXd input)
         getchar();
     }
 
-    return result[0].get(0,0,0);
+    return result[0].get(0,0,0,0,0);
 }
 
 Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
@@ -42,6 +43,7 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
     fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
     fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
 
+    // std::cout << "regression model prediction." << std::endl;
     // std::cout << "std vector: " << std::endl;
     // std::cout << input_std_.transpose() << std::endl;
     // std::cout << "mean vector: " << std::endl;
@@ -52,7 +54,7 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
     // std::cout << input_dim_ << std::endl;
 
     // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
-    auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
     // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
     // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
 
@@ -63,7 +65,7 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
 
     for(int i = 0; i < output_dim_; i++)
     {
-        normalized_output[i] = result[0].get(0,0,i);
+        normalized_output[i] = result[0].get(0,0,0,0,i);
     }
 
     Eigen::VectorXd output = normalized_output.cwiseProduct(output_std_) + output_mean_;
@@ -87,11 +89,11 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
 
         // load the regression neural network
         std::string regression_model_parameter_string = "_0.0005_256_0.0";
-        std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".json"));
+        std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json"));
 
-        auto objective_regression_input_mean_std = readMeanStd(contact_transition_regression_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt");
-        auto objective_regression_output_mean_std = readMeanStd(contact_transition_regression_model_file_path + "output_mean_std_" + std::to_string(int(contact_status_code)) + regression_model_parameter_string + ".txt");
+        auto objective_regression_input_mean_std = readMeanStd(contact_transition_regression_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
+        auto objective_regression_output_mean_std = readMeanStd(contact_transition_regression_model_file_path + "output_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
 
         contact_transition_dynamics_cost_regression_models_map_.insert(std::make_pair(contact_status_code, RegressionModel(objective_regression_input_mean_std.first,
                                                                                                                            objective_regression_input_mean_std.second,
@@ -100,15 +102,15 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            dynamics_cost_regression_model)));
 
 
-        // load the classification neural network
-        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
-        std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".json", false, null_logger));
+        // // load the classification neural network
+        // std::string calssification_model_parameter_string = "_0.0001_256_0.1";
+        // std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(int(contact_status_code)) + calssification_model_parameter_string + ".txt");
+        // auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".txt");
 
-        contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
-                                                                                                                                 feasibility_classification_input_mean_std.second,
-                                                                                                                                 feasibility_calssification_model)));
+        // contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
+        //                                                                                                                          feasibility_classification_input_mean_std.second,
+        //                                                                                                                          feasibility_calssification_model)));
     }
 
     // set up the zero step capturability classifier
@@ -117,11 +119,11 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         ZeroStepCaptureCode zero_step_capture_code = static_cast<ZeroStepCaptureCode>(zero_step_capture_code_int);
 
         // load the classification neural network
-        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
-        std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".json"));
+        std::string calssification_model_parameter_string = "_0.0001_224_0.0";
+        std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json"));
 
-        auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "zero_step_capture_input_mean_std_" + std::to_string(int(zero_step_capture_code)) + calssification_model_parameter_string + ".txt");
+        auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "zero_step_capture_input_mean_std_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".txt");
 
         zero_step_capturability_calssification_models_map_.insert(std::make_pair(zero_step_capture_code, ClassificationModel(zero_step_capture_classification_input_mean_std.first,
                                                                                                                              zero_step_capture_classification_input_mean_std.second,
@@ -134,11 +136,11 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         OneStepCaptureCode one_step_capture_code = static_cast<OneStepCaptureCode>(one_step_capture_code_int);
 
         // load the classification neural network
-        std::string calssification_model_parameter_string = "_0.0005_256_0.1";
-        std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".json"));
+        std::string calssification_model_parameter_string = "_0.0001_256_0.0";
+        std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json"));
 
-        auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "one_step_capture_input_mean_std_" + std::to_string(int(one_step_capture_code)) + calssification_model_parameter_string + ".txt");
+        auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "one_step_capture_input_mean_std_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".txt");
 
         one_step_capturability_calssification_models_map_.insert(std::make_pair(one_step_capture_code, ClassificationModel(one_step_capture_classification_input_mean_std.first,
                                                                                                                            one_step_capture_classification_input_mean_std.second,
@@ -231,15 +233,15 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // decide whether the transition is dynamically feasible
     bool dynamics_feasibility;
 
-    float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
-    dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
+    // float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+    // dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
 
     // if(contact_transition_code == ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND || contact_transition_code == ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND)
     // {
     //     dynamics_feasibility = true;
     // }
 
-    // dynamics_feasibility = true;
+    dynamics_feasibility = true;
 
     if(dynamics_feasibility)
     {
@@ -297,7 +299,7 @@ bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<Cont
     ZeroStepCaptureCode zero_step_capture_code = motion_code_poses_pair.first;
     std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
 
-    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, standard_input_state->com_, standard_input_state->com_dot_);
+    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, standard_input_state->com_, standard_input_state->lmom_);
 
     // std::cout << "Zero Step Capture Code: " << zero_step_capture_code << std::endl;
 
@@ -318,7 +320,7 @@ bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<Conta
     OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
     std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
 
-    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->com_dot_);
+    Eigen::VectorXd feature_vector = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->lmom_);
 
     // std::cout << "One Step Capture Code: " << one_step_capture_code << std::endl;
     // std::cout << feature_vector.transpose() << std::endl;

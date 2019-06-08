@@ -648,8 +648,9 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append('disturbance_samples')
             cmd.append(len(disturbance_samples))
             for sample in disturbance_samples:
-                cmd.append(sample[0]); cmd.append(sample[1])
-                cmd.append(sample[2]); cmd.append(sample[3])
+                cmd.append(sample[0]); cmd.append(sample[1]); cmd.append(sample[2])
+                cmd.append(sample[3]); cmd.append(sample[4]); cmd.append(sample[5])
+                cmd.append(sample[6])
 
         if planning_id is not None:
             cmd.append('planning_id')

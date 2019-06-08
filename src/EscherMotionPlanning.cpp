@@ -2355,7 +2355,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
-    contact_space_planner.storeSLEnvironment();
+    // contact_space_planner.storeSLEnvironment();
 
     // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
 

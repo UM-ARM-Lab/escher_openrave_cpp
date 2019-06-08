@@ -31,6 +31,7 @@ feature_indices_list = []
 prediction_indices_list = []
 
 training_data_path = '../data/dynopt_result/'
+result_path = '../data/dynopt_result/feasibility_classification_results/'
 model_path = '../data/dynopt_result/feasibility_classification_nn_models/'
 
 # put here as reference
@@ -229,11 +230,27 @@ def construct_data_label(desired_motion_code, motion_type):
             feature_label.append(manip + '_' + se3_list[j])
             data_label.append(manip + '_' + se3_list[j])
 
-    feature_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
-                          'start_com_dot_x', 'start_com_dot_y', 'start_com_dot_z'])
+    if motion_type == 'contact_transition':
+        feature_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+                              'start_com_dot_x', 'start_com_dot_y', 'start_com_dot_z'])
 
-    data_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
-                       'start_com_dot_x', 'start_com_dot_y', 'start_com_dot_z'])
+        data_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+                           'start_com_dot_x', 'start_com_dot_y', 'start_com_dot_z'])
+    elif motion_type == 'zero_step_capture' or motion_type == 'one_step_capture':
+        # feature_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+        #                       'start_lmom_x', 'start_lmom_y', 'start_lmom_z',
+        #                       'start_amom_x', 'start_amom_y', 'start_amom_z'])
+
+        # data_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+        #                    'start_lmom_x', 'start_lmom_y', 'start_lmom_z',
+        #                    'start_amom_x', 'start_amom_y', 'start_amom_z'])
+
+        feature_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+                              'start_lmom_x', 'start_lmom_y', 'start_lmom_z'])
+
+        data_label.extend(['start_com_x', 'start_com_y', 'start_com_z',
+                           'start_lmom_x', 'start_lmom_y', 'start_lmom_z',
+                           'start_amom_x', 'start_amom_y', 'start_amom_z'])
 
     data_label.append('feasibility')
 
@@ -347,7 +364,87 @@ def nearest_neighbor_test(training_data, testing_data, data_mean_std):
 
     IPython.embed()
 
+def load_data_from_txt(desired_motion_code):
+    feasible_data = None
+    infeasible_data = None
 
+    try:
+        file_stream = open(training_data_path + motion_type_string + '_dynopt_total_data_' + str(desired_motion_code),'r')
+        feasible_total_data = pickle.load(file_stream)
+        file_stream.close()
+    except Exception:
+        feasible_total_data = None
+
+    try:
+        file_stream = open(training_data_path + motion_type_string + '_dynopt_infeasible_total_data_' + str(desired_motion_code),'r')
+        infeasible_total_data = pickle.load(file_stream)
+        file_stream.close()
+    except Exception:
+        infeasible_total_data = None
+
+    for batch_counter in range(0, 60):
+        for file_name_counter in range(0, 50):
+            file_name = training_data_path + motion_type_string + '_' + str(desired_motion_code) + '/' + motion_type_string + '_dynopt_result_' + str(batch_counter) + '_' + str(file_name_counter) + '.txt'
+            if os.path.isfile(file_name):
+                with open(file_name,'r') as f:
+                    for line in f:
+                        content = [x.strip() for x in line.split(' ')]
+                        content.remove('')
+                        data = np.array([float(datum) for datum in content])
+                        motion_code = int(data[0])
+
+                        if feasible_data is not None:
+                            feasible_data = np.vstack((feasible_data,data))
+                        else:
+                            feasible_data = data
+
+                print 'Loaded ' + motion_type_string + '_dynopt_result_' + str(batch_counter) + '_' + str(file_name_counter) + '.txt'
+
+            file_name = training_data_path + motion_type_string + '_' + str(desired_motion_code) + '/' + motion_type_string + '_dynopt_result_infeasible_' + str(batch_counter) + '_' + str(file_name_counter) + '.txt'
+            if os.path.isfile(file_name):
+                with open(file_name,'r') as f:
+                    for line in f:
+                        content = [x.strip() for x in line.split(' ')]
+                        content.remove('')
+                        data = np.array([float(datum) for datum in content])
+                        motion_code = int(data[0])
+
+                        if infeasible_data is not None:
+                            infeasible_data = np.vstack((infeasible_data,data))
+                        else:
+                            infeasible_data = data
+
+                print 'Loaded ' + motion_type_string + '_dynopt_result_infeasible_' + str(batch_counter) + '_' + str(file_name_counter) + '.txt'
+
+    if feasible_total_data is not None:
+        feasible_total_data = np.vstack((feasible_total_data, feasible_data))
+    else:
+        feasible_total_data = feasible_data
+
+    print 'Contact transition code: ', motion_code, ', Original feasible dataset size: ', feasible_total_data.shape[0]
+    print 'Find unique entries of the total dataset'
+    feasible_total_data = np.unique(feasible_total_data, axis=0)
+    print 'Unique dataset size: ', feasible_total_data.shape[0]
+
+    if infeasible_total_data is not None:
+        infeasible_total_data = np.vstack((infeasible_total_data, infeasible_data))
+    else:
+        infeasible_total_data = infeasible_data
+
+    print 'Contact transition code: ', motion_code, ', Original infeasible dataset size: ', infeasible_total_data.shape[0]
+    print 'Find unique entries of the total dataset'
+    infeasible_total_data = np.unique(infeasible_total_data, axis=0)
+    print 'Unique dataset size: ', infeasible_total_data.shape[0]
+
+    file_stream = open(training_data_path + motion_type_string + '_dynopt_total_data_' + str(desired_motion_code), 'w')
+    pickle.dump(feasible_total_data, file_stream)
+    file_stream.close()
+
+    file_stream = open(training_data_path + motion_type_string + '_dynopt_infeasible_total_data_' + str(desired_motion_code), 'w')
+    pickle.dump(infeasible_total_data, file_stream)
+    file_stream.close()
+
+    return
 
 # data loading and processing
 def load_data(desired_motion_code, load_from_txt=True):
@@ -370,7 +467,7 @@ def load_data(desired_motion_code, load_from_txt=True):
                         content = [x.strip() for x in line.split(' ')]
                         content.remove('')
                         data = np.array([float(datum) for datum in content])
-                        data = np.hstack((data,0))
+                        # data = np.hstack((data,0))
                         motion_code = int(data[0])
 
                         if motion_code in infeasible_total_data_dict:
@@ -427,6 +524,7 @@ def load_data(desired_motion_code, load_from_txt=True):
     feasible_total_data = pickle.load(file_stream)
     file_stream.close()
 
+    infeasible_total_data = np.hstack((infeasible_total_data[:,contact_status_indices_list], infeasible_total_data[:,feature_indices_list], np.zeros((infeasible_total_data.shape[0],1))))
     feasible_total_data = np.hstack((feasible_total_data[:,contact_status_indices_list], feasible_total_data[:,feature_indices_list], np.ones((feasible_total_data.shape[0],1))))
 
     print 'Infeasible entries: ', infeasible_total_data.shape[0], ', Feasible entries: ', feasible_total_data.shape[0]
@@ -434,9 +532,9 @@ def load_data(desired_motion_code, load_from_txt=True):
     np.random.shuffle(infeasible_total_data)
     np.random.shuffle(feasible_total_data)
 
-    testing_data = np.vstack((infeasible_total_data[0:500,:],feasible_total_data[0:500,:]))
-    infeasible_total_data = infeasible_total_data[500:50500,:]
-    feasible_total_data = feasible_total_data[500:50500,:]
+    testing_data = np.vstack((infeasible_total_data[0:1000,:],feasible_total_data[0:1000,:]))
+    infeasible_total_data = infeasible_total_data[1000:51000,:]
+    feasible_total_data = feasible_total_data[1000:51000,:]
 
     # balance the dataset
     infeasible_data_num = infeasible_total_data.shape[0]
@@ -444,31 +542,25 @@ def load_data(desired_motion_code, load_from_txt=True):
     infeasible_total_data = infeasible_total_data[0:min(feasible_data_num,infeasible_data_num)+1,:]
     feasible_total_data = feasible_total_data[0:min(feasible_data_num,infeasible_data_num)+1,:]
 
-    total_data = np.vstack((infeasible_total_data, feasible_total_data))
+    training_data = np.vstack((infeasible_total_data, feasible_total_data))
 
     print 'Random shuffle the dataset.'
 
-    np.random.shuffle(total_data)
-
-    training_data = total_data
-
-    # total_data_num = total_data.shape[0]
-    # training_data_num = int(np.floor(0.8 * total_data_num))
-    # training_data = total_data[0:training_data_num,:]
-    # testing_data = total_data[training_data_num:,:]
+    np.random.shuffle(training_data)
 
     return training_data, testing_data
 
 def get_data_mean_std(data):
     mean = np.mean(data, axis=0)
     std = np.std(data, axis=0)
+    # std = np.max(data, axis=0) - np.min(data, axis=0)
 
     for i in contact_status_indices_list:
         mean[i] = 0.0
         std[i] = 1.0
 
     for i in range(std.shape[0]):
-        if std[i] == 0:
+        if std[i] < 0.005:
             std[i] = 1.0
 
     mean[data_index_map['feasibility']] = 0.0
@@ -509,14 +601,24 @@ def predict(tf_nn_model, input_data, input_data_mean_std, output_data_mean_std):
 # tensorflow interface
 def build_NeuralNetwork_model(learning_rate, layer_size, drop_out_rate):
 
-    input_layer = keras.layers.Input(shape=(len(feature_label),))
-    hidden_layer_1 = keras.layers.Dense(layer_size, activation='relu')(input_layer)
-    dropout_layer_1 = keras.layers.Dropout(drop_out_rate)(hidden_layer_1)
-    hidden_layer_2 = keras.layers.Dense(layer_size, activation='relu')(dropout_layer_1)
-    dropout_layer_2 = keras.layers.Dropout(drop_out_rate)(hidden_layer_2)
-    hidden_layer_3 = keras.layers.Dense(layer_size, activation='relu')(dropout_layer_2)
-    dropout_layer_3 = keras.layers.Dropout(drop_out_rate)(hidden_layer_3)
-    output_layer = keras.layers.Dense(1, activation='sigmoid')(dropout_layer_3)
+    if drop_out_rate == 0:
+        input_layer = keras.layers.Input(shape=(len(feature_label),))
+        hidden_layer_1 = keras.layers.Dense(layer_size, activation='relu')(input_layer)
+        hidden_layer_2 = keras.layers.Dense(layer_size, activation='relu')(hidden_layer_1)
+        hidden_layer_3 = keras.layers.Dense(layer_size, activation='relu')(hidden_layer_2)
+        output_layer = keras.layers.Dense(1, activation='sigmoid')(hidden_layer_3)
+    else:
+        input_layer = keras.layers.Input(shape=(len(feature_label),))
+        hidden_layer_1 = keras.layers.Dense(layer_size, activation='relu')(input_layer)
+        dropout_layer_1 = keras.layers.Dropout(drop_out_rate)(hidden_layer_1)
+        hidden_layer_2 = keras.layers.Dense(layer_size, activation='relu')(dropout_layer_1)
+        # hidden_layer_2 = keras.layers.Dense(int(0.5*layer_size), activation='relu')(dropout_layer_1)
+        dropout_layer_2 = keras.layers.Dropout(drop_out_rate)(hidden_layer_2)
+        hidden_layer_3 = keras.layers.Dense(layer_size, activation='relu')(dropout_layer_2)
+        # hidden_layer_3 = keras.layers.Dense(int(0.25*layer_size), activation='relu')(dropout_layer_2)
+        # dropout_layer_3 = keras.layers.Dropout(drop_out_rate)(hidden_layer_3)
+        # output_layer = keras.layers.Dense(1, activation='sigmoid')(dropout_layer_3)
+        output_layer = keras.layers.Dense(1, activation='sigmoid')(hidden_layer_3)
 
     model = keras.Model(inputs=input_layer, outputs=output_layer)
 
@@ -546,29 +648,27 @@ def learning_NeuralNetwork_model(normalized_training_data, learning_rate, layer_
                 print '. '
 
     # Store training stats
-    history = tf_nn_model.fit(normalized_training_feature, normalized_training_ground_truth, epochs=100, validation_split=0.2, verbose=0, callbacks=[PrintDot()])
-    plot_history(history)
+    history = tf_nn_model.fit(normalized_training_feature, normalized_training_ground_truth, epochs=300, validation_split=0.2, verbose=0, callbacks=[PrintDot()])
+    # plot_history(history)
 
     return tf_nn_model, history
 
-def evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate, history):
+def evaluating_NeuralNetwork_model(tf_nn_model, normalized_training_data, normalized_testing_data, data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate, history):
 
     print 'Evaluating Neural Network model...'
+
+    normalized_training_feature = normalized_training_data[:,feature_indices_list]
+    normalized_training_ground_truth = normalized_training_data[:,prediction_indices_list]
 
     normalized_testing_feature = normalized_testing_data[:,feature_indices_list]
     normalized_testing_ground_truth = normalized_testing_data[:,prediction_indices_list]
     testing_ground_truth = unnormalize_data(normalized_testing_ground_truth, data_mean_std)
 
-    [loss, accuracy] = tf_nn_model.evaluate(normalized_testing_feature, normalized_testing_ground_truth, verbose=0)
-
     normalized_prediction = tf_nn_model.predict(normalized_testing_feature)
-
     prediction = unnormalize_data(normalized_prediction, data_mean_std)
 
     error = prediction - testing_ground_truth
     abs_error = np.abs(error)
-
-    print 'accuracy: ', accuracy
 
     # # mean absolute error percentage
     # mean_abs_error_percentage = np.mean(np.divide(abs_error, testing_ground_truth), axis=0) * 100
@@ -578,9 +678,16 @@ def evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, data_me
     # mean_abs_error = np.mean(abs_error, axis=0)
     # print mean_abs_error
 
+    [loss, train_accuracy] = tf_nn_model.evaluate(normalized_training_feature, normalized_training_ground_truth, verbose=0)
+    print 'train_accuracy: ', train_accuracy
+
+    [loss, test_accuracy] = tf_nn_model.evaluate(normalized_testing_feature, normalized_testing_ground_truth, verbose=0)
+    print 'test_accuracy: ', test_accuracy
+
     # # mae gap
-    file_stream = open(training_data_path + motion_type_string + '_test_dynopt_feasibility_result_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
-    file_stream.write('%5.3f'%(accuracy))
+    file_stream = open(result_path + motion_type_string + '_test_dynopt_feasibility_result_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
+    file_stream.write('%5.3f'%(train_accuracy))
+    file_stream.write(' %5.3f'%(test_accuracy))
 
     # ROC and AUC
     normalized_prediction.ravel()
@@ -590,13 +697,17 @@ def evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, data_me
     print 'auc: ', auc_score
 
     file_stream.close()
+
+    testing_data_stream = open(result_path + motion_type_string + '_normalized_testing_data_' + str(desired_motion_code),'w')
+    pickle.dump(normalized_testing_data, testing_data_stream)
+    testing_data_stream.close()
     # IPython.embed()
 
 def save_NeuralNetwork_model(tf_nn_model, data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate):
 
-    tf_nn_model.save(training_data_path + motion_type_string + '_nn_model_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.h5')
-    input_mean_std_file_stream = open(training_data_path + motion_type_string + '_input_mean_std_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
-    output_mean_std_file_stream = open(training_data_path + motion_type_string + '_output_mean_std_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
+    tf_nn_model.save(model_path + motion_type_string + '_nn_model_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.h5')
+    input_mean_std_file_stream = open(model_path + motion_type_string + '_input_mean_std_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
+    output_mean_std_file_stream = open(model_path + motion_type_string + '_output_mean_std_' + str(desired_motion_code) + '_' + str(learning_rate) + '_' + str(layer_size) + '_' + str(drop_out_rate) + '.txt','w')
 
     input_data_mean_std = data_mean_std[:,feature_indices_list]
     output_data_mean_std = data_mean_std[:,prediction_indices_list]
@@ -634,6 +745,8 @@ def main(learning_rate, layer_size, drop_out_rate, mode, motion_type, desired_mo
     for i in range(len(data_label)):
         data_index_map[data_label[i]] = i
 
+    data_index_map['feasibility'] = data_index_map['feasibility'] - 3
+
     for label in feature_label:
         feature_indices_list.append(data_index_map[label])
 
@@ -662,7 +775,7 @@ def main(learning_rate, layer_size, drop_out_rate, mode, motion_type, desired_mo
             # Using NN
 
             tf_nn_model, history = learning_NeuralNetwork_model(normalized_training_data,learning_rate,layer_size,drop_out_rate)
-            evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, training_data_mean_std[:,prediction_indices_list], desired_motion_code, learning_rate, layer_size, drop_out_rate, history)
+            evaluating_NeuralNetwork_model(tf_nn_model, normalized_training_data, normalized_testing_data, training_data_mean_std[:,prediction_indices_list], desired_motion_code, learning_rate, layer_size, drop_out_rate, history)
             save_NeuralNetwork_model(tf_nn_model, training_data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate)
 
             # IPython.embed()
@@ -703,7 +816,7 @@ def main(learning_rate, layer_size, drop_out_rate, mode, motion_type, desired_mo
         testing_data = np.vstack((testing_infeasible_data, testing_feasible_data))
         normalized_testing_data = normalize_data(testing_data, data_mean_std)
 
-        evaluating_NeuralNetwork_model(tf_nn_model, normalized_testing_data, input_data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate, None)
+        evaluating_NeuralNetwork_model(tf_nn_model, None, normalized_testing_data, input_data_mean_std, desired_motion_code, learning_rate, layer_size, drop_out_rate, None)
 
     elif mode == 'testing':
         [training_data, testing_data] = load_data(desired_motion_code, load_from_txt=False)
@@ -717,6 +830,10 @@ def main(learning_rate, layer_size, drop_out_rate, mode, motion_type, desired_mo
 
     elif mode == 'combine_data':
         combine_data()
+        return
+
+    elif mode == 'load_data_from_txt':
+        load_data_from_txt(desired_motion_code)
         return
 
 
