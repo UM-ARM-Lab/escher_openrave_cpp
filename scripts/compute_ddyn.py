@@ -159,7 +159,8 @@ def main():
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
         if environment_index != prev_environment_index:
-            with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'w') as file:
+            print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
+            with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
                 pickle.dump(info, file)
             info = {}
             info['p1'] = np.zeros((1,3), dtype=float)
@@ -238,7 +239,8 @@ def main():
 
         info['ddyn'] = np.concatenate((info['ddyn'], prediction[:, 6:7]), axis=0)
 
-    with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'w') as file:
+    print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
+    with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
         pickle.dump(info, file)
 
 
