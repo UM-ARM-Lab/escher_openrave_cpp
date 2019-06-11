@@ -78,8 +78,8 @@ class contact_transition:
         init_virtual_body_pose_SE2 = init_virtual_body_pose[0:2] + [init_virtual_body_pose[5]]
         final_virtual_body_pose_SE2 = final_virtual_body_pose[0:2] + [final_virtual_body_pose[5]]
 
-        self.init_virtual_body_cell = position_to_cell_index(init_virtual_body_pose_SE2, grid_resolution)
-        self.final_virtual_body_cell = position_to_cell_index(final_virtual_body_pose_SE2, grid_resolution)
+        # self.init_virtual_body_cell = position_to_cell_index(init_virtual_body_pose_SE2, grid_resolution)
+        # self.final_virtual_body_cell = position_to_cell_index(final_virtual_body_pose_SE2, grid_resolution)
         self.move_manip = final_node.prev_move_manip
 
         self.contact_transition_type = None
@@ -204,7 +204,7 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution,environment_index):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     handles = []
@@ -252,7 +252,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                 mean_feet_position_offset = np.atleast_2d(np.array(dummy_init_virtual_body_pose[0:2])).T * (dummy_init_node.get_contact_manip_num()/2.0)
 
                 # sample the initial foot step combinations
-                for foot_transition in foot_transition_model:
+                for foot_transition in foot_transition_model1:
                     init_node = copy.deepcopy(dummy_init_node)
 
                     init_left_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[-foot_transition[0]/2],[foot_transition[1]/2]])) - mean_feet_position_offset
@@ -285,7 +285,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
     rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
     contact_transition_list = []
     for init_node in init_node_list:
-        child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
+        child_node_list = branching(init_node, foot_transition_model2, hand_transition_model, structures, robot_obj)
 
         for child_node in child_node_list:
             # ??????????
@@ -293,14 +293,15 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
             contact_transition_list.append(one_contact_transition)
             temp_dict = {}
             temp_dict['environment_index'] = environment_index
-            temp_dict['p1'] = one_contact_transition.init_virtual_body_cell
-            temp_dict['p2'] = one_contact_transition.final_virtual_body_cell
+            temp_dict['p1'] = one_contact_transition.init_node.get_virtual_body_pose()
+            temp_dict['p2'] = one_contact_transition.final_node.get_virtual_body_pose()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
             temp_dict['normalized_init_r_leg'] = one_contact_transition.normalized_init_r_leg
             temp_dict['normalized_init_l_arm'] = one_contact_transition.normalized_init_l_arm
             temp_dict['normalized_init_r_arm'] = one_contact_transition.normalized_init_r_arm
+            temp_dict['mean_feet_pose'] = one_contact_transition.init_node.get_mean_feet_xyzrpy()
 
             transitions.append(temp_dict)
 
@@ -336,8 +337,8 @@ def main(robot_name='athena'): # for test
         print('usage: -e: [environment_type]')
         exit(1)
 
-    environment_file = "large_environments_" + environment_type
-    transition_file = "large_transitions_" + environment_type
+    environment_file = "environments_" + environment_type
+    transition_file = "transitions_" + environment_type
 
     ### Initialize the environment handler
     rave.raveLogInfo('Load the Environment Handler.')
@@ -365,17 +366,35 @@ def main(robot_name='athena'): # for test
 
     ### Load the foot transition model
     try:
-        print('Load foot transition model...', end='')
+        print('Load foot transition model 1...', end='')
         
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
         line = ' '
-        foot_transition_model = []
+        foot_transition_model1 = []
 
         while(True):
             line = f.readline()
             if(line == ''):
                 break
-            foot_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+            foot_transition_model1.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+
+        f.close()
+        print('Done.')
+    except Exception:
+        raw_input('Not Found.')
+
+    try:
+        print('Load foot transition model 2...', end='')
+        
+        f = open('../data/escher_motion_planning_data/step_transition_model_mid_range.txt','r')
+        line = ' '
+        foot_transition_model2 = []
+
+        while(True):
+            line = f.readline()
+            if(line == ''):
+                break
+            foot_transition_model2.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
 
         f.close()
         print('Done.')
@@ -417,12 +436,12 @@ def main(robot_name='athena'): # for test
                 exit(1)
         environments.append(env)
                 
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, GRID_RESOLUTION, i)
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
-    with open('../data/' + transition_file, 'w') as file:
+    with open('../data/medium_dataset/' + transition_file, 'w') as file:
         pickle.dump(transitions, file)
-    with open('../data/' + environment_file, 'w') as file:
+    with open('../data/medium_dataset/' + environment_file, 'w') as file:
         pickle.dump(environments, file)
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')

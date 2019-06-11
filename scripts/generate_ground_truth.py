@@ -16,7 +16,7 @@ WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
 
 # currently unused
-NUM_ENVIRONMENT_TYPE = 24
+NUM_ENVIRONMENT_TYPE = 12
 
 def rotate_one_point(x, y, theta):
     """
@@ -58,17 +58,19 @@ def main():
     for i in [0]:
         # file = open('../data/ground_truth/environments_' + str(i), 'r')
         # environments = pickle.load(file)
+        print('no threshold')
 
-        file = open('../data/com_diff_environ_pose_to_ddyn_' + str(i), 'r')
+        file = open('../data/no_threshold_environ_pose_to_ddyn_' + str(i), 'r')
         environ_pose_to_ddyn = pickle.load(file)
 
-        p10_list = []
-
-        print('xyz')
+        p25_list = []
 
         for environment_index in environ_pose_to_ddyn:
             pose_to_ddyn = environ_pose_to_ddyn[environment_index]
-            for pose in pose_to_ddyn:
+            sorted_pose = sorted(pose_to_ddyn.keys(), key=lambda element: (element[0], element[1], element[2], element[3], element[4], element[5]))
+            for pose in sorted_pose:
+                # if pose[3] < 0:
+                #     continue
                 # pose has six entries (in cell):
                 # (init_x, init_y, init_theta, final_x, final_y, final_theta)
                 # assert(pose[0] == 0 and pose[1] == 0)
@@ -83,18 +85,9 @@ def main():
                 # rotated_final_x, rotated_final_y = rotate_one_point(pose[3]*GRID_RESOLUTION, pose[4]*GRID_RESOLUTION, pose[2]*ANGLE_RESOLUTION)
                 # final_status_list.append([rotated_final_x, rotated_final_y, (pose[5] - pose[2])*ANGLE_RESOLUTION])
                 # minimal_ddyn_list.append(min(pose_to_ddyn[pose]))
-                sorted_coms = sorted(pose_to_ddyn[pose].keys(), key=lambda element: (element[0], element[1], element[2]))
-                prev = sorted_coms[0]
-                p10_inner_list = []
-                for com in sorted_coms:
-                    if com != prev:
-                        p10 = np.percentile(np.array(p10_inner_list), 10)
-                        p10_list.append(p10)
-                        # print('e: {} p1: {} p2: {} com x y: {} 10%: {}'.format(environment_index, pose[0:3], pose[3:], prev_xy, p10))
-                        prev = com
-                        p10_inner_list = []
-
-                    p10_inner_list += pose_to_ddyn[pose][com]
+                # sorted_coms = sorted(pose_to_ddyn[pose].keys(), key=lambda element: (element[0], element[1], element[2]))
+                
+                ddyns = pose_to_ddyn[pose][:, -1]
                     # clipped = np.clip(np.array(pose_to_ddyn[pose][com]), 0, 6000)
                     # plt.figure(example_id)
                     # plt.hist(clipped, bins=range(-100, 6001, 100))
@@ -105,10 +98,10 @@ def main():
                     # p10 = np.percentile(np.array(pose_to_ddyn[pose][com]), 10)
                     # p10_list.append(p10)
                     # print('e: {} p1: {} p2: {} com: {} 10%: {}'.format(environment_index, pose[0:3], pose[3:], com, p10))
-                p10 = np.percentile(np.array(p10_inner_list), 10)
-                p10_list.append(p10)
+                p25 = np.percentile(ddyns, 25)
+                p25_list.append(p25)
                 # print('e: {} p1: {} p2: {} com x y: {} 10%: {}'.format(environment_index, pose[0:3], pose[3:], prev_xy, p10))
-                # clipped = np.clip(np.array(pose_to_ddyn[pose]), 0, 6000)
+                # clipped = np.clip(ddyns, 0, 6000)
                 # plt.figure(example_id)
                 # plt.hist(clipped, bins=range(-100, 6001, 100))
                 # plt.title('e: {} p1: {} p2: {}'.format(environment_index, pose[0:3], pose[3:]))
@@ -118,7 +111,7 @@ def main():
                 # p10 = np.percentile(np.array(pose_to_ddyn[pose]), 10)
                 # p10_list.append(p10)
                 # print('e: {} p1: {} p2: {} 10%: {}'.format(environment_index, pose[0:3], pose[3:], p10))
-        print('\nmean of 10 percentiles: {:4.2f}\nstd of 10 percentiles: {:4.2f}'.format(np.mean(np.array(p10_list)), np.std(np.array(p10_list))))
+        print('\nmean of 25 percentiles: {:4.2f}\nstd of 25 percentiles: {:4.2f}'.format(np.mean(np.array(p25_list)), np.std(np.array(p25_list))))
     
     # file = open('../data/minimal/final_status', 'w')
     # pickle.dump(np.array(final_status_list), file)

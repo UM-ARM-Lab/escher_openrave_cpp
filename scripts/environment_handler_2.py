@@ -144,7 +144,6 @@ class environment_handler:
 
             # surface_transform_bound = [(x,x), (0.0,0.0), (wall_height-0.1-x*slope, wall_height+0.1-x*slope), (-90-max_tilted_angle,-90+max_tilted_angle), (-max_tilted_angle,max_tilted_angle), (0,0)]
             surface_transform_bound = [(x,x), (0.0,0.0), (wall_height-x*slope, wall_height-x*slope), (-90-max_tilted_angle,-90+max_tilted_angle), (-max_tilted_angle,max_tilted_angle), (0,0)]
-
             surface_transform = [None] * 6
 
             for i in range(6):

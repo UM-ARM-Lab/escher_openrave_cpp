@@ -2,7 +2,7 @@ import pickle, IPython
 
 
 def main():
-    file = open('../data/transitions_9_tiny', 'r')
+    file = open('../data/test_dataset/transitions_10', 'r')
     all_transitions = pickle.load(file)
     prev_environment_index = 0
     types = {}

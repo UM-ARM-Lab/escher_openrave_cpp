@@ -38,28 +38,6 @@ ANGLE_RESOLUTION = 15.0
 #     idxz = max(min(int(math.floor(x[-4] * 10) - 7), 4), 0)
 #     return (idxx, idxy, idxz)
 
-
-def rotate_one_point(x, y, theta):
-    """
-    Inputs:
-    "x" should be the x coordinate of a point.
-
-    "y" should be the y coordinate of a point.
-
-    "theta" should be the angle (in degree), by which the point will be rotated clockwise.
-
-    Outputs:
-    new coordinate after rotation
-    """
-    theta_in_radian = theta * np.pi / 180
-    # rotate the points clockwise
-    rotation_matrix = np.array([[np.cos(-theta_in_radian), -np.sin(-theta_in_radian)],
-                                [np.sin(-theta_in_radian), np.cos(-theta_in_radian)]])
-    vector = np.array([x, y])
-    new_vector = np.matmul(rotation_matrix, vector)
-    return new_vector[0], new_vector[1]
-
-
 def main():
     device = None
     environment_type = None
@@ -80,7 +58,7 @@ def main():
     if device == 'cpu':
         pass
     elif device == 'gpu':
-        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.80))
+        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.45))
         sess = tf.Session(config=config)
         keras.backend.set_session(sess)
     else:
@@ -89,13 +67,13 @@ def main():
 
     # load sampled COM combinations of all types
     com_combinations = {}
-    for i in range(10):
+    for i in range(1):
         file = open('../data/CoM/com_combinations_' + str(i), 'r')
         com_combinations[i] = pickle.load(file)
 
     # load the normalize parameters for the classification model of all types
     classification_input_normalize_params = []
-    for i in range(10):
+    for i in range(1):
         file = open('../data/dynopt_result/feasibility_classification_nn_models/input_mean_std_' + str(i) + '_0.0001_256_0.1.txt', 'r')
         strings = file.readline().strip().split(' ')
         params = np.zeros((2, len(strings) // 2), dtype=float)
@@ -106,12 +84,12 @@ def main():
 
     # load the classification models of all types
     classification_models = []
-    for i in range(10):
+    for i in range(1):
         classification_models.append(load_model('../data/dynopt_result/feasibility_classification_nn_models/nn_model_' + str(i) + '_0.0001_256_0.1.h5'))
 
     # load the normalize parameters for the regression model of all types
     regression_input_normalize_params = []
-    for i in range(10):
+    for i in range(1):
         file = open('../data/dynopt_result/objective_regression_nn_models/input_mean_std_' + str(i) + '_0.0005_256_0.0.txt', 'r')
         strings = file.readline().strip().split(' ')
         params = np.zeros((2, len(strings) // 2), dtype=float)
@@ -122,7 +100,7 @@ def main():
 
     # load the denormalize parameters for the regression model of all types
     regression_output_denormalize_params = []
-    for i in range(10):
+    for i in range(1):
         file = open('../data/dynopt_result/objective_regression_nn_models/output_mean_std_' + str(i) + '_0.0005_256_0.0.txt', 'r')
         strings = file.readline().strip().split(' ')
         params = np.zeros((2, len(strings) // 2), dtype=float)
@@ -133,7 +111,7 @@ def main():
 
     # load the regression models of all types
     regression_models = []
-    for i in range(10):
+    for i in range(1):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
     # for distance to training data of classification model and regression model
@@ -143,7 +121,7 @@ def main():
     regression_training_data_mean = {}
     regression_training_data_std = {}
     regression_training_data_tree = {}
-    for i in range(10):
+    for i in range(1):
         file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
         original_X = pickle.load(file)[:, 1:-7]
         regression_training_data_mean[i] = np.mean(original_X, axis=0, dtype=np.float32)
@@ -168,14 +146,15 @@ def main():
     environ_pose_to_ddyn = {}
 
     # load sampled transitions
-    file = open('../data/transitions_' + environment_type + '_tiny', 'r')
+    file = open('../data/large_dataset_resolution_015/large_transitions_' + environment_type, 'r')
     transitions = pickle.load(file)
+
+    print("environment type: " + environment_type)
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        if environment_index > 0:
-            break
-        print(idx)
+        if idx % 1000 == 0:
+            print("transition: " + str(idx))
 
         # start = timeit.default_timer()
 
@@ -213,12 +192,12 @@ def main():
         # print("check position", timeit.default_timer() - start)
 
         # check the distance to the training data of classification model
-        dist, _ = classification_training_data_tree[transition_type].search(np.float32((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type]), 10)
-        dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-        valid_com_indices = dist < 3.0
-        if np.sum(valid_com_indices) == 0:
-            continue
-        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        # dist, _ = classification_training_data_tree[transition_type].search(np.float32((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type]), 10)
+        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
+        # valid_com_indices = dist < 3.0
+        # if np.sum(valid_com_indices) == 0:
+        #     continue
+        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
         # print("check distance", timeit.default_timer() - start)
 
@@ -232,47 +211,50 @@ def main():
         # print("query classification model", timeit.default_timer() - start)
 
         # check the distance to the training data of the regression model
-        dist, _ = regression_training_data_tree[transition_type].search(np.float32((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type]), 10)
-        dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-        valid_com_indices = dist < 3.0
-        if np.sum(valid_com_indices) == 0:
-            continue
-        X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
+        # dist, _ = regression_training_data_tree[transition_type].search(np.float32((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type]), 10)
+        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
+        # valid_com_indices = dist < 3.0
+        # if np.sum(valid_com_indices) == 0:
+        #     continue
+        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
         # print("check distance", timeit.default_timer() - start)
 
         # query the regression model
         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]
-        ddyns = prediction[:, -1]
+        # ddyns = prediction[:, -1]
 
         # print("query regression model", timeit.default_timer() - start)
 
-        if ddyns.shape[0] != 0:
-            if environment_index not in environ_pose_to_ddyn:
-                environ_pose_to_ddyn[environment_index] = {}
+        if environment_index not in environ_pose_to_ddyn:
+            environ_pose_to_ddyn[environment_index] = {}
 
-            p1 = transition['p1']
-            p2 = transition['p2']
-            pose = tuple(p1 + p2)
+        p1 = transition['p1']
+        p2 = transition['p2']
+        pose = tuple(p1 + p2)
 
-            # if pose not in environ_pose_to_ddyn[environment_index]:
-            #     environ_pose_to_ddyn[environment_index][pose] = {}
+        # [0, 1, 2]: initial CoM position, before rotation
+        # [3, 4, 5]: final CoM position, before rotation
+        # [6]: dynamic cost
+        com_ddyn = np.concatenate((X[:, -6:-3], prediction[:, 0:3], prediction[:, 6:7]), axis=1)
 
-            # for j in range(X.shape[0]):
-            #     com_idx = com_index(X[j])
-            #     if com_idx in environ_pose_to_ddyn[environment_index][pose]:
-            #         environ_pose_to_ddyn[environment_index][pose][com_idx].append(ddyns[j])
-            #     else:
-            #         environ_pose_to_ddyn[environment_index][pose][com_idx] = [ddyns[j]] 
+        # if pose not in environ_pose_to_ddyn[environment_index]:
+        #     environ_pose_to_ddyn[environment_index][pose] = {}
 
-            if pose in environ_pose_to_ddyn[environment_index]:
-                environ_pose_to_ddyn[environment_index][pose] += ddyns.tolist()
-            else:
-                environ_pose_to_ddyn[environment_index][pose] = ddyns.tolist()
-           
+        # for j in range(X.shape[0]):
+        #     com_idx = com_index(X[j])
+        #     if com_idx in environ_pose_to_ddyn[environment_index][pose]:
+        #         environ_pose_to_ddyn[environment_index][pose][com_idx].append(ddyns[j])
+        #     else:
+        #         environ_pose_to_ddyn[environment_index][pose][com_idx] = [ddyns[j]]
+
+        if pose in environ_pose_to_ddyn[environment_index]:
+            environ_pose_to_ddyn[environment_index][pose] = np.concatenate((environ_pose_to_ddyn[environment_index][pose], com_ddyn), axis=0)
+        else:
+            environ_pose_to_ddyn[environment_index][pose] = com_ddyn
 
     # IPython.embed()
-    with open('../data/com_same_environ_pose_to_ddyn_' + environment_type, 'w') as file:
+    with open('../data/no_threshold_environ_pose_to_ddyn_' + environment_type, 'w') as file:
         pickle.dump(environ_pose_to_ddyn, file)
 
 
