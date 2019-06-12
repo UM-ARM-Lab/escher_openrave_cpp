@@ -55,22 +55,20 @@ def main():
                     data = pickle.load(file)
                     # initial_x_arr = np.concatenate((initial_x_arr, data['initial_com_position'][1:, 0]))
                     # final_x_arr = np.concatenate((final_x_arr, data['final_com_position'][1:, 0]))
-                    # IPython.embed()
-                    p1 = data['p1'][1:]
-                    discrete_p1 = np.zeros_like(p1, dtype=int)
-                    discrete_p1[:, 0] = discretize_torso_pose(p1[:, 0], GRID_RESOLUTION)
-                    discrete_p1[:, 1] = discretize_torso_pose(p1[:, 1], GRID_RESOLUTION)
-                    discrete_p1[:, 2] = discretize_torso_pose(p1[:, 2], ANGLE_RESOLUTION)
-                    unique_discrete_p1 = np.unique(discrete_p1, axis=0)
-                    p2 = data['p2'][1:]
-                    discrete_p2 = np.zeros_like(p2, dtype=int)
-                    discrete_p2[:, 0] = discretize_torso_pose(p2[:, 0], GRID_RESOLUTION)
-                    discrete_p2[:, 1] = discretize_torso_pose(p2[:, 1], GRID_RESOLUTION)
-                    discrete_p2[:, 2] = discretize_torso_pose(p2[:, 2], ANGLE_RESOLUTION)
-                    unique_discrete_p2 = np.unique(discrete_p2, axis=0)
-                    discrete_initial_x = discretize_x(data['initial_com_position'][1:, 0], X_BOUNDARY_1, X_BOUNDARY_2)
-                    discrete_final_x = discretize_x(data['final_com_position'][1:, 0], X_BOUNDARY_1, X_BOUNDARY_2)
                     ddyn = data['ddyn'][1:]
+                    # p1, init x, p2, final x, ddyn
+                    arr = np.zeros((ddyn.shape[0], 9), dtype=int)
+                    p1 = data['p1'][1:]
+                    arr[:, 0] = discretize_torso_pose(p1[:, 0], GRID_RESOLUTION)
+                    arr[:, 1] = discretize_torso_pose(p1[:, 1], GRID_RESOLUTION)
+                    arr[:, 2] = discretize_torso_pose(p1[:, 2], ANGLE_RESOLUTION)
+                    arr[:, 3] = discretize_x(data['initial_com_position'][1:, 0], X_BOUNDARY_1, X_BOUNDARY_2)
+                    p2 = data['p2'][1:]
+                    arr[:, 4] = discretize_torso_pose(p2[:, 0], GRID_RESOLUTION)
+                    arr[:, 5] = discretize_torso_pose(p2[:, 1], GRID_RESOLUTION)
+                    arr[:, 6] = discretize_torso_pose(p2[:, 2], ANGLE_RESOLUTION)
+                    arr[:, 7] = discretize_x(data['final_com_position'][1:, 0], X_BOUNDARY_1, X_BOUNDARY_2)
+                    arr[:, 8] = ddyn.astype(int)
                     start = timeit.default_timer()
                     for ip1 in range(unique_discrete_p1.shape[0]):
                         for ip2 in range(unique_discrete_p2.shape[0]):

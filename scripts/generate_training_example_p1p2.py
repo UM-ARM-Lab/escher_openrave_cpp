@@ -31,19 +31,19 @@ def main():
                 print('process data in file dynamic_cost_{}_{}'.format(environment_type, environment_index))
                 with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
                     data = pickle.load(file)
-                    p1 = data['p1']
+                    p1 = data['p1'][1:]
                     discrete_p1 = np.zeros_like(p1, dtype=int)
                     discrete_p1[:, 0] = discretize_torso_pose(p1[:, 0], GRID_RESOLUTION)
                     discrete_p1[:, 1] = discretize_torso_pose(p1[:, 1], GRID_RESOLUTION)
                     discrete_p1[:, 2] = discretize_torso_pose(p1[:, 2], ANGLE_RESOLUTION)
                     unique_discrete_p1 = np.unique(discrete_p1, axis=0)
-                    p2 = data['p2']
+                    p2 = data['p2'][1:]
                     discrete_p2 = np.zeros_like(p2, dtype=int)
                     discrete_p2[:, 0] = discretize_torso_pose(p2[:, 0], GRID_RESOLUTION)
                     discrete_p2[:, 1] = discretize_torso_pose(p2[:, 1], GRID_RESOLUTION)
                     discrete_p2[:, 2] = discretize_torso_pose(p2[:, 2], ANGLE_RESOLUTION)
                     unique_discrete_p2 = np.unique(discrete_p2, axis=0)
-                    ddyn = data['ddyn']
+                    ddyn = data['ddyn'][1:]
                     for ip1 in range(unique_discrete_p1.shape[0]):
                         for ip2 in range(unique_discrete_p2.shape[0]):
                             mask = np.logical_and((discrete_p1 == unique_discrete_p1[ip1]).all(axis=1), (discrete_p2 == unique_discrete_p2[ip2]).all(axis=1))
