@@ -7,6 +7,9 @@ from keras.models import load_model
 import tensorflow as tf
 # import timeit
 
+GRID_RESOLUTION = 0.15
+ANGLE_RESOLUTION = 15.0
+
 
 def adjust_com(com_before_adjustment, original_frame, new_frame):
     """
@@ -35,6 +38,21 @@ def adjust_com(com_before_adjustment, original_frame, new_frame):
     com_after_adjustment = np.copy(global_com)
     com_after_adjustment[:, 0:2] = np.matmul(rotation_matrix, (global_com - np.array([new_x, new_y, new_z]))[:, 0:2].T).T
     return com_after_adjustment
+
+
+def discretize_p1p2(p1p2):
+    """
+    p1x, p1y, p1yaw, p2x, p2y, p2yaw
+    """
+    resolutions = [GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION, GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION]
+    indices = [None] * len(resolutions)
+    for i, v in enumerate(p1p2):
+        if abs(v) > resolutions[i] / 2.0:
+            temp = v - np.sign(v) * resolutions[i] / 2.0
+            indices[i] = int(np.sign(temp) * math.ceil(np.round(abs(temp) / resolutions[i], 1)))
+        else:
+            indices[i] = 0
+    return indices
 
 
 def main():
@@ -146,13 +164,9 @@ def main():
     print("environment type: " + environment_type)
 
     # info is a dictionary.
-    # the first row is a dummy row !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # its key is (p1, p2) (tuple)
+    # its value is (initial_com_position, final_com_position, ddyn) (numpy array)
     info = {}
-    info['p1'] = np.zeros((1,3), dtype=float)
-    info['p2'] = np.zeros((1,3), dtype=float)
-    info['initial_com_position'] = np.zeros((1,3), dtype=float)
-    info['final_com_position'] = np.zeros((1,3), dtype=float)
-    info['ddyn'] = np.zeros((1,1), dtype=float)
 
     prev_environment_index = 0
 
@@ -163,11 +177,6 @@ def main():
             with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
                 pickle.dump(info, file)
             info = {}
-            info['p1'] = np.zeros((1,3), dtype=float)
-            info['p2'] = np.zeros((1,3), dtype=float)
-            info['initial_com_position'] = np.zeros((1,3), dtype=float)
-            info['final_com_position'] = np.zeros((1,3), dtype=float)
-            info['ddyn'] = np.zeros((1,1), dtype=float)
             prev_environment_index = environment_index
 
         transition_type = transition['contact_transition_type']
@@ -224,21 +233,15 @@ def main():
 
         # query the regression model
         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]
-
         temp_p1 = transition['p1']
-        p1 = np.array([temp_p1[0], temp_p1[1], temp_p1[5]])
-        info['p1'] = np.concatenate((info['p1'], np.tile(p1, (prediction.shape[0], 1))), axis=0)
         temp_p2 = transition['p2']
-        p2 = np.array([temp_p2[0], temp_p2[1], temp_p2[5]])
-        info['p2'] = np.concatenate((info['p2'], np.tile(p2, (prediction.shape[0], 1))), axis=0)
-
-        initial_com_after_adjustment = adjust_com(X[:, -6:-3], transition['mean_feet_pose'], p1)
-        info['initial_com_position'] = np.concatenate((info['initial_com_position'], initial_com_after_adjustment), axis=0)
-        final_com_after_adjustment = adjust_com(prediction[:, 0:3], transition['mean_feet_pose'], p2)
-        info['final_com_position'] = np.concatenate((info['final_com_position'], final_com_after_adjustment), axis=0)
-
-        info['ddyn'] = np.concatenate((info['ddyn'], prediction[:, 6:7]), axis=0)
-
+        p1p2 = tuple(discretize_p1p2([temp_p1[0], temp_p1[1], temp_p1[5], temp_p2[0], temp_p2[1], temp_p2[5]]))
+        initial_com_after_adjustment = adjust_com(X[:, -6:-3], transition['mean_feet_pose'], np.array([temp_p1[0], temp_p1[1], temp_p1[5]]))
+        final_com_after_adjustment = adjust_com(prediction[:, 0:3], transition['mean_feet_pose'], np.array([temp_p2[0], temp_p2[1], temp_p2[5]]))
+        if p1p2 in info:
+            info[p1p2] = np.concatenate((info[p1p2], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1), axis=0)
+        else:
+            info[p1p2] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
     print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
     with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
         pickle.dump(info, file)
