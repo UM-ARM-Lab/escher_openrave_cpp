@@ -239,7 +239,7 @@ def main():
         initial_com_after_adjustment = adjust_com(X[:, -6:-3], transition['mean_feet_pose'], np.array([temp_p1[0], temp_p1[1], temp_p1[5]]))
         final_com_after_adjustment = adjust_com(prediction[:, 0:3], transition['mean_feet_pose'], np.array([temp_p2[0], temp_p2[1], temp_p2[5]]))
         if p1p2 in info:
-            info[p1p2] = np.concatenate((info[p1p2], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1), axis=0)
+            info[p1p2] = np.concatenate((info[p1p2], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)), axis=0)
         else:
             info[p1p2] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
     print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
