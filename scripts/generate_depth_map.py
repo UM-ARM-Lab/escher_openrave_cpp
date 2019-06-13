@@ -13,9 +13,6 @@ WALL_DEFAULT_DEPTH = 2.0
 WALL_MIN_HEIGHT = 1.0
 WALL_MAX_HEIGHT = 2.0
 
-# currently unused
-NUM_ENVIRONMENT_TYPE = 24
-
 def rotate_quadrilaterals(coordinates, theta):
     """
     Inputs:

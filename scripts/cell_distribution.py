@@ -90,122 +90,8 @@ class contact_transition:
         self.normalized_init_l_arm = None
         self.normalized_init_r_arm = None
 
-    # def get_contact_transition_type(self):
-    #     # please fill in this part
-    #     # only consider the left side
-    #     if self.init_node.get_contact_manip_num() == 2:
-    #         if self.final_node.get_contact_manip_num() == 2:
-    #             self.contact_transition_type = 0
-    #         elif self.final_node.get_contact_manip_num() == 3:
-    #             self.contact_transition_type = 1
-    #         else:
-    #             raw_input('Invalid Transition')
 
-    #     elif self.init_node.get_contact_manip_num() == 3:
-    #         if self.final_node.get_contact_manip_num() == 2:
-    #             self.contact_transition_type = 4
-    #         elif self.final_node.get_contact_manip_num() == 3:
-    #             if self.final_node.prev_move_manip == LEFT_LEG:
-    #                 if self.init_node.manip_in_contact('l_arm'):
-    #                     self.contact_transition_type = 2
-    #                 elif self.init_node.manip_in_contact('r_arm'):
-    #                     self.contact_transition_type = 3
-    #                 else:
-    #                     raw_input('Invalid Transition')
-    #             elif self.final_node.prev_move_manip == LEFT_ARM:
-    #                 self.contact_transition_type = 5
-    #             else:
-    #                 raw_input('Invalid Transition')
-    #         elif self.final_node.get_contact_manip_num() == 4:
-    #             self.contact_transition_type = 6
-    #         else:
-    #             raw_input('Invalid Transition')
-
-    #     elif self.init_node.get_contact_manip_num() == 4:
-    #         if self.final_node.get_contact_manip_num() == 3:
-    #             self.contact_transition_type = 8
-    #         elif self.final_node.get_contact_manip_num() == 4:
-    #             if self.final_node.prev_move_manip == LEFT_LEG:
-    #                 self.contact_transition_type = 7
-    #             elif self.final_node.prev_move_manip == LEFT_ARM:
-    #                 self.contact_transition_type = 9
-    #             else:
-    #                 raw_input('Invalid Transition')
-    #         else:
-    #             raw_input('Invalid Transition')
-
-    #     else:
-    #         raw_input('Invalid Transition')
-
-    #     return self.contact_transition_type
-
-
-    # def get_feature_vector_contact_part(self):
-    #     self.get_contact_transition_type()
-
-    #     # center the poses about the mean feet pose
-    #     inv_mean_feet_transform = xyzrpy_to_inverse_SE3(self.init_node.get_mean_feet_xyzrpy())
-
-    #     init_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_leg)))
-    #     init_right_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_leg)))
-    #     final_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_leg)))
-
-    #     self.normalized_init_l_leg = init_left_leg
-    #     self.normalized_init_r_leg = init_right_leg
-
-    #     if self.init_node.manip_in_contact('l_arm'):
-    #         init_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_arm)))
-    #         self.normalized_init_l_arm = init_left_arm
-        
-    #     if self.init_node.manip_in_contact('r_arm'):
-    #         init_right_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_arm)))
-    #         self.normalized_init_r_arm = init_right_arm
-
-    #     if self.final_node.manip_in_contact('l_arm'):
-    #         final_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.final_node.left_arm)))
-
-    #     # construct the feature vector
-    #     if self.contact_transition_type == 0:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + final_left_leg)
-
-    #     elif self.contact_transition_type == 1:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + final_left_arm)
-
-    #     elif self.contact_transition_type == 2:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + final_left_leg)
-
-    #     elif self.contact_transition_type == 3:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_right_arm + final_left_leg)
-
-    #     elif self.contact_transition_type == 4:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm)
-
-    #     elif self.contact_transition_type == 5:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + final_left_arm)
-
-    #     elif self.contact_transition_type == 6:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_right_arm + final_left_arm)
-
-    #     elif self.contact_transition_type == 7:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_leg)
-
-    #     elif self.contact_transition_type == 8:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm)
-
-    #     elif self.contact_transition_type == 9:
-    #         self.feature_vector_contact_part = contact_degree_to_radian(init_left_leg + init_right_leg + init_left_arm + init_right_arm + final_left_arm)
-
-    #     else:
-    #         raw_input('Wrong Type.')
-
-    #     # sample the initial CoM position and CoM velocity from data/dynopt_result/dataset
-    #     # remember to normalize the feature vector using information in data/dynopt_result/*nn_models before sending to the network.
-    #     return self.feature_vector_contact_part
-
-
-# def extract_env_feature():
-
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model,structures,grid_resolution, environment_index):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model1, foot_transition_model2,structures,grid_resolution, environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     handles = []
@@ -254,7 +140,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                 mean_feet_position_offset = np.atleast_2d(np.array(dummy_init_virtual_body_pose[0:2])).T * (dummy_init_node.get_contact_manip_num()/2.0)
 
                 # sample the initial foot step combinations
-                for foot_transition in foot_transition_model:
+                for foot_transition in foot_transition_model1:
                     init_node = copy.deepcopy(dummy_init_node)
 
                     init_left_foot_position = np.dot(orientation_rotation_matrix[0:2,0:2], np.array([[-foot_transition[0]/2],[foot_transition[1]/2]])) - mean_feet_position_offset
@@ -287,7 +173,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
     rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
     contact_transition_list = []
     for init_node in init_node_list:
-        child_node_list = branching(init_node, foot_transition_model, hand_transition_model, structures, robot_obj)
+        child_node_list = branching(init_node, foot_transition_model2, hand_transition_model, structures, robot_obj)
 
         for child_node in child_node_list:
             # ??????????
@@ -351,17 +237,35 @@ def main(robot_name='athena'): # for test
 
     ### Load the foot transition model
     try:
-        print('Load foot transition model...', end='')
+        print('Load foot transition model 1...', end='')
         
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
         line = ' '
-        foot_transition_model = []
+        foot_transition_model1 = []
 
         while(True):
             line = f.readline()
             if(line == ''):
                 break
-            foot_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+            foot_transition_model1.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+
+        f.close()
+        print('Done.')
+    except Exception:
+        raw_input('Not Found.')
+
+    try:
+        print('Load foot transition model 2...', end='')
+        
+        f = open('../data/escher_motion_planning_data/step_transition_model_mid_range.txt','r')
+        line = ' '
+        foot_transition_model2 = []
+
+        while(True):
+            line = f.readline()
+            if(line == ''):
+                break
+            foot_transition_model2.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
 
         f.close()
         print('Done.')
@@ -385,7 +289,7 @@ def main(robot_name='athena'): # for test
     for i in [0]:
         structures = sample_env(env_handler, robot_obj, 'flat_ground_env')
                 
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model, structures, GRID_RESOLUTION, i)
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
     # IPython.embed()

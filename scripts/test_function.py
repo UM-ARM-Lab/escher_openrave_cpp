@@ -79,6 +79,18 @@ def discretize_x(X, X_BOUNDARY_1, X_BOUNDARY_2):
     return new_X
 
 
+def adjust_p2(p1, p2):
+    """
+    p1: [p1x, p1y, p1yaw]
+    p2: [p2x, p2y, p2yaw]
+    """
+    p1_yaw_in_radian = p1[2] / 180.0 * np.pi
+    rotation_matrix = np.array([[np.cos(-p1_yaw_in_radian), -np.sin(-p1_yaw_in_radian)],
+                                [np.sin(-p1_yaw_in_radian), np.cos(-p1_yaw_in_radian)]])
+    p2_xy_after_adjustment = np.matmul(rotation_matrix, np.array([[p2[0] - p1[0]], [p2[1] - p1[1]]]))
+    return [p2_xy_after_adjustment[0][0], p2_xy_after_adjustment[1][0], p2[2] - p1[2]]
+
+
 
 def main():
     # original_frame = [math.sqrt(3), 1.0, -0.5, 0, 0, -30.0]
@@ -97,12 +109,16 @@ def main():
     # anws = np.array([-3, -3, -2, -2, -1, -1, 0, 0, 0, 1, 1, 2, 2, 3, 3])
     # assert(np.array_equal(new_arr, anws))
     
-    X_BOUNDARY_1 = -0.2
-    X_BOUNDARY_2 = -0.1
-    X = np.array([-0.25, -0.2, -0.15, -0.1, -0.05, 0.5])
-    new_X = discretize_x(X, X_BOUNDARY_1, X_BOUNDARY_2)
-    anws = np.array([0, 1, 1, 2, 2, 2])
-    assert(np.array_equal(new_X, anws))
+    # X_BOUNDARY_1 = -0.2
+    # X_BOUNDARY_2 = -0.1
+    # X = np.array([-0.25, -0.2, -0.15, -0.1, -0.05, 0.5])
+    # new_X = discretize_x(X, X_BOUNDARY_1, X_BOUNDARY_2)
+    # anws = np.array([0, 1, 1, 2, 2, 2])
+    # assert(np.array_equal(new_X, anws))
+
+    p1 = [1.0, 1.0, 30.0]
+    p2 = [2.0, 1.0 + 1.0 / math.sqrt(3), 60.0]
+    print(adjust_p2(p1, p2))
 
 
 

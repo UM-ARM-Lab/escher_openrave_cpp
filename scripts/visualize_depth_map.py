@@ -1,18 +1,15 @@
-import pickle
+import pickle, os
 import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    for i in range(5):
-        file = open('../data/test_depth_map/ground_depth_maps/' + str(i), 'r')
-        data = pickle.load(file)
-        plt.imshow(data, cmap='gray')
-        plt.show()
-
-        file = open('../data/test_depth_map/wall_depth_maps/' + str(i), 'r')
-        data = pickle.load(file)
-        plt.imshow(data, cmap='gray')
-        plt.show()
+    files = os.listdir('../data/ground_truth_p1p2/wall_depth_maps')
+    for file in files:
+        with open('../data/ground_truth_p1p2/wall_depth_maps/' + file, 'r') as depth_map:
+            data = pickle.load(depth_map)
+            plt.imshow(data, cmap='gray')
+            plt.title(file)
+            plt.show()
 
 
 

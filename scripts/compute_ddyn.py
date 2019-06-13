@@ -11,6 +11,18 @@ GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
 
+def adjust_p2(p1, p2):
+    """
+    p1: [p1x, p1y, p1yaw]
+    p2: [p2x, p2y, p2yaw]
+    """
+    p1_yaw_in_radian = p1[2] / 180.0 * np.pi
+    rotation_matrix = np.array([[np.cos(-p1_yaw_in_radian), -np.sin(-p1_yaw_in_radian)],
+                                [np.sin(-p1_yaw_in_radian), np.cos(-p1_yaw_in_radian)]])
+    p2_xy_after_adjustment = np.matmul(rotation_matrix, np.array([[p2[0] - p1[0]], [p2[1] - p1[1]]]))
+    return [p2_xy_after_adjustment[0][0], p2_xy_after_adjustment[1][0], p2[2] - p1[2]]
+
+
 def adjust_com(com_before_adjustment, original_frame, new_frame):
     """
     "original_frame" is mean_feet_pose, which has 6 entries
@@ -40,13 +52,13 @@ def adjust_com(com_before_adjustment, original_frame, new_frame):
     return com_after_adjustment
 
 
-def discretize_p1p2(p1p2):
+def discretize_torso_pose(p):
     """
-    p1x, p1y, p1yaw, p2x, p2y, p2yaw
+    px, py, pyaw
     """
-    resolutions = [GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION, GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION]
+    resolutions = [GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION]
     indices = [None] * len(resolutions)
-    for i, v in enumerate(p1p2):
+    for i, v in enumerate(p):
         if abs(v) > resolutions[i] / 2.0:
             temp = v - np.sign(v) * resolutions[i] / 2.0
             indices[i] = int(np.sign(temp) * math.ceil(np.round(abs(temp) / resolutions[i], 1)))
@@ -163,8 +175,9 @@ def main():
 
     print("environment type: " + environment_type)
 
-    # info is a dictionary.
-    # its key is (p1, p2) (tuple)
+    # info is a nested dictionary.
+    # its first key is p1 (tuple)
+    # its second key is p2 (tuple)
     # its value is (initial_com_position, final_com_position, ddyn) (numpy array)
     info = {}
 
@@ -233,15 +246,23 @@ def main():
 
         # query the regression model
         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]
+       
         temp_p1 = transition['p1']
+        discretized_p1 = tuple(discretize_torso_pose([temp_p1[0], temp_p1[1], temp_p1[5]]))
+        if discretized_p1 not in info:
+            info[discretized_p1] = {}
+            
         temp_p2 = transition['p2']
-        p1p2 = tuple(discretize_p1p2([temp_p1[0], temp_p1[1], temp_p1[5], temp_p2[0], temp_p2[1], temp_p2[5]]))
+        adjusted_p2 = adjust_p2([temp_p1[0], temp_p1[1], temp_p1[5]], [temp_p2[0], temp_p2[1], temp_p2[5]])
+        discretized_p2 = tuple(discretize_torso_pose(adjusted_p2))
+
         initial_com_after_adjustment = adjust_com(X[:, -6:-3], transition['mean_feet_pose'], np.array([temp_p1[0], temp_p1[1], temp_p1[5]]))
         final_com_after_adjustment = adjust_com(prediction[:, 0:3], transition['mean_feet_pose'], np.array([temp_p2[0], temp_p2[1], temp_p2[5]]))
-        if p1p2 in info:
-            info[p1p2] = np.concatenate((info[p1p2], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)), axis=0)
+        
+        if discretized_p2 in info[discretized_p1]:
+            info[discretized_p1][discretized_p2] = np.concatenate((info[discretized_p1][discretized_p2], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)), axis=0)
         else:
-            info[p1p2] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
+            info[discretized_p1][discretized_p2] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
     print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
     with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
         pickle.dump(info, file)
