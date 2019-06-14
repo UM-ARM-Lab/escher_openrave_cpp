@@ -24,7 +24,7 @@ import load_athena
 
 # from config_parameter import *
 from transformation_conversion import *
-from copy_environment_handler_2 import environment_handler
+from environment_handler_2 import environment_handler
 from map_grid import map_grid_dim
 from node import *
 from contact_projection import *

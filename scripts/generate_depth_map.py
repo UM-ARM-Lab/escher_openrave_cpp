@@ -174,7 +174,8 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
                 for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    assert(rho > 0)
+                    print('rho < 0')
+                    # assert(rho > 0)
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
                         idx_2 = theta_temp
@@ -232,6 +233,7 @@ def main():
             environments = pickle.load(file)
 
         for idx, environment in enumerate(environments):
+            print(environment_type, idx)
             ground_depth_map = entire_depth_map(np.array(environment['ground_vertices']).reshape(-1, 3), 'ground', RESOLUTION)
             with open('../test_depth_map/ground_depth_maps/' + str(environment_type) + '_' + str(idx), 'w') as file:
                 pickle.dump(ground_depth_map, file)
