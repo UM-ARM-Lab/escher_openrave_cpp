@@ -174,8 +174,7 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
                 for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    print('rho < 0')
-                    # assert(rho > 0)
+                    # note: In some special cases, rho < 0 and point_inside_polygon returns false.
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
                         idx_2 = theta_temp
