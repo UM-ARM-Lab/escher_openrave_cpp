@@ -170,7 +170,7 @@ def main():
 
     # load sampled transitions
     transitions = None
-    with open('../data/medium_dataset/transitions_' + environment_type, 'r') as file:
+    with open('../data/medium_dataset_normal_wall/transitions_' + environment_type, 'r') as file:
         transitions = pickle.load(file)
 
     print("environment type: " + environment_type)
@@ -187,7 +187,7 @@ def main():
         environment_index = transition['environment_index']
         if environment_index != prev_environment_index:
             print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
-            with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
+            with open('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
                 pickle.dump(info, file)
             info = {}
             prev_environment_index = environment_index
@@ -264,7 +264,7 @@ def main():
         else:
             info[discretized_p1][discretized_p2] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
     print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
-    with open('../data/medium_dataset/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
+    with open('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
         pickle.dump(info, file)
 
 

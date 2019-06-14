@@ -439,9 +439,9 @@ def main(robot_name='athena'): # for test
         sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
-    with open('../data/medium_dataset/' + transition_file, 'w') as file:
+    with open('../data/medium_dataset_normal_wall/' + transition_file, 'w') as file:
         pickle.dump(transitions, file)
-    with open('../data/medium_dataset/' + environment_file, 'w') as file:
+    with open('../data/medium_dataset_normal_wall/' + environment_file, 'w') as file:
         pickle.dump(environments, file)
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
