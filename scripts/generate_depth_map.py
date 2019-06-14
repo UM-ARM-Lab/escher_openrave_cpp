@@ -220,25 +220,26 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
 
 
 def main():
-    if os.path.exists('../data/test_depth_map'):
-        shutil.rmtree('../data/test_depth_map')
-    os.makedirs('../data/test_depth_map')
+    if os.path.exists('../test_depth_map'):
+        shutil.rmtree('../test_depth_map')
+    os.makedirs('../test_depth_map')
 
-    os.makedirs('../data/test_depth_map/ground_depth_maps')
-    os.makedirs('../data/test_depth_map/wall_depth_maps')
+    os.makedirs('../test_depth_map/ground_depth_maps')
+    os.makedirs('../test_depth_map/wall_depth_maps')
 
-    file = open('../data/environments_9', 'r')
-    environments = pickle.load(file)
+    for environment_type in range(3, 12):
+        with open('../data/test_env/environments_' + str(environment_type), 'r') as file:
+            environments = pickle.load(file)
 
-    for idx, environment in enumerate(environments):
-        ground_depth_map = entire_depth_map(np.array(environment['ground_vertices']).reshape(-1, 3), 'ground', RESOLUTION)
-        file = open('../data/test_depth_map/ground_depth_maps/' + str(idx), 'w')
-        pickle.dump(ground_depth_map, file)
-        wall_depth_map = entire_depth_map(np.array(environment['others_vertices']).reshape(-1, 3), 'wall', RESOLUTION)
-        file = open('../data/test_depth_map/wall_depth_maps/' + str(idx), 'w')
-        pickle.dump(wall_depth_map, file)
-        
-    
+        for idx, environment in enumerate(environments):
+            ground_depth_map = entire_depth_map(np.array(environment['ground_vertices']).reshape(-1, 3), 'ground', RESOLUTION)
+            with open('../test_depth_map/ground_depth_maps/' + str(environment_type) + '_' + str(idx), 'w') as file:
+                pickle.dump(ground_depth_map, file)
+            wall_depth_map = entire_depth_map(np.array(environment['others_vertices']).reshape(-1, 3), 'wall', RESOLUTION)
+            with open('../test_depth_map/wall_depth_maps/' + str(environment_type) + '_' + str(idx), 'w') as file:
+                pickle.dump(wall_depth_map, file)
+
+
 if __name__ == '__main__':
     main()
 
