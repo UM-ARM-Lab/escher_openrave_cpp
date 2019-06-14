@@ -152,7 +152,7 @@ class environment_handler:
             surface_transform_matrix = np.dot(xyzrpy_to_SE3(origin_pose), xyzrpy_to_SE3(surface_transform))
             surface_transform = SE3_to_xyzrpy(surface_transform_matrix)
 
-            surface_vertices = [(0.25,0.25),(-0.25,0.25),(-0.25,-0.25),(0.25,-0.25)]
+            surface_vertices = [(0.15,0.15),(-0.15,0.15),(-0.15,-0.15),(0.15,-0.15)]
 
             self.add_quadrilateral_surface(structures,surface_vertices,surface_transform,surface_type='others',surface_transparancy=0.5)
 
