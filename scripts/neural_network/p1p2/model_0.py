@@ -13,19 +13,19 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
         self.ground_net = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=4, kernel_size=3, padding=0),
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=4, out_channels=8, kernel_size=3, padding=0),
+            nn.Conv2d(in_channels=16, out_channels=256, kernel_size=3, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, padding=0),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, padding=0),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=4, padding=0),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, padding=2),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5, padding=2),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, padding=2),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5, padding=2),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
@@ -33,19 +33,19 @@ class Model(nn.Module):
         )
 
         self.wall_net = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=4, kernel_size=3, padding=0),
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=4, out_channels=8, kernel_size=3, padding=0),
+            nn.Conv2d(in_channels=16, out_channels=256, kernel_size=3, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, padding=0),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, padding=0),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=4, padding=0),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, padding=0),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, padding=2),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5, padding=2),
             nn.LeakyReLU(),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=5, padding=2),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=5, padding=2),
             nn.LeakyReLU(),
             nn.MaxPool2d(kernel_size=2),
 
@@ -66,7 +66,7 @@ class Model(nn.Module):
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(16*13*13 + 16*7*59 + 128, 1024),
+            nn.Linear(256*13*13 + 256*7*59 + 128, 1024),
             nn.LeakyReLU(),
             nn.Linear(1024, 1024),
             nn.LeakyReLU(),

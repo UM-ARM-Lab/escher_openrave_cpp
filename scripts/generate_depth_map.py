@@ -156,7 +156,6 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
                 for theta_temp in range(int(math.ceil(theta_min1 * RADIUS / resolution)), int(math.ceil(theta_max1 * RADIUS / resolution))) + range(int(math.ceil(theta_min2 * RADIUS / resolution)), int(math.ceil(theta_max2 * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    assert(rho > 0)
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
                         idx_2 = theta_temp
@@ -174,7 +173,6 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
                 for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    # note: In some special cases, rho < 0 and point_inside_polygon returns false.
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
                         idx_2 = theta_temp
@@ -207,7 +205,7 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
         # IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int((WALL_MAX_HEIGHT - WALL_MIN_HEIGHT)/ resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
+        entire_map = np.ones((int((WALL_MAX_HEIGHT - WALL_MIN_HEIGHT) / resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
         # IPython.embed()
@@ -220,25 +218,30 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
 
 
 def main():
-    if os.path.exists('../test_depth_map'):
-        shutil.rmtree('../test_depth_map')
-    os.makedirs('../test_depth_map')
+    for environment_type in [6]:
+        with open('../data/medium_dataset_normal_wall/environments_' + str(environment_type), 'r') as env_file:
+            environments = pickle.load(env_file)
+            # for environment_index in range(NUM_ENVIRONMENT_PER_TYPE):
+            for environment_index in [30]:
+                if os.path.exists('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index)):
+                    print('process data in file dynamic_cost_{}_{}'.format(environment_type, environment_index))
+                    ground_vertices = environments[environment_index]['ground_vertices']
+                    others_vertices = environments[environment_index]['others_vertices']
+                    with open('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
+                        data = pickle.load(file)
+                        p1_list = sorted(data.keys(), key=lambda element: (element[0], element[1], element[2]))
+                        for p1 in p1_list:
+                            print(p1)
+                            depth_map_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p1[0]) + str(p1[1]) + str(p1[2])
+                            ground_patch_coordinates = rotate_quadrilaterals(ground_vertices, p1[2] * ANGLE_RESOLUTION)
+                            ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
+                            with open('../data/test/ground_depth_maps/' + depth_map_id, 'w') as depth_map_file:  
+                                pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), depth_map_file)
+                            wall_patch_coordinates = rotate_quadrilaterals(others_vertices, p1[2] * ANGLE_RESOLUTION)
+                            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
+                            with open('../data/test/wall_depth_maps/' + depth_map_id, 'w') as depth_map_file:
+                                pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), depth_map_file)
 
-    os.makedirs('../test_depth_map/ground_depth_maps')
-    os.makedirs('../test_depth_map/wall_depth_maps')
-
-    for environment_type in range(3, 12):
-        with open('../data/test_env/environments_' + str(environment_type), 'r') as file:
-            environments = pickle.load(file)
-
-        for idx, environment in enumerate(environments):
-            print(environment_type, idx)
-            ground_depth_map = entire_depth_map(np.array(environment['ground_vertices']).reshape(-1, 3), 'ground', RESOLUTION)
-            with open('../test_depth_map/ground_depth_maps/' + str(environment_type) + '_' + str(idx), 'w') as file:
-                pickle.dump(ground_depth_map, file)
-            wall_depth_map = entire_depth_map(np.array(environment['others_vertices']).reshape(-1, 3), 'wall', RESOLUTION)
-            with open('../test_depth_map/wall_depth_maps/' + str(environment_type) + '_' + str(idx), 'w') as file:
-                pickle.dump(wall_depth_map, file)
 
 
 if __name__ == '__main__':

@@ -18,6 +18,6 @@ class Dataset(data.Dataset):
             ground_depth_map = pickle.load(file)
         with open('../../../data/ground_truth_p1p2/wall_depth_maps/' + depth_map_id, 'r') as file:
             wall_depth_map = pickle.load(file)
-        return torch.unsqueeze(torch.from_numpy(ground_depth_map).float(), 0), torch.unsqueeze(torch.from_numpy(wall_depth_map).float(), 0), torch.from_numpy(p2).float(), ddyn
+        return ground_depth_map, wall_depth_map, p2, ddyn
         
         
