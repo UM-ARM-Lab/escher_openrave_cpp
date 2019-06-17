@@ -416,6 +416,7 @@ def main(robot_name='athena'): # for test
 
     # sample environments and contact transitions
     for i in range(SAMPLE_SIZE_EACH_ENVIRONMENT):
+        print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
 
         # save the environment

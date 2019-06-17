@@ -22,12 +22,10 @@ def main():
     validation = []
     test = []
     p2_ddyn_dict = {}
-    # for environment_type in range(NUM_ENVIRONMENT_TYPE):
-    for environment_type in [6]:
+    for environment_type in range(NUM_ENVIRONMENT_TYPE):
         with open('../data/medium_dataset_normal_wall/environments_' + str(environment_type), 'r') as env_file:
             environments = pickle.load(env_file)
-            # for environment_index in range(NUM_ENVIRONMENT_PER_TYPE):
-            for environment_index in range(30):
+            for environment_index in range(NUM_ENVIRONMENT_PER_TYPE):
                 if os.path.exists('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index)):
                     print('process data in file dynamic_cost_{}_{}'.format(environment_type, environment_index))
                     ground_vertices = environments[environment_index]['ground_vertices']

@@ -39,8 +39,8 @@ def main():
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    learning_rate = 0.001
-    num_epoch = 200
+    learning_rate = 0.0001
+    num_epoch = 20
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
     model = Model().to(device)
@@ -89,9 +89,9 @@ def main():
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
             optimizer.step()
-            save_checkpoint(model, epoch, 'checkpoint/')
             loss_list.append(loss)
             length_list.append(predicted_ddyns.shape[0])
+        save_checkpoint(model, epoch, 'checkpoint/')
         epoch_loss = loss_across_epoch(loss_list, length_list)
         training_loss.append(epoch_loss)
         print('training loss: {:4.2f}'.format(epoch_loss))
