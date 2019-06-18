@@ -32,6 +32,8 @@ def main():
 
     with open('../../../data/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
+    print('number of training examples: {}'.format(len(partition['training'])))
+    print('number of validation examples: {}'.format(len(partition['validation'])))
 
     torch.manual_seed(20190617)
     training_dataset = Dataset(p2_ddyn, partition['training'])
@@ -39,8 +41,8 @@ def main():
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    learning_rate = 0.0001
-    num_epoch = 20
+    learning_rate = 0.00005
+    num_epoch = 10
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
     model = Model().to(device)
