@@ -87,7 +87,7 @@ def main():
     if device == 'cpu':
         pass
     elif device == 'gpu':
-        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.45))
+        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.95))
         sess = tf.Session(config=config)
         keras.backend.set_session(sess)
     else:
@@ -181,12 +181,14 @@ def main():
     # its value is (initial_com_position, final_com_position, ddyn) (numpy array)
     info = {}
 
-    prev_environment_index = 10
+    prev_environment_index = 20
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        if environment_index < 10:
+        if environment_index < 20:
             continue
+        #if environment_index > 9:
+        #    break
         if environment_index != prev_environment_index:
             print('save data to file dynamic_cost_{}_{}'.format(environment_type, prev_environment_index))
             with open('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:

@@ -1,4 +1,4 @@
 data/
-data_backup/
+backup_data/
 *.pyc
 *.pth.tar

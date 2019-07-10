@@ -2,7 +2,7 @@ import pickle, IPython
 import numpy as np
 
 def main():
-    for i in range(2) + range(3, 10):
+    for i in range(12):
         file = open('../data/transitions_type_' + str(i), 'r')
         sampled_X_contact_part = pickle.load(file)
         sampled_X_contact_part = np.array(sampled_X_contact_part)
