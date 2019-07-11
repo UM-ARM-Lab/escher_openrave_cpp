@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_0 import Model
+from model_v0 import Model
 from dataset import Dataset
 
 
@@ -27,22 +27,22 @@ def loss_across_epoch(loss_list, length_list):
 
 
 def main():
-    with open('../../../data/ground_truth_p1p2/p2_ddyn', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn', 'r') as file:
         p2_ddyn = pickle.load(file)
 
-    with open('../../../data/ground_truth_p1p2/partition', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
     print('number of training examples: {}'.format(len(partition['training'])))
     print('number of validation examples: {}'.format(len(partition['validation'])))
 
-    torch.manual_seed(20190617)
+    torch.manual_seed(20190711)
     training_dataset = Dataset(p2_ddyn, partition['training'])
     training_generator = data.DataLoader(training_dataset, batch_size=64, shuffle=True, num_workers=4)
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    learning_rate = 0.00005
-    num_epoch = 10
+    learning_rate = 0.0001
+    num_epoch = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
     model = Model().to(device)
@@ -78,6 +78,7 @@ def main():
         validation_loss.append(epoch_loss)
         print('validation loss: {:4.2f}'.format(epoch_loss))
 
+    num_epoch_no_improvement = 0
     for epoch in range(num_epoch):
         print('epoch: {}'.format(epoch))
         # training
@@ -112,10 +113,16 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss)
             print('validation loss: {:4.2f}'.format(epoch_loss))
+        if validation_loss[-1] - validation_loss[-2] > 0:
+            num_epoch_no_improvement += 1
+        else:
+            num_epoch_no_improvement = 0
+        if num_epoch_no_improvement == 5:
+            break
 
     plt.figure()
-    plt.plot(range(num_epoch + 1), training_loss, 'o-', label='Training')
-    plt.plot(range(num_epoch + 1), validation_loss, 'o-', label='Validation')
+    plt.plot(range(len(training_loss)), training_loss, 'o-', label='Training')
+    plt.plot(range(len(training_loss)), validation_loss, 'o-', label='Validation')
     plt.title('Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')

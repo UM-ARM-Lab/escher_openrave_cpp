@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from torch.utils import data
 
-from model_0 import Model
+from model_v0 import Model
 from dataset import Dataset
 from train import loss_across_epoch
 
