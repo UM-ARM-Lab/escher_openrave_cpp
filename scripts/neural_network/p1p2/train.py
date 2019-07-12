@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v0 import Model
+from model_v1 import Model
 from dataset import Dataset
 
 
