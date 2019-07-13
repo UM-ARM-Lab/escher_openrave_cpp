@@ -58,7 +58,7 @@ def main():
         length_list = []
         for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s)
+            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
             loss_list.append(loss)
             length_list.append(predicted_ddyns.shape[0])
@@ -70,7 +70,7 @@ def main():
         length_list = []
         for ground_depth_maps, wall_depth_maps, p2s, ddyns in validation_generator:
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s)
+            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
             loss_list.append(loss)
             length_list.append(predicted_ddyns.shape[0])
@@ -88,7 +88,7 @@ def main():
         for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
             optimizer.zero_grad()
-            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s)
+            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
             optimizer.step()
@@ -106,7 +106,7 @@ def main():
             length_list = []
             for ground_depth_maps, wall_depth_maps, p2s, ddyns in validation_generator:
                 ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s)
+                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
                 loss = criterion(predicted_ddyns, ddyns)
                 loss_list.append(loss)
                 length_list.append(predicted_ddyns.shape[0])
