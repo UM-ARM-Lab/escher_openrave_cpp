@@ -1,12 +1,13 @@
-import os, torch, pickle
+import os, torch, pickle, shutil
 import matplotlib.pyplot as plt
 
 from torch import nn, optim
 from torch.utils import data
 
-from model_v1 import Model
+from model_v0 import Model
 from dataset import Dataset
 
+model_version = 'model_v0_1'
 
 def save_checkpoint(model, epoch, checkpoint_dir):
     state = {
@@ -41,13 +42,17 @@ def main():
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    learning_rate = 0.0001
+    learning_rate = 0.00002
     num_epoch = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
     model = Model().to(device)
     criterion = nn.L1Loss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    if os.path.exists(model_version + '_checkpoint/'):
+        shutil.rmtree(model_version + '_checkpoint/')
+    os.makedirs(model_version + '_checkpoint/')
 
     training_loss = []
     validation_loss = []
@@ -81,10 +86,8 @@ def main():
     num_epoch_no_improvement = 0
     for epoch in range(num_epoch):
         print('epoch: {}'.format(epoch))
-        # training
+        # train
         model.train()
-        loss_list = []
-        length_list = []
         for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
             optimizer.zero_grad()
@@ -92,16 +95,23 @@ def main():
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
             optimizer.step()
-            loss_list.append(loss)
-            length_list.append(predicted_ddyns.shape[0])
-        save_checkpoint(model, epoch, 'checkpoint/')
-        epoch_loss = loss_across_epoch(loss_list, length_list)
-        training_loss.append(epoch_loss)
-        print('training loss: {:4.2f}'.format(epoch_loss))
+        save_checkpoint(model, epoch, model_version + '_checkpoint/')
 
-        # validation
+        # loss on training data and validation data
         model.eval()
         with torch.set_grad_enabled(False):
+            loss_list = []
+            length_list = []
+            for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
+                ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
+                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
+                loss = criterion(predicted_ddyns, ddyns)
+                loss_list.append(loss)
+                length_list.append(predicted_ddyns.shape[0])
+            epoch_loss = loss_across_epoch(loss_list, length_list)
+            training_loss.append(epoch_loss)
+            print('training loss: {:4.2f}'.format(epoch_loss))
+
             loss_list = []
             length_list = []
             for ground_depth_maps, wall_depth_maps, p2s, ddyns in validation_generator:
@@ -127,9 +137,13 @@ def main():
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig('loss.png')
+    plt.savefig(model_version + '_loss.png')
 
-
+    loss_dict = {'training_loss': training_loss,
+                 'validation_loss': validation_loss}
+    
+    with open(model_version + '_loss_history', 'w') as file:
+        pickle.dump(loss_dict, file)
 
 
 
