@@ -74,7 +74,15 @@ class Model(nn.Module):
         )
 
         self.fc = nn.Sequential(
-            nn.Linear(64*5*5, 1),
+            nn.Linear(64*5*5 + 64*3*56 + 1024, 2048),
+            nn.LeakyReLU(),
+            nn.Linear(2048, 1024),
+            nn.LeakyReLU(),
+            nn.Linear(1024, 512),
+            nn.LeakyReLU(),
+            nn.Linear(512, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 1),
             nn.LeakyReLU(),
         )
     
@@ -85,7 +93,10 @@ class Model(nn.Module):
         "wall_depth_map" is a 2d array of shape (1, 41, 252)
         "p2" is a 1d array of shape (3,)
         """
-        arr = self.ground_net(ground_depth_map)
+        arr1 = self.ground_net(ground_depth_map)
+        arr2 = self.wall_net(wall_depth_map)
+        arr3 = self.p2_net(p2)
+        arr = torch.cat((arr1, arr2, arr3), 1)
         z = self.fc(arr)
         return z
     
