@@ -1,10 +1,11 @@
-import pickle, torch, os
+import pickle, torch, os, IPython
 import torch.nn as nn
+import numpy as np
 
 from torch.utils import data
 
 from model_v3 import Model
-from dataset import Dataset
+from special_dataset import Dataset
 from train import loss_across_epoch
 
 model_version = 'model_v3_00005'
@@ -46,23 +47,76 @@ def main():
     test_dataset = Dataset(p2_ddyn, partition['test'])
     test_generator = data.DataLoader(test_dataset, batch_size=256, shuffle=True, num_workers=4)
 
+    large_loss_examples = []
+    small_loss_examples = []
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
     model = Model()
     model = restore_checkpoint(model, model_version + '_checkpoint/').to(device)
     criterion = nn.L1Loss()
+
+    criterion_non_reduced = nn.L1Loss(reduction='none')
+
     model.eval()
     with torch.set_grad_enabled(False):
         loss_list = []
         length_list = []
-        for ground_depth_maps, wall_depth_maps, p2s, ddyns in test_generator:
+        for ground_depth_maps, wall_depth_maps, p2s, ddyns, example_ids in test_generator:
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
             predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
+
+            loss_non_reduced = criterion_non_reduced(predicted_ddyns, ddyns).cpu().data.numpy()
+            large_loss_indices = loss_non_reduced > 200
+            large_loss_examples += np.array(example_ids)[np.argwhere(large_loss_indices == True).reshape(-1,)].tolist()
+            small_loss_indices = loss_non_reduced < 50
+            small_loss_examples += np.array(example_ids)[np.argwhere(small_loss_indices == True).reshape(-1,)].tolist()
+
             loss_list.append(loss)
             length_list.append(predicted_ddyns.shape[0])
         epoch_loss = loss_across_epoch(loss_list, length_list)
         print('test loss: {:4.2f}'.format(epoch_loss))
+
+    total_count = {}
+    for i in range(12):
+        total_count[i] = 0
+    for example in partition['test']:
+        for i in range(12):
+            if example.startswith(str(i) + '_'):
+                total_count[i] += 1
+                break
+    print('total')
+    print(total_count)
+
+    large_error_examples_count = {}
+    for i in range(12):
+        large_error_examples_count[i] = 0
+
+    for example in large_loss_examples:
+        for i in range(12):
+            if example.startswith(str(i) + '_'):
+                large_error_examples_count[i] += 1
+                break
+    for i in range(10):
+        large_error_examples_count[i] = large_error_examples_count[i] * 100.0 / total_count[i]
+    print('large error')
+    print(large_error_examples_count)
+
+    small_error_examples_count = {}
+    for i in range(12):
+        small_error_examples_count[i] = 0
+
+    for example in small_loss_examples:
+        for i in range(12):
+            if example.startswith(str(i) + '_'):
+                small_error_examples_count[i] += 1
+                break
+    for i in range(10):
+        small_error_examples_count[i] = small_error_examples_count[i] * 100.0 / total_count[i]
+    print('small error')
+    print(small_error_examples_count)
+    
 
 
 if __name__ == '__main__':

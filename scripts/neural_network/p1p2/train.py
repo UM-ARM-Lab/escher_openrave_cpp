@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v0 import Model
+from model_v10 import Model
 from dataset import Dataset
 
-model_version = 'model_v0_2'
+model_version = 'model_v10_00001'
 
 def save_checkpoint(model, epoch, checkpoint_dir):
     state = {
@@ -42,7 +42,7 @@ def main():
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    learning_rate = 0.0005
+    learning_rate = 0.0001
     num_epoch = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
