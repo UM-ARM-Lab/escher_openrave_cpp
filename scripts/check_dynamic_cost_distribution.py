@@ -19,9 +19,9 @@ def main():
         exit(1)
 
     for environment_index in range(1):
-        if os.path.exists('/mnt/big_narstie_data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index)):
+        if os.path.exists('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index)):
             print('process data in file dynamic_cost_{}_{}'.format(environment_type, environment_index))
-            with open('/mnt/big_narstie_data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
+            with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
                 data = pickle.load(file)
                 p1_list = sorted(data.keys(), key=lambda element: (element[0], element[1], element[2]))
                 for p1i, p1 in enumerate(p1_list):

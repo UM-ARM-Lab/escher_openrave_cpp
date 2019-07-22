@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v6 import Model
+from model_v13 import Model
 from dataset import Dataset
 
-model_version = 'model_v6_00002'
+model_version = 'model_v13_00001_SGD'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -43,12 +43,12 @@ def main():
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    num_epoch = 20
+    num_epoch = 30
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.0002)
+    optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
     criterion = nn.L1Loss()
     
     start_from_saved_model = False
@@ -183,6 +183,8 @@ def main():
     
     with open(model_version + '_loss_history', 'w') as file:
         pickle.dump(loss_dict, file)
+    
+    print('current model: ' + model_version)
 
 
 
