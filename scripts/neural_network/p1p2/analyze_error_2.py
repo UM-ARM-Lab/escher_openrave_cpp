@@ -78,11 +78,11 @@ def main():
     plt.figure()
     plt.plot(range(200), positive_hist, '-o', label='positive', color='red')
     plt.plot(range(200), negative_hist, '-o', label='negative', color='blue')
-    plt.title('distribution of loss')
-    plt.xlabel('loss')
-    plt.ylabel('number of transitions')
+    plt.title('distribution of large error')
+    plt.xlabel('dynamic cost')
+    plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('../../../data/test_plus_type/loss.png')
+    plt.savefig('error.png')
     
 
 

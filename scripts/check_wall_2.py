@@ -58,11 +58,11 @@ def main():
     plt.plot(range(200), hist_a, '-o', label='no wall', color='red', alpha=0.5)
     plt.plot(range(200), hist_b, '-o', label='one wall only', color='green', alpha=0.5)
     plt.plot(range(200), hist_c, '-o', label='two walls', color='blue', alpha=0.5)
-    plt.title('distribution of 25 dynamic cost')
-    plt.xlabel('dynamic cost')
-    plt.ylabel('number of transitions')
+    plt.title('distribution of 25 percentiles')
+    plt.xlabel('25 percentile')
+    plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('../data/test_plus_type/25.png')
+    plt.savefig('../data/percentile_accurate_subset.png')
 
 
 if __name__ == '__main__':

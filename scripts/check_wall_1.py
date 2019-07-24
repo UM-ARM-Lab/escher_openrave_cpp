@@ -56,11 +56,11 @@ def main():
     plt.plot(range(600), environment_a_hist / np.sum(environment_a_hist), '-o', label='no wall', color='red')
     plt.plot(range(600), environment_b_hist / np.sum(environment_b_hist), '-o', label='one wall only', color='green')
     plt.plot(range(600), environment_c_hist / np.sum(environment_c_hist) , '-o', label='two walls', color='blue')
-    plt.title('distribution of dynamic cost')
+    plt.title('distribution of dynamic costs')
     plt.xlabel('dynamic cost')
     plt.ylabel('number of transitions')
     plt.legend()
-    plt.savefig('../data/test_plus_type/wall.png')
+    plt.savefig('../data/dynamic_cost_accurate_subset.png')
 
 
 if __name__ == '__main__':

@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v7 import Model
+from model_v14 import Model
 from dataset import Dataset
 
-model_version = 'model_v7_00001_SGD'
+model_version = 'model_v14_00001_SGD'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -48,7 +48,7 @@ def main():
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+    optimizer = optim.ASGD(model.parameters(), lr=0.0001)
     criterion = nn.L1Loss()
     
     start_from_saved_model = False
@@ -77,7 +77,7 @@ def main():
             try:
                 finished_epoch_last_time = checkpoint['epoch']
                 model.load_state_dict(checkpoint['model_state_dict'])
-                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print('Successfully load the model and optimizer from epoch {}'.format(finished_epoch_last_time))
             except:
                 print('Fail to load the model or optimizer from epoch {}'.format(finished_epoch_last_time))

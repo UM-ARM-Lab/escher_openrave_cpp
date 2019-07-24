@@ -89,10 +89,10 @@ def main():
     plt.plot(range(200), histbr, '-o', label='right wall only', color='yellow')
     plt.plot(range(200), histc, '-o', label='two walls', color='blue')
     plt.title('distribution of 25 percentiles')
-    plt.xlabel('dynamic cost')
-    plt.ylabel('number of transitions')
+    plt.xlabel('25 percentile')
+    plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('../data/whether_wall.png')
+    plt.savefig('../data/percentile_inaccurate.png')
 
      
 

@@ -185,14 +185,15 @@ def main():
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        # if environment_index < 5:
+        # if environment_index < 28:
         #     continue
         # if environment_index > 5:
         #     break
         if environment_index != prev_environment_index:
-            print('save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index))
+            print('start save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index))
             with open('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
                 pickle.dump(info, file)
+            print('finish save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index))
             info = {}
             prev_environment_index = environment_index
 
@@ -269,10 +270,10 @@ def main():
             info[discretized_p1][discretized_p2][transition_type] = np.concatenate((info[discretized_p1][discretized_p2][transition_type], np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)), axis=0)
         else:
             info[discretized_p1][discretized_p2][transition_type] = np.concatenate((initial_com_after_adjustment, final_com_after_adjustment, prediction[:, 6:7]), axis=1)
-    print('save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index))
+    print('start save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index))
     with open('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(prev_environment_index), 'w') as file:
         pickle.dump(info, file)
-
+    print('finish save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, prev_environment_index)) 
 
 if __name__ == "__main__":
     main()
