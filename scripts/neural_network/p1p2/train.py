@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v13 import Model
+from model_v14 import Model
 from dataset import Dataset
 
-model_version = 'model_v13_00001_SGD'
+model_version = 'model_v14_00001_SGD'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {

@@ -1,6 +1,7 @@
 import pickle, torch, os, IPython
 import torch.nn as nn
 import numpy as np
+import pprint
 
 from torch.utils import data
 
@@ -50,7 +51,8 @@ def main():
     large_loss_examples = []
     small_loss_examples = []
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
     print('device: {}'.format(device))
     model = Model()
     model = restore_checkpoint(model, model_version + '_checkpoint/').to(device)
@@ -70,6 +72,10 @@ def main():
             loss_non_reduced = criterion_non_reduced(predicted_ddyns, ddyns).cpu().data.numpy()
             large_loss_indices = loss_non_reduced > 200
             large_loss_examples += np.array(example_ids)[np.argwhere(large_loss_indices == True).reshape(-1,)].tolist()
+            # print('ground truth')
+            # print(ddyns[np.argwhere(large_loss_indices == True).reshape(-1,)])
+            # print('predicted')
+            # print(predicted_ddyns[np.argwhere(large_loss_indices == True).reshape(-1,)])
             small_loss_indices = loss_non_reduced < 50
             small_loss_examples += np.array(example_ids)[np.argwhere(small_loss_indices == True).reshape(-1,)].tolist()
 
@@ -87,7 +93,7 @@ def main():
                 total_count[i] += 1
                 break
     print('total')
-    print(total_count)
+    pprint.pprint(total_count)
 
     large_error_examples_count = {}
     for i in range(12):
@@ -101,7 +107,7 @@ def main():
     for i in range(10):
         large_error_examples_count[i] = large_error_examples_count[i] * 100.0 / total_count[i]
     print('large error')
-    print(large_error_examples_count)
+    pprint.pprint(large_error_examples_count)
 
     small_error_examples_count = {}
     for i in range(12):
@@ -115,7 +121,7 @@ def main():
     for i in range(10):
         small_error_examples_count[i] = small_error_examples_count[i] * 100.0 / total_count[i]
     print('small error')
-    print(small_error_examples_count)
+    pprint.pprint(small_error_examples_count)
     
 
 
