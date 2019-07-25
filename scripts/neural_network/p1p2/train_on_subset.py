@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v8 import Model
+from model_v3 import Model
 from dataset import Dataset
 
-model_version = 'model_v8_00001_SGD'
+model_version = 'model_v3_00001_SGD_subset'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -29,10 +29,10 @@ def loss_across_epoch(loss_list, length_list):
 
 
 def main():
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn_no_wall_subset', 'r') as file:
         p2_ddyn = pickle.load(file)
 
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_no_wall_subset', 'r') as file:
         partition = pickle.load(file)
     print('number of training examples: {}'.format(len(partition['training'])))
     print('number of validation examples: {}'.format(len(partition['validation'])))
@@ -117,14 +117,10 @@ def main():
             print('validation loss: {:4.2f}'.format(epoch_loss))
 
     else:
-        if os.path.exists(model_version + '_loss_history'):
-            with open(model_version + '_loss_history', 'r') as file:
-                loss_dict = pickle.load(file)
-            training_loss = loss_dict['training_loss']
-            validation_loss = loss_dict['validation_loss']
-        else:
-            training_loss = []
-            validation_loss = []
+        with open(model_version + '_loss_history', 'r') as file:
+            loss_dict = pickle.load(file)
+        training_loss = loss_dict['training_loss']
+        validation_loss = loss_dict['validation_loss']
 
     num_epoch_no_improvement = 0
     for epoch in range(num_epoch):
@@ -166,12 +162,12 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss.cpu().data.tolist())
             print('validation loss: {:4.2f}'.format(epoch_loss))
-        # if validation_loss[-1] > np.min(np.array(validation_loss)):
-        #     num_epoch_no_improvement += 1
-        # else:
-        #     num_epoch_no_improvement = 0
-        # if num_epoch_no_improvement == 20:
-        #     break
+        if validation_loss[-1] - validation_loss[-2] > 0:
+            num_epoch_no_improvement += 1
+        else:
+            num_epoch_no_improvement = 0
+        if num_epoch_no_improvement == 5:
+            break
 
     plt.figure()
     plt.plot(range(len(training_loss)), training_loss, 'o-', label='Training')
@@ -184,10 +180,10 @@ def main():
 
     loss_dict = {'training_loss': training_loss,
                  'validation_loss': validation_loss}
-
+    
     with open(model_version + '_loss_history', 'w') as file:
         pickle.dump(loss_dict, file)
-
+    
     print('current model: ' + model_version)
 
 

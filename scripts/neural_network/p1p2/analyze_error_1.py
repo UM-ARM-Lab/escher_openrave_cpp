@@ -46,7 +46,7 @@ def main():
         partition = pickle.load(file)
     print('number of test examples: {}'.format(len(partition['test'])))
     test_dataset = Dataset(p2_ddyn, partition['test'])
-    test_generator = data.DataLoader(test_dataset, batch_size=256, shuffle=True, num_workers=4)
+    test_generator = data.DataLoader(test_dataset, batch_size=512, shuffle=True, num_workers=4)
 
     large_loss_examples = []
     small_loss_examples = []
@@ -65,6 +65,7 @@ def main():
         loss_list = []
         length_list = []
         for ground_depth_maps, wall_depth_maps, p2s, ddyns, example_ids in test_generator:
+            print('1')
             ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
             predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
