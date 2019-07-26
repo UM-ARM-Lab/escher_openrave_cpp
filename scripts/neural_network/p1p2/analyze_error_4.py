@@ -50,11 +50,11 @@ def main():
     test_generator = data.DataLoader(test_dataset, batch_size=512, shuffle=True, num_workers=4)
 
     all_examples = []
-    positive_loss_10_examples = []
-    positive_loss_20_examples = []
-    positive_loss_30_examples = []
-    positive_loss_40_examples = []
-    positive_loss_50_examples = []
+    negative_loss_10_examples = []
+    negative_loss_20_examples = []
+    negative_loss_30_examples = []
+    negative_loss_40_examples = []
+    negative_loss_50_examples = []
 
     # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = 'cpu'
@@ -70,37 +70,37 @@ def main():
             predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = predicted_ddyns - ddyns
             all_examples += ddyns.tolist()
-            positive_loss_10_indices = loss > 10
-            positive_loss_10_examples += ddyns[np.argwhere(positive_loss_10_indices == True).reshape(-1,)].tolist()
-            positive_loss_20_indices = loss > 20
-            positive_loss_20_examples += ddyns[np.argwhere(positive_loss_20_indices == True).reshape(-1,)].tolist()
-            positive_loss_30_indices = loss > 30
-            positive_loss_30_examples += ddyns[np.argwhere(positive_loss_30_indices == True).reshape(-1,)].tolist()
-            positive_loss_40_indices = loss > 40
-            positive_loss_40_examples += ddyns[np.argwhere(positive_loss_40_indices == True).reshape(-1,)].tolist()
-            positive_loss_50_indices = loss > 50
-            positive_loss_50_examples += ddyns[np.argwhere(positive_loss_50_indices == True).reshape(-1,)].tolist()
+            negative_loss_10_indices = loss < -10
+            negative_loss_10_examples += ddyns[np.argwhere(negative_loss_10_indices == True).reshape(-1,)].tolist()
+            negative_loss_20_indices = loss < -20
+            negative_loss_20_examples += ddyns[np.argwhere(negative_loss_20_indices == True).reshape(-1,)].tolist()
+            negative_loss_30_indices = loss < -30
+            negative_loss_30_examples += ddyns[np.argwhere(negative_loss_30_indices == True).reshape(-1,)].tolist()
+            negative_loss_40_indices = loss < -40
+            negative_loss_40_examples += ddyns[np.argwhere(negative_loss_40_indices == True).reshape(-1,)].tolist()
+            negative_loss_50_indices = loss < -50
+            negative_loss_50_examples += ddyns[np.argwhere(negative_loss_50_indices == True).reshape(-1,)].tolist()
             
-    positive_10_clipped = np.clip(np.array(positive_loss_10_examples), 0, 2000)
-    positive_10_hist, _ = np.histogram(positive_10_clipped, bins=np.arange(0, 2010, 10))
-    positive_20_clipped = np.clip(np.array(positive_loss_20_examples), 0, 2000)
-    positive_20_hist, _ = np.histogram(positive_20_clipped, bins=np.arange(0, 2010, 10))
-    positive_30_clipped = np.clip(np.array(positive_loss_30_examples), 0, 2000)
-    positive_30_hist, _ = np.histogram(positive_30_clipped, bins=np.arange(0, 2010, 10))
-    positive_40_clipped = np.clip(np.array(positive_loss_40_examples), 0, 2000)
-    positive_40_hist, _ = np.histogram(positive_40_clipped, bins=np.arange(0, 2010, 10))
-    positive_50_clipped = np.clip(np.array(positive_loss_50_examples), 0, 2000)
-    positive_50_hist, _ = np.histogram(positive_50_clipped, bins=np.arange(0, 2010, 10))
+    negative_10_clipped = np.clip(np.array(negative_loss_10_examples), 0, 2000)
+    negative_10_hist, _ = np.histogram(negative_10_clipped, bins=np.arange(0, 2010, 10))
+    negative_20_clipped = np.clip(np.array(negative_loss_20_examples), 0, 2000)
+    negative_20_hist, _ = np.histogram(negative_20_clipped, bins=np.arange(0, 2010, 10))
+    negative_30_clipped = np.clip(np.array(negative_loss_30_examples), 0, 2000)
+    negative_30_hist, _ = np.histogram(negative_30_clipped, bins=np.arange(0, 2010, 10))
+    negative_40_clipped = np.clip(np.array(negative_loss_40_examples), 0, 2000)
+    negative_40_hist, _ = np.histogram(negative_40_clipped, bins=np.arange(0, 2010, 10))
+    negative_50_clipped = np.clip(np.array(negative_loss_50_examples), 0, 2000)
+    negative_50_hist, _ = np.histogram(negative_50_clipped, bins=np.arange(0, 2010, 10))
 
     all_examples_clipped = np.clip(np.array(all_examples), 0, 2000)
     all_examples_hist, _ = np.histogram(all_examples_clipped, bins=np.arange(0, 2010, 10))
     
     plt.figure()
-    plt.plot(range(200), positive_10_hist, '-', label='positive 10', color='pink')
-    plt.plot(range(200), positive_20_hist, '-', label='positive 20', color='hotpink')
-    plt.plot(range(200), positive_30_hist, '-', label='positive 30', color='deeppink')
-    plt.plot(range(200), positive_40_hist, '-', label='positive 40', color='red')
-    plt.plot(range(200), positive_50_hist, '-', label='positive 50', color='darkred')
+    plt.plot(range(200), negative_10_hist, '-', label='negative 10', color='lightskyblue')
+    plt.plot(range(200), negative_20_hist, '-', label='negative 20', color='cornflowerblue')
+    plt.plot(range(200), negative_30_hist, '-', label='negative 30', color='royalblue')
+    plt.plot(range(200), negative_40_hist, '-', label='negative 40', color='blue')
+    plt.plot(range(200), negative_50_hist, '-', label='negative 50', color='darkblue')
 
     plt.plot(range(200), all_examples_hist, '-', label='all', color='green')
     
@@ -108,7 +108,7 @@ def main():
     plt.xlabel('dynamic cost')
     plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('positive_weighted_loss.png')
+    plt.savefig('negative_weighted_loss.png')
     
 
 

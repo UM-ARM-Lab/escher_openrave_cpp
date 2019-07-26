@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from torch import nn, optim
 from torch.utils import data
 
-from model_v8 import Model
+from model_v3 import Model
 from dataset import Dataset
 
-model_version = 'model_v8_00001_SGD'
+model_version = 'model_v3_00001_Adam_Weighted_Loss'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -26,6 +26,15 @@ def loss_across_epoch(loss_list, length_list):
         total_loss += loss * length_list[i]
         total_length += length_list[i]
     return total_loss / total_length
+
+
+class Weighted_Loss(torch.nn.Module):
+    def __init__(self):
+        super(Weighted_Loss, self).__init__()
+
+    def forward(self, Input, Target):
+        loss = Input - Target
+        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
 
 
 def main():
@@ -48,8 +57,8 @@ def main():
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
-    criterion = nn.L1Loss()
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    criterion = Weighted_Loss()
     
     start_from_saved_model = False
     if os.path.exists(model_version + '_checkpoint/'):

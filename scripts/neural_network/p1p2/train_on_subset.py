@@ -7,7 +7,7 @@ from torch.utils import data
 from model_v3 import Model
 from dataset import Dataset
 
-model_version = 'model_v3_00001_SGD_subset'
+model_version = 'model_v3_000002_SGD_subset'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -48,7 +48,7 @@ def main():
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.00002, momentum=0.9)
     criterion = nn.L1Loss()
     
     start_from_saved_model = False

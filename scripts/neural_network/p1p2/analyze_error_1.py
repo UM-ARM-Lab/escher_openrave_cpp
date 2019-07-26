@@ -21,11 +21,12 @@ def restore_checkpoint(model, checkpoint_dir):
 
     print('Which epoch to load from in range [0, {}]?'.format(len(files)-1))
     requested_epoch = int(input())
-    if requested_epoch not in range(len(files)):
+    filename = os.path.join(checkpoint_dir, 'epoch={}.checkpoint.pth.tar'.format(requested_epoch))
+
+    if not os.path.exists(filename):
         print('Invalid epoch number')
         exit(1)
 
-    filename = os.path.join(checkpoint_dir, 'epoch={}.checkpoint.pth.tar'.format(requested_epoch))
     checkpoint = torch.load(filename)
 
     try:
@@ -39,10 +40,10 @@ def restore_checkpoint(model, checkpoint_dir):
 
 
 def main():
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn_no_wall_subset', 'r') as file:
         p2_ddyn = pickle.load(file)
 
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_no_wall_subset', 'r') as file:
         partition = pickle.load(file)
     print('number of test examples: {}'.format(len(partition['test'])))
     test_dataset = Dataset(p2_ddyn, partition['test'])
@@ -105,7 +106,7 @@ def main():
             if example.startswith(str(i) + '_'):
                 large_error_examples_count[i] += 1
                 break
-    for i in range(10):
+    for i in range(3):
         large_error_examples_count[i] = large_error_examples_count[i] * 100.0 / total_count[i]
     print('large error')
     pprint.pprint(large_error_examples_count)
@@ -119,7 +120,7 @@ def main():
             if example.startswith(str(i) + '_'):
                 small_error_examples_count[i] += 1
                 break
-    for i in range(10):
+    for i in range(3):
         small_error_examples_count[i] = small_error_examples_count[i] * 100.0 / total_count[i]
     print('small error')
     pprint.pprint(small_error_examples_count)

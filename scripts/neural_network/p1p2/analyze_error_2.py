@@ -30,7 +30,7 @@ def restore_checkpoint(model, checkpoint_dir):
     checkpoint = torch.load(filename)
 
     try:
-        model.load_state_dict(checkpoint['state_dict'])
+        model.load_state_dict(checkpoint['model_state_dict'])
         print('Successfully load the model from epoch {}'.format(requested_epoch))
     except:
         print('Fail to load the model from epoch {}'.format(requested_epoch))
