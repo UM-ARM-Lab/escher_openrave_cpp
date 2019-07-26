@@ -110,7 +110,7 @@ def main():
     plt.xlabel('real value')
     plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('loss.png')
+    plt.savefig('negative.png')
     
 
 

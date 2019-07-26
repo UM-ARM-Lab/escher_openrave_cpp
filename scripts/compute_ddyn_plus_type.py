@@ -185,7 +185,7 @@ def main():
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        # if environment_index < 28:
+        # if environment_index < 43:
         #     continue
         # if environment_index > 5:
         #     break
