@@ -48,7 +48,7 @@ def main():
     with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
     print('number of test examples: {}'.format(len(partition['test'])))
-    test_dataset = Dataset(p2_ddyn, partition['test'][:10])
+    test_dataset = Dataset(p2_ddyn, partition['test'])
     test_generator = data.DataLoader(test_dataset, batch_size=512, shuffle=True, num_workers=4)
 
     all_examples = []
