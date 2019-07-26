@@ -48,7 +48,7 @@ def main():
     with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
     print('number of test examples: {}'.format(len(partition['test'])))
-    test_dataset = Dataset(p2_ddyn, partition['test'])
+    test_dataset = Dataset(p2_ddyn, partition['test'][:10])
     test_generator = data.DataLoader(test_dataset, batch_size=512, shuffle=True, num_workers=4)
 
     all_examples = []
@@ -98,16 +98,16 @@ def main():
     all_examples_hist, _ = np.histogram(all_examples_clipped, bins=np.arange(0, 2010, 10))
     
     plt.figure()
-    plt.plot(range(200), positive_10_hist, '-', label='positive 10', color='pink')
-    plt.plot(range(200), positive_20_hist, '-', label='positive 20', color='hotpink')
-    plt.plot(range(200), positive_30_hist, '-', label='positive 30', color='deeppink')
-    plt.plot(range(200), positive_40_hist, '-', label='positive 40', color='red')
-    plt.plot(range(200), positive_50_hist, '-', label='positive 50', color='darkred')
+    plt.plot(np.arange(0, 2000, 10), positive_10_hist, '-', label='positive 10', color='pink')
+    plt.plot(np.arange(0, 2000, 10), positive_20_hist, '-', label='positive 20', color='hotpink')
+    plt.plot(np.arange(0, 2000, 10), positive_30_hist, '-', label='positive 30', color='deeppink')
+    plt.plot(np.arange(0, 2000, 10), positive_40_hist, '-', label='positive 40', color='red')
+    plt.plot(np.arange(0, 2000, 10), positive_50_hist, '-', label='positive 50', color='darkred')
 
-    plt.plot(range(200), all_examples_hist, '-', label='all', color='green')
+    plt.plot(np.arange(0, 2000, 10), all_examples_hist, '-', label='all', color='green')
     
-    plt.title('distribution of large error')
-    plt.xlabel('dynamic cost')
+    plt.title('distribution of positive error')
+    plt.xlabel('real value')
     plt.ylabel('number of examples')
     plt.legend()
     plt.savefig('positive_weighted_loss.png')
