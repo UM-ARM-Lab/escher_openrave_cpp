@@ -12,7 +12,7 @@ from model_v3 import Model
 from special_dataset import Dataset
 from train import loss_across_epoch
 
-model_version = 'model_v3_00001_Adam_Weighted_Loss'
+model_version = 'model_v3_00005'
 
 def restore_checkpoint(model, checkpoint_dir):
     files = [file for file in os.listdir(checkpoint_dir)
@@ -32,7 +32,7 @@ def restore_checkpoint(model, checkpoint_dir):
     checkpoint = torch.load(filename)
 
     try:
-        model.load_state_dict(checkpoint['model_state_dict'])
+        model.load_state_dict(checkpoint['state_dict'])
         print('Successfully load the model from epoch {}'.format(requested_epoch))
     except:
         print('Fail to load the model from epoch {}'.format(requested_epoch))
@@ -48,7 +48,7 @@ def main():
     with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
     print('number of test examples: {}'.format(len(partition['test'])))
-    test_dataset = Dataset(p2_ddyn, partition['test'][:10])
+    test_dataset = Dataset(p2_ddyn, partition['test'])
     test_generator = data.DataLoader(test_dataset, batch_size=512, shuffle=True, num_workers=4)
 
     all_examples = []
@@ -110,7 +110,7 @@ def main():
     plt.xlabel('real value')
     plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('positive_weighted_loss.png')
+    plt.savefig('positive.png')
     
 
 

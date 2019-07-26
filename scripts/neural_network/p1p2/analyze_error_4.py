@@ -2,6 +2,8 @@ import pickle, torch, os, IPython
 import torch.nn as nn
 import numpy as np
 import pprint
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 from torch.utils import data
@@ -10,7 +12,7 @@ from model_v3 import Model
 from special_dataset import Dataset
 from train import loss_across_epoch
 
-model_version = 'model_v3_00001_Adam_Weighted_Loss'
+model_version = 'model_v3_00005'
 
 def restore_checkpoint(model, checkpoint_dir):
     files = [file for file in os.listdir(checkpoint_dir)
@@ -30,7 +32,7 @@ def restore_checkpoint(model, checkpoint_dir):
     checkpoint = torch.load(filename)
 
     try:
-        model.load_state_dict(checkpoint['model_state_dict'])
+        model.load_state_dict(checkpoint['state_dict'])
         print('Successfully load the model from epoch {}'.format(requested_epoch))
     except:
         print('Fail to load the model from epoch {}'.format(requested_epoch))
@@ -96,19 +98,19 @@ def main():
     all_examples_hist, _ = np.histogram(all_examples_clipped, bins=np.arange(0, 2010, 10))
     
     plt.figure()
-    plt.plot(range(200), negative_10_hist, '-', label='negative 10', color='lightskyblue')
-    plt.plot(range(200), negative_20_hist, '-', label='negative 20', color='cornflowerblue')
-    plt.plot(range(200), negative_30_hist, '-', label='negative 30', color='royalblue')
-    plt.plot(range(200), negative_40_hist, '-', label='negative 40', color='blue')
-    plt.plot(range(200), negative_50_hist, '-', label='negative 50', color='darkblue')
+    plt.plot(np.arange(0, 2000, 10), negative_10_hist, '-', label='negative 10', color='lightskyblue')
+    plt.plot(np.arange(0, 2000, 10), negative_20_hist, '-', label='negative 20', color='cornflowerblue')
+    plt.plot(np.arange(0, 2000, 10), negative_30_hist, '-', label='negative 30', color='royalblue')
+    plt.plot(np.arange(0, 2000, 10), negative_40_hist, '-', label='negative 40', color='blue')
+    plt.plot(np.arange(0, 2000, 10), negative_50_hist, '-', label='negative 50', color='darkblue')
 
-    plt.plot(range(200), all_examples_hist, '-', label='all', color='green')
+    plt.plot(np.arange(0, 2000, 10), all_examples_hist, '-', label='all', color='green')
     
-    plt.title('distribution of large error')
-    plt.xlabel('dynamic cost')
+    plt.title('distribution of negative error')
+    plt.xlabel('real value')
     plt.ylabel('number of examples')
     plt.legend()
-    plt.savefig('negative_weighted_loss.png')
+    plt.savefig('loss.png')
     
 
 
