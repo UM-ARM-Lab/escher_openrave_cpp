@@ -1,13 +1,14 @@
 import os, torch, pickle, shutil, IPython
+import numpy as np
 import matplotlib.pyplot as plt
 
 from torch import nn, optim
 from torch.utils import data
 
-from model_v3 import Model
+from model_v8 import Model
 from dataset import Dataset
 
-model_version = 'model_v3_00001_Adam_Weighted_Loss'
+model_version = 'model_v8_0001_Adam_Weighted_Loss'
 
 def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
     state = {
@@ -57,7 +58,8 @@ def main():
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    learning_rate = 0.001
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     criterion = Weighted_Loss()
     
     start_from_saved_model = False
@@ -175,12 +177,13 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss.cpu().data.tolist())
             print('validation loss: {:4.2f}'.format(epoch_loss))
-        # if validation_loss[-1] > np.min(np.array(validation_loss)):
-        #     num_epoch_no_improvement += 1
-        # else:
-        #     num_epoch_no_improvement = 0
-        # if num_epoch_no_improvement == 20:
-        #     break
+        if validation_loss[-1] > np.min(np.array(validation_loss)) + 1:
+            num_epoch_no_improvement += 1
+        else:
+            num_epoch_no_improvement = 0
+        if num_epoch_no_improvement == 10:
+            print('change optimizer')
+            optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
 
     plt.figure()
     plt.plot(range(len(training_loss)), training_loss, 'o-', label='Training')

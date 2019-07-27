@@ -181,12 +181,12 @@ def main():
     # its value is (initial_com_position, final_com_position, ddyn) (numpy array)
     info = {}
 
-    prev_environment_index = 0
+    prev_environment_index = 38
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        # if environment_index < 43:
-        #     continue
+        if environment_index < 38:
+            continue
         # if environment_index > 5:
         #     break
         if environment_index != prev_environment_index:
