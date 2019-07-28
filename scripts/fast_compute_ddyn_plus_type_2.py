@@ -10,19 +10,6 @@ import tensorflow as tf
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
 
-
-def adjust_p2(p1, p2):
-    """
-    p1: [p1x, p1y, p1yaw]
-    p2: [p2x, p2y, p2yaw]
-    """
-    p1_yaw_in_radian = p1[2] / 180.0 * np.pi
-    rotation_matrix = np.array([[np.cos(-p1_yaw_in_radian), -np.sin(-p1_yaw_in_radian)],
-                                [np.sin(-p1_yaw_in_radian), np.cos(-p1_yaw_in_radian)]])
-    p2_xy_after_adjustment = np.matmul(rotation_matrix, np.array([[p2[0] - p1[0]], [p2[1] - p1[1]]]))
-    return [p2_xy_after_adjustment[0][0], p2_xy_after_adjustment[1][0], p2[2] - p1[2]]
-
-
 def adjust_com(com_before_adjustment, original_frame, new_frame):
     """
     "original_frame" is mean_feet_pose, which has 6 entries
@@ -52,36 +39,20 @@ def adjust_com(com_before_adjustment, original_frame, new_frame):
     return com_after_adjustment
 
 
-def discretize_torso_pose(p):
-    """
-    px, py, pyaw
-    """
-    resolutions = [GRID_RESOLUTION, GRID_RESOLUTION, ANGLE_RESOLUTION]
-    indices = [None] * len(resolutions)
-    for i, v in enumerate(p):
-        if abs(v) > resolutions[i] / 2.0:
-            temp = v - np.sign(v) * resolutions[i] / 2.0
-            indices[i] = int(np.sign(temp) * math.ceil(np.round(abs(temp) / resolutions[i], 1)))
-        else:
-            indices[i] = 0
-    return indices
-
-
 def main():
-    device = None
-    environment_type = None
+    environment_type = 10
+    environment_index = 0
+
+    device = None    
     try:
-        inputs, _ = getopt.getopt(sys.argv[1:], "d:e:", ['device', 'environment_type'])
+        inputs, _ = getopt.getopt(sys.argv[1:], "d:", ['device'])
 
         for opt, arg in inputs:
             if opt == '-d':
                 device = arg
 
-            if opt == '-e':
-                environment_type = arg
-
     except getopt.GetoptError:
-        print('usage: -d: [cpu / gpu] -e: [environment_type]')
+        print('usage: -d: [cpu / gpu]')
         exit(1)
 
     if device == 'cpu':
@@ -143,31 +114,6 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    # for distance to training data of classification model and regression model
-    # classification_training_data_mean = {}
-    # classification_training_data_std = {}
-    # classification_training_data_tree = {}
-    # regression_training_data_mean = {}
-    # regression_training_data_std = {}
-    # regression_training_data_tree = {}
-    # for i in range(10):
-    #     file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
-    #     original_X = pickle.load(file)[:, 1:-7]
-    #     regression_training_data_mean[i] = np.mean(original_X, axis=0, dtype=np.float32)
-    #     regression_training_data_std[i] = np.std(original_X, axis=0, dtype=np.float32)
-    #     normalized_original_X = (original_X - regression_training_data_mean[i]) / regression_training_data_std[i]
-    #     regression_training_data_tree[i] = faiss.IndexFlatL2(normalized_original_X.shape[1])
-    #     regression_training_data_tree[i].add(np.float32(normalized_original_X))
-    #
-    #     file = open('../data/dynopt_result/dataset/dynopt_infeasible_total_data_' + str(i), 'r')
-    #     infeasible_original_X = pickle.load(file)[:, 1:-1]
-    #     all_original_X = np.concatenate((original_X, infeasible_original_X), axis=0)
-    #     classification_training_data_mean[i] = np.mean(all_original_X, axis=0, dtype=np.float32)
-    #     classification_training_data_std[i] = np.std(all_original_X, axis=0, dtype=np.float32)
-    #     normalized_all_original_X = (all_original_X - classification_training_data_mean[i]) / classification_training_data_std[i]
-    #     classification_training_data_tree[i] = faiss.IndexFlatL2(normalized_all_original_X.shape[1])
-    #     classification_training_data_tree[i].add(np.float32(normalized_all_original_X))
-
     # load sampled transitions
     transitions = None
     with open('../data/medium_dataset_normal_wall/transitions_' + environment_type, 'r') as file:
@@ -181,12 +127,12 @@ def main():
     # its value is (initial_com_position, final_com_position, ddyn) (numpy array)
     info = {}
 
-    prev_environment_index = 0
+    prev_environment_index = 38
 
     for idx, transition in enumerate(transitions):
         environment_index = transition['environment_index']
-        # if environment_index < 38:
-        #     continue
+        if environment_index < 38:
+            continue
         # if environment_index > 5:
         #     break
         if environment_index != prev_environment_index:
@@ -226,28 +172,12 @@ def main():
                 continue
             X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
-        # check the distance to the training data of classification model
-        # dist, _ = classification_training_data_tree[transition_type].search(np.float32((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type]), 10)
-        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-        # valid_com_indices = dist < 3.0
-        # if np.sum(valid_com_indices) == 0:
-        #     continue
-        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
-
         # query the classification model
         prediction = classification_models[transition_type].predict((X - classification_input_normalize_params[transition_type][0]) / classification_input_normalize_params[transition_type][1])
         valid_com_indices = prediction.reshape(-1,) > 0.5
         if np.sum(valid_com_indices) == 0:
             continue
         X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
-
-        # check the distance to the training data of the regression model
-        # dist, _ = regression_training_data_tree[transition_type].search(np.float32((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type]), 10)
-        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-        # valid_com_indices = dist < 3.0
-        # if np.sum(valid_com_indices) == 0:
-        #     continue
-        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
         # query the regression model
         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]

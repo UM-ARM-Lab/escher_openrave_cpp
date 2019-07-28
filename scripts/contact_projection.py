@@ -39,13 +39,14 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
         left_foot_height = -LARGE_NUMBER
 
         for struct in structures:
-            left_foot_projection = struct.projection(robot_obj,np.array([[node.left_leg[0]],[node.left_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_left_horizontal_yaw(),'foot')
+            if struct.geometry == 'trimesh' and struct.type == 'ground':
+                left_foot_projection = struct.projection(robot_obj,np.array([[node.left_leg[0]],[node.left_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_left_horizontal_yaw(),'foot')
 
-            if left_foot_projection is not None and left_foot_height < left_foot_projection[2,3]:
-                left_foot_height = left_foot_projection[2,3]
-                left_foot_projection_xyzrpy = SE3_to_xyzrpy(left_foot_projection)
-                node.left_leg[0:3] = [round(i,3) for i in left_foot_projection_xyzrpy[0:3]]
-                node.left_leg[3:6] = [round(i,1) for i in left_foot_projection_xyzrpy[3:6]]
+                if left_foot_projection is not None and left_foot_height < left_foot_projection[2,3]:
+                    left_foot_height = left_foot_projection[2,3]
+                    left_foot_projection_xyzrpy = SE3_to_xyzrpy(left_foot_projection)
+                    node.left_leg[0:3] = [round(i,3) for i in left_foot_projection_xyzrpy[0:3]]
+                    node.left_leg[3:6] = [round(i,1) for i in left_foot_projection_xyzrpy[3:6]]
 
         if left_foot_height == -LARGE_NUMBER:
             return False # No projection
@@ -53,13 +54,14 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
     if checking_right_foot:
         right_foot_height = -LARGE_NUMBER
         for struct in structures:
-            right_foot_projection = struct.projection(robot_obj,np.array([[node.right_leg[0]],[node.right_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_right_horizontal_yaw(),'foot')
-            
-            if right_foot_projection is not None and right_foot_height < right_foot_projection[2,3]:
-                right_foot_height = right_foot_projection[2,3]
-                right_foot_projection_xyzrpy = SE3_to_xyzrpy(right_foot_projection)
-                node.right_leg[0:3] = [round(i,3) for i in right_foot_projection_xyzrpy[0:3]]
-                node.right_leg[3:6] = [round(i,1) for i in right_foot_projection_xyzrpy[3:6]]
+            if struct.geometry == 'trimesh' and struct.type == 'ground':
+                right_foot_projection = struct.projection(robot_obj,np.array([[node.right_leg[0]],[node.right_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_right_horizontal_yaw(),'foot')
+                
+                if right_foot_projection is not None and right_foot_height < right_foot_projection[2,3]:
+                    right_foot_height = right_foot_projection[2,3]
+                    right_foot_projection_xyzrpy = SE3_to_xyzrpy(right_foot_projection)
+                    node.right_leg[0:3] = [round(i,3) for i in right_foot_projection_xyzrpy[0:3]]
+                    node.right_leg[3:6] = [round(i,1) for i in right_foot_projection_xyzrpy[3:6]]
 
         if right_foot_height == -LARGE_NUMBER:
             return False # No projection

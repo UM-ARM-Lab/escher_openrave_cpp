@@ -295,6 +295,8 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot
             temp_dict['environment_index'] = environment_index
             temp_dict['p1'] = one_contact_transition.init_node.get_virtual_body_pose()
             temp_dict['p2'] = one_contact_transition.final_node.get_virtual_body_pose()
+            if temp_dict['p2'][5] - temp_dict['p1'][5] > 45 or temp_dict['p2'][5] - temp_dict['p1'][5] < -45:
+                IPython.embed()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
