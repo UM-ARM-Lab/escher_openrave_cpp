@@ -12,8 +12,8 @@ RADIUS = 1.0
 # RADIUS = 0.7
 WALL_DEFAULT_DEPTH = 2.0
 # WALL_DEFAULT_DEPTH = 0.7
-WALL_MIN_HEIGHT = 1.0
-WALL_MAX_HEIGHT = 2.0
+# WALL_MIN_HEIGHT = 1.0
+# WALL_MAX_HEIGHT = 2.0
 
 def rotate_quadrilaterals(coordinates, theta):
     """
@@ -94,7 +94,7 @@ def angle(x, y):
     return np.pi - np.arctan(y * 1.0 / x) + (x < 0).astype(int) * ((y < 0).astype(int) * 2 - 1) * np.pi
 
 
-def patch_depth_map(entire_map, map_type, resolution, vertices):
+def patch_depth_map(entire_map, map_type, resolution, vertices, wall_min_height=None, wall_max_height=None):
     """
     Inputs:
     "entire_map" should be a 2d numpy array. It will be modified in place.
@@ -139,7 +139,7 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
 
     elif map_type == "wall":
         z_min, z_max = np.min(vertices_array[:, 2]), np.max(vertices_array[:, 2])
-        if z_min > WALL_MAX_HEIGHT or z_max < WALL_MIN_HEIGHT:
+        if z_min > wall_max_height or z_max < wall_min_height:
             return
 
         if np.min(vertices_array[:, 0] < 0) and np.min(vertices_array[:, 1]) < 0 and np.max(vertices_array[:, 1]) > 0:
@@ -151,15 +151,15 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
             theta_max2 = 2 * np.pi
             for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
                 z = z_temp * resolution
-                if z < WALL_MIN_HEIGHT:
+                if z < wall_min_height:
                     continue
-                if z > WALL_MAX_HEIGHT:
+                if z > wall_max_height:
                     break
                 for theta_temp in range(int(math.ceil(theta_min1 * RADIUS / resolution)), int(math.ceil(theta_max1 * RADIUS / resolution))) + range(int(math.ceil(theta_min2 * RADIUS / resolution)), int(math.ceil(theta_max2 * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
-                        idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
+                        idx_1 = int(wall_max_height / resolution) - z_temp
                         idx_2 = theta_temp
                         if entire_map[idx_1][idx_2] > rho:
                             entire_map[idx_1][idx_2] = rho
@@ -168,15 +168,15 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
             theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
             for z_temp in range(int(math.ceil(z_min / resolution)), int(math.ceil(z_max / resolution))):
                 z = z_temp * resolution
-                if z < WALL_MIN_HEIGHT:
+                if z < wall_min_height:
                     continue
-                if z > WALL_MAX_HEIGHT:
+                if z > wall_max_height:
                     break
                 for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
-                        idx_1 = int(WALL_MAX_HEIGHT / resolution) - z_temp
+                        idx_1 = int(wall_max_height / resolution) - z_temp
                         idx_2 = theta_temp
                         if entire_map[idx_1][idx_2] > rho:
                             entire_map[idx_1][idx_2] = rho
@@ -186,7 +186,7 @@ def patch_depth_map(entire_map, map_type, resolution, vertices):
         exit(1)
 
 
-def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
+def entire_depth_map(coordinates, map_type, resolution, wall_min_height=None, wall_max_height=None):
     """
     Inputs:
     "coordinates" should be a 2d numpy array.
@@ -207,7 +207,7 @@ def entire_depth_map(coordinates, map_type, resolution=RESOLUTION):
         # IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int((WALL_MAX_HEIGHT - WALL_MIN_HEIGHT) / resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
+        entire_map = np.ones((int((wall_max_height - wall_min_height) / resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
             patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
         # IPython.embed()

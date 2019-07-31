@@ -37,7 +37,6 @@ def foot_projection(robot_obj, node, structures, mapping_manip='all'):
 
     if checking_left_foot:
         left_foot_height = -LARGE_NUMBER
-
         for struct in structures:
             if struct.geometry == 'trimesh' and struct.type == 'ground':
                 left_foot_projection = struct.projection(robot_obj,np.array([[node.left_leg[0]],[node.left_leg[1]],[LARGE_NUMBER]]),np.array([[0],[0],[-1]],dtype=float),node.get_left_horizontal_yaw(),'foot')
@@ -198,6 +197,8 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
                     child_node = node(current_left_leg, new_right_leg, current_left_arm, current_right_arm)
 
                 if foot_projection(robot_obj, child_node, structures):
+                    assert(child_node.left_leg[2] < 1.0)
+                    assert(child_node.right_leg[2] < 1.0)
                     child_node.prev_move_manip = manip
                     if child_node.node_feasibile(robot_obj):
                         child_node_list.append(child_node)

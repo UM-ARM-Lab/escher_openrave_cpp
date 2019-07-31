@@ -204,7 +204,7 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     handles = []
@@ -226,7 +226,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot
         init_left_hand_pose_lists = [copy.copy(no_contact)] # ?????
         init_right_hand_pose_lists = [copy.copy(no_contact)] # ?????
 
-        for arm_orientation in hand_transition_model:
+        for arm_orientation in hand_transition_model1:
             if arm_orientation[0] != -99.0:
                 if hand_projection(robot_obj, LEFT_ARM, arm_orientation, dummy_init_node, structures):
                     init_left_hand_pose_lists.append(copy.copy(dummy_init_node.left_arm))
@@ -285,7 +285,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot
     rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
     contact_transition_list = []
     for init_node in init_node_list:
-        child_node_list = branching(init_node, foot_transition_model2, hand_transition_model, structures, robot_obj)
+        child_node_list = branching(init_node, foot_transition_model2, hand_transition_model2, structures, robot_obj)
 
         for child_node in child_node_list:
             # ??????????
@@ -295,8 +295,6 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model, foot
             temp_dict['environment_index'] = environment_index
             temp_dict['p1'] = one_contact_transition.init_node.get_virtual_body_pose()
             temp_dict['p2'] = one_contact_transition.final_node.get_virtual_body_pose()
-            if temp_dict['p2'][5] - temp_dict['p1'][5] > 45 or temp_dict['p2'][5] - temp_dict['p1'][5] < -45:
-                IPython.embed()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
@@ -357,13 +355,21 @@ def main(robot_name='athena'): # for test
         env.SetCollisionChecker(rave.RaveCreateCollisionChecker(env, "ode"))
 
     ### Construct the hand transition model
-    hand_transition_model = []
+    hand_transition_model1 = []
     hand_pitch = [-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0] # horizontal
     hand_yaw = [-20.0,0.0,20.0] # vertical
     for pitch in hand_pitch:
         for yaw in hand_yaw:
-            hand_transition_model.append((pitch,yaw))
-    hand_transition_model.append((-99.0,-99.0))
+            hand_transition_model1.append((pitch,yaw))
+    hand_transition_model1.append((-99.0,-99.0))
+
+    hand_transition_model2 = []
+    hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0] # horizontal
+    hand_yaw = [-20.0,0.0,20.0] # vertical
+    for pitch in hand_pitch:
+        for yaw in hand_yaw:
+            hand_transition_model2.append((pitch,yaw))
+    hand_transition_model2.append((-99.0,-99.0))
   
 
     ### Load the foot transition model
@@ -439,7 +445,7 @@ def main(robot_name='athena'): # for test
                 exit(1)
         environments.append(env)
                 
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
     with open('../data/medium_dataset_normal_wall/' + transition_file, 'w') as file:

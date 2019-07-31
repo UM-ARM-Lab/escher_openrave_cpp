@@ -17,9 +17,7 @@ class node:
         self.right_arm = [None] * len(right_arm)
 
         self.left_leg[0:3] = [round(i,3) for i in left_leg[0:3]]
-        assert(self.left_leg[2] < 1.0)
         self.right_leg[0:3] = [round(i,3) for i in right_leg[0:3]]
-        assert(self.right_leg[2] < 1.0)
         self.left_arm[0:3] = [round(i,3) for i in left_arm[0:3]]
         self.right_arm[0:3] = [round(i,3) for i in right_arm[0:3]]
 
