@@ -152,6 +152,8 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
     {
         OpenRAVE::EnvironmentMutex::scoped_lock lockenv(env->GetMutex());
 
+        std::vector< std::vector<float> > temp_height_map(dim_x_, std::vector<float>(dim_y_, -99.0));
+
         Translation3D projection_ray(0,0,-1);
         for(int ix = 0; ix < dim_x_; ix++)
         {
@@ -163,17 +165,59 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
                 float height = -99.0;
                 for(auto structure : structures)
                 {
-                    Translation3D projected_point = structure->projectionGlobalFrame(projection_start_point, projection_ray);
-                    if(structure->insidePolygon(projected_point))
+                    if(structure->getType() == TrimeshType::GROUND)
                     {
-                        has_projection = true;
-                        height = projected_point[2] > height ? projected_point[2] : height;
+                        Translation3D projected_point = structure->projectionGlobalFrame(projection_start_point, projection_ray);
+                        if(structure->insidePolygon(projected_point))
+                        {
+                            has_projection = true;
+                            height = projected_point[2] > height ? projected_point[2] : height;
+                        }
                     }
                 }
 
-                cell_2D_list_[ix][iy].height_ = height;
+                temp_height_map[ix][iy] = height;
+            }
+        }
 
-                if(!has_projection)
+        // Filter(Smooth) the height map (or you can just fill in holes)
+        int window_size = 3; // must be a odd number
+        for(int ix = 1; ix < dim_x_-1; ix++)
+        {
+            for(int iy = 1; iy < dim_y_-1; iy++)
+            {
+                float height = 0;
+                int cell_with_ground_number = 0;
+
+                for(int iix = ix-(window_size-1)/2; iix <= ix+(window_size+1)/2; ix++)
+                {
+                    for(int iiy = iy-(window_size-1)/2; iiy <= iy+(window_size+1)/2; iy++)
+                    {
+                        if(temp_height_map[ix][iy] != -99.0)
+                        {
+                            height += temp_height_map[ix][iy];
+                            cell_with_ground_number++;
+                        }
+                    }
+                }
+
+                if(cell_with_ground_number != 0)
+                {
+                    cell_2D_list_[ix][iy].height_ = height / cell_with_ground_number;
+                }
+                else
+                {
+                    cell_2D_list_[ix][iy].height_ = -99.0;
+                }
+            }
+        }
+
+
+        for(int ix = 0; ix < dim_x_; ix++)
+        {
+            for(int iy = 0; iy < dim_y_; iy++)
+            {
+                if(cell_2D_list_[ix][iy].height_ == -99.0) // GAP
                 {
                     // std::cout << "0 ";
                     for(int itheta = 0; itheta < dim_theta_; itheta++)
@@ -181,30 +225,33 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
                         cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::GAP;
                     }
                 }
-                else
+                else // see if the obstacle is close
                 {
-                    // // std::cout << "1 ";
-                    // for(int itheta = 0; itheta < dim_theta_; itheta++)
-                    // {
-                    //     GridPositions3D cell_3d_position = cell_3D_list_[ix][iy][itheta].getPositions();
-                    //     RPYTF body_collision_box_transform(cell_3d_position[0], cell_3d_position[1], height, 0, 0, cell_3d_position[2]);
-                    //     body_collision_box->SetTransform(body_collision_box_transform.GetRaveTransform());
-                    //     bool in_collision = false;
+                    // std::cout << "1 ";
+                    for(int itheta = 0; itheta < dim_theta_; itheta++)
+                    {
+                        GridPositions3D cell_3d_position = cell_3D_list_[ix][iy][itheta].getPositions();
+                        RPYTF body_collision_box_transform(cell_3d_position[0], cell_3d_position[1], cell_2D_list_[ix][iy].height_, 0, 0, cell_3d_position[2]);
+                        body_collision_box->SetTransform(body_collision_box_transform.GetRaveTransform());
+                        bool in_collision = false;
 
-                    //     for(auto structure : structures)
-                    //     {
-                    //         if(env->CheckCollision(body_collision_box, structure->getKinbody()))
-                    //         {
-                    //             in_collision = true;
-                    //             break;
-                    //         }
-                    //     }
+                        for(auto structure : structures)
+                        {
+                            if(structure->getType() == TrimeshType::OTHERS)
+                            {
+                                if(env->CheckCollision(body_collision_box, structure->getKinbody()))
+                                {
+                                    in_collision = true;
+                                    break;
+                                }
+                            }
+                        }
 
-                    //     if(in_collision)
-                    //     {
-                    //         cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::OBSTACLE;
-                    //     }
-                    // }
+                        if(in_collision)
+                        {
+                            cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::OBSTACLE;
+                        }
+                    }
                 }
             }
             // std::cout << std::endl;
@@ -212,10 +259,14 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
     }
 }
 
-void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
+void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model)
 {
+    resetCellCostsAndParent();
+
     std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, pointer_less > open_heap;
     goal_cell.g_ = 0;
+    goal_cell.h_ = 0;
+    goal_cell.is_root_ = true;
 
     open_heap.push(&goal_cell);
 
@@ -223,34 +274,28 @@ void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
     while(!open_heap.empty())
     {
         MapCell3D* current_cell = open_heap.top();
-
         GridIndices3D current_cell_indices = current_cell->getIndices();
 
-        for(int ix = -1; ix <= 1; ix++)
+        for(auto & transition : reverse_transition_model[current_cell->itheta_])
         {
-            for(int iy = -1; iy <= 1; iy++)
-            {
-                for(int itheta = -1; itheta <= 1; itheta++)
-                {
-                    if(ix != 0 || iy !=0 || itheta != 0)
-                    {
-                        GridIndices3D new_cell_indices = {current_cell_indices[0]+ix, current_cell_indices[1]+iy, (current_cell_indices[2]+itheta)%dim_theta_};
+            int ix = transition[0];
+            int iy = transition[1];
+            int itheta = transition[2];
 
-                        if(insideGrid(new_cell_indices))
-                        {
-                            MapCell3D* cell_ptr = &cell_3D_list_[new_cell_indices[0]][new_cell_indices[1]][new_cell_indices[2]];
-                            if(cell_ptr->terrain_type_ == TerrainType::SOLID)
-                            // if(true)
-                            {
-                                float edge_cost = std::sqrt(ix*ix*1.0 + iy*iy*1.0) * xy_resolution_;
-                                if(current_cell->getF() + edge_cost < cell_ptr->getF())
-                                {
-                                    cell_ptr->g_ = current_cell->g_ + edge_cost;
-                                    cell_ptr->parent_indices_ = current_cell_indices;
-                                    open_heap.push(cell_ptr);
-                                }
-                            }
-                        }
+            GridIndices3D child_cell_indices = {current_cell_indices[0]+ix, current_cell_indices[1]+iy, (current_cell_indices[2]+itheta)%dim_theta_};
+
+            if(insideGrid(child_cell_indices))
+            {
+                MapCell3D* child_cell_ptr = &cell_3D_list_[child_cell_indices[0]][child_cell_indices[1]][child_cell_indices[2]];
+                if(child_cell_ptr->terrain_type_ == TerrainType::SOLID)
+                // if(true)
+                {
+                    float edge_cost = std::sqrt(ix*ix*1.0 + iy*iy*1.0) * xy_resolution_;
+                    if(current_cell->getF() + edge_cost < child_cell_ptr->getF())
+                    {
+                        child_cell_ptr->g_ = current_cell->g_ + edge_cost;
+                        child_cell_ptr->parent_indices_ = current_cell_indices;
+                        open_heap.push(child_cell_ptr);
                     }
                 }
             }
@@ -258,4 +303,85 @@ void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
 
         open_heap.pop();
     }
+}
+
+void MapGrid::generateTorsoGuidingPath(MapCell3D initial_cell, MapCell3D goal_cell, std::map< int,std::vector<GridIndices3D> > transition_model)
+{
+    resetCellCostsAndParent();
+
+    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, pointer_less > open_heap;
+    initial_cell.g_ = 0;
+    initial_cell.h_ = euclideanHeuristic(initial_cell, goal_cell);
+    initial_cell.is_root_ = true;
+
+    open_heap.push(&initial_cell);
+
+    // assume 8-connected transition model
+    while(!open_heap.empty())
+    {
+        MapCell3D* current_cell_ptr = open_heap.top();
+        GridIndices3D current_cell_indices = current_cell_ptr->getIndices();
+
+        for(auto & transition : transition_model[current_cell_ptr->itheta_])
+        {
+            int ix = transition[0];
+            int iy = transition[1];
+            int itheta = transition[2];
+
+            GridIndices3D child_cell_indices = {current_cell_indices[0]+ix, current_cell_indices[1]+iy, (current_cell_indices[2]+itheta)%dim_theta_};
+
+            if(insideGrid(child_cell_indices))
+            {
+                MapCell3D* child_cell_ptr = &cell_3D_list_[child_cell_indices[0]][child_cell_indices[1]][child_cell_indices[2]];
+
+                if(child_cell_ptr->terrain_type_ == TerrainType::SOLID)
+                // if(true)
+                {
+                    float edge_cost = euclideanDistBetweenCells(*current_cell_ptr, *child_cell_ptr); // modify this to include the estimate dynamic cost
+                    child_cell_ptr->h_ = euclideanHeuristic(*child_cell_ptr, goal_cell);
+
+                    if(current_cell_ptr->getF() + edge_cost < child_cell_ptr->getF())
+                    {
+                        child_cell_ptr->g_ = current_cell_ptr->g_ + edge_cost;
+                        child_cell_ptr->parent_indices_ = current_cell_indices;
+                        open_heap.push(child_cell_ptr);
+                    }
+                }
+            }
+        }
+
+        open_heap.pop();
+    }
+}
+
+void MapGrid::resetCellCostsAndParent()
+{
+    for(int ix = 0; ix < dim_x_; ix++)
+    {
+        for(int iy = 0; iy < dim_y_; iy++)
+        {
+            for(int itheta = 0; itheta < dim_theta_; itheta++)
+            {
+                cell_3D_list_[ix][iy][itheta].g_ = std::numeric_limits<float>::max();
+                cell_3D_list_[ix][iy][itheta].h_ = 0;
+                cell_3D_list_[ix][iy][itheta].step_num_ = 0;
+                cell_3D_list_[ix][iy][itheta].parent_indices_ = {-99,-99,-99};
+                cell_3D_list_[ix][iy][itheta].is_root_ = false;
+            }
+        }
+    }
+}
+
+float MapGrid::euclideanDistBetweenCells(MapCell3D& cell1, MapCell3D& cell2)
+{
+    GridIndices3D cell1_indices = cell1.getIndices();
+    GridIndices3D cell2_indices = cell2.getIndices();
+    int ix = cell2_indices[0] - cell1_indices[0];
+    int iy = cell2_indices[1] - cell1_indices[1];
+    return std::hypot(ix*ix*1.0, iy*iy*1.0) * xy_resolution_;
+}
+
+float MapGrid::euclideanHeuristic(MapCell3D& current_cell, MapCell3D& goal_cell)
+{
+    return euclideanDistBetweenCells(current_cell, goal_cell);
 }

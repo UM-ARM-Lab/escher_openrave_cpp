@@ -731,6 +731,8 @@ std::pair<ZeroStepCaptureCode, std::vector<RPYTF> > ContactState::getZeroStepCap
     return std::make_pair(zero_step_capture_code, contact_manip_pose_vec);
 }
 
+// getVirtualBodyPose
+
 void ContactState::printStateInfo()
 {
     std::vector<std::string> contact_manip_name_vector = {"L_LEG", "R_LEG", "L_ARM", "R_ARM"};

@@ -824,10 +824,10 @@ void OptimizationInterface::updateStateCoM(std::shared_ptr<ContactState> contact
     // contact_state->com_dot_ = goal_lmom.cast<float>() / robot_mass;
 }
 
-void OptimizationInterface::recordEdgeDynamicsSequence(std::shared_ptr<ContactState> contact_state)
-{
-    contact_state->parent_edge_dynamics_sequence_ = dynamics_optimizer_.dynamicsSequence();
-}
+// void OptimizationInterface::recordEdgeDynamicsSequence(std::shared_ptr<ContactState> contact_state)
+// {
+//     contact_state->parent_edge_dynamics_sequence_ = dynamics_optimizer_.dynamicsSequence();
+// }
 
 void OptimizationInterface::storeResultDigest(solver::ExitCode solver_exitcode, std::ofstream& file_stream)
 {

@@ -17,9 +17,9 @@ float ClassificationModel::predict(Eigen::VectorXd input)
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
 
-    auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
 
-    if(isnan(result[0].get(0,0,0)))
+    if(isnan(result[0].get(0,0,0,0,0)))
     {
         std::cout << "std vector: " << std::endl;
         std::cout << input_std_.transpose() << std::endl;
@@ -32,7 +32,7 @@ float ClassificationModel::predict(Eigen::VectorXd input)
         getchar();
     }
 
-    return result[0].get(0,0,0);
+    return result[0].get(0,0,0,0,0);
 }
 
 Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
@@ -52,7 +52,7 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
     // std::cout << input_dim_ << std::endl;
 
     // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
-    auto result = model_->predict({fdeep::tensor3(fdeep::shape3(input_dim_, 1, 1), normalized_input_vec_ref)});
+    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
     // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
     // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
 
@@ -63,7 +63,7 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
 
     for(int i = 0; i < output_dim_; i++)
     {
-        normalized_output[i] = result[0].get(0,0,i);
+        normalized_output[i] = result[0].get(0,0,0,0,i);
     }
 
     Eigen::VectorXd output = normalized_output.cwiseProduct(output_std_) + output_mean_;

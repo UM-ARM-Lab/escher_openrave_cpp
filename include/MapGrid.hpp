@@ -39,8 +39,9 @@ class MapCell3D : MapCell2D
         theta_(_theta),
         itheta_(_itheta),
         parent_indices_({-99,-99,-99}),
-        g_(999.0),
+        g_(std::numeric_limits<float>::max()),
         h_(0.0),
+        is_root_(false),
         terrain_type_(TerrainType::SOLID)
         {};
 
@@ -60,6 +61,8 @@ class MapCell3D : MapCell2D
         bool right_hand_contact_region_exist_;
 
         bool near_obstacle_;
+
+        bool is_root_;
 
         TerrainType terrain_type_;
 
@@ -107,7 +110,13 @@ class MapGrid
         inline bool insideGrid(GridIndices3D indices){return (indices[0] >= 0 && indices[0] < dim_x_ && indices[1] >= 0 && indices[1] < dim_y_ && indices[2] >= 0 && indices[2] < dim_theta_);}
 
         void obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vector< std::shared_ptr<TrimeshSurface> > structures);
-        void generateDijkstrHeuristics(MapCell3D goal_cell);
+        void generateDijkstrHeuristics(MapCell3D goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model);
+        void generateTorsoGuidingPath(MapCell3D initial_cell, MapCell3D goal_cell, std::map< int,std::vector<GridIndices3D> > transition_model);
+
+        float euclideanDistBetweenCells(MapCell3D& cell1, MapCell3D& cell2);
+        float euclideanHeuristic(MapCell3D& current_cell, MapCell3D& goal_cell);
+
+        void resetCellCostsAndParent();
 
         const float xy_resolution_;
         const float theta_resolution_;
