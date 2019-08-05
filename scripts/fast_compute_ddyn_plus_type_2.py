@@ -58,7 +58,9 @@ def main():
     if device == 'cpu':
         pass
     elif device == 'gpu':
-        config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.95))
+        # config = tf.ConfigProto(device_count={'GPU':1, 'CPU':3}, gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=0.95))
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         keras.backend.set_session(sess)
     else:
@@ -114,8 +116,8 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    for environment_index in range(0, 50):
-        with open('../data/medium_dataset_normal_wall/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
+    for environment_index in range(30, 35):
+        with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
             data = pickle.load(file)
 
         # info is a nested dictionary.

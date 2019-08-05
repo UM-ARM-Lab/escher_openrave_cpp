@@ -163,4 +163,38 @@ class node:
             contact_manip_num += int(self.manip_in_contact(manip))
         return contact_manip_num
 
+    def get_mirror_node(self, reference_frame):
+        # mirror every +y to -y, vice versa, and orientation about z is mirrored in reference_frame
+        inv_reference_frame = inverse_SE3(reference_frame)
+        reference_frame_rotation = reference_frame[0:3,0:3]
+        inv_reference_frame_rotation = inv_reference_frame[0:3,0:3]
+
+        mirror_matrix = np.array([[1,0,0],[0,-1,0],[0,0,1]], dtype=float)
+
+        # mirros the end-effector poses
+
+        mirror_manip_list = [RIGHT_LEG, LEFT_LEG, RIGHT_ARM, LEFT_ARM]
+
+        mirror_ee_contact_pose = [None for i in  range(len(manip_dict))]
+
+        for manip in manip_dict:
+            if self.manip_in_contact(manip):
+                transformed_contact_pose = np.dot(inv_reference_frame, xyzrpy_to_SE3(self.manip_pose_list[manip]))
+                mirrored_contact_pose = transformed_contact_pose
+                mirrored_contact_pose[0:3,0:3] = np.dot(np.dot(mirror_matrix, transformed_contact_pose[0:3,0:3]), mirror_matrix)
+                mirrored_contact_pose[1,3] = -mirrored_contact_pose[1,3]
+                mirrored_contact_pose_rpy = SE3_to_xyzrpy(np.dot(reference_frame, mirrored_contact_pose))
+            else:
+                mirrored_contact_pose_rpy = self.manip_pose_list[manip]
+
+            mirror_ee_contact_pose[mirror_manip_list[manip]] = mirrored_contact_pose_rpy
+
+        mirror_node = node(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3])
+
+        if self.prev_move_manip is not None:
+            mirror_node.prev_move_manip = mirror_manip_list[self.prev_move_manip]
+
+        return mirror_node
+
+
 

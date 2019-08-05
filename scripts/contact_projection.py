@@ -157,7 +157,8 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
 
     # only branch left side of the manipulators because we specify that in the neural network
     # when query the network in planning, we will "mirror" the state if the contact transition is using right side of the manipulators
-    move_manip = [LEFT_LEG, LEFT_ARM]
+    # move_manip = [LEFT_LEG, LEFT_ARM]
+    move_manip = [LEFT_LEG, RIGHT_LEG, LEFT_ARM, RIGHT_ARM]
 
     for manip in move_manip:
         # foot/leg movement

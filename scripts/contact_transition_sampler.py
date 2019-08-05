@@ -30,16 +30,9 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-SAMPLE_SIZE_EACH_ENVIRONMENT = 50
+SAMPLE_SIZE_EACH_ENVIRONMENT = 100
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
-
-# save all transitions to this list
-transitions = []
-
-# save all environments to this list
-environments = []
-
 
 def contact_degree_to_radian(long_list):
     """
@@ -73,10 +66,10 @@ class contact_transition:
         self.init_node = init_node
         self.final_node = final_node
 
-        init_virtual_body_pose = init_node.get_virtual_body_pose()
-        final_virtual_body_pose = final_node.get_virtual_body_pose()
-        init_virtual_body_pose_SE2 = init_virtual_body_pose[0:2] + [init_virtual_body_pose[5]]
-        final_virtual_body_pose_SE2 = final_virtual_body_pose[0:2] + [final_virtual_body_pose[5]]
+        # init_virtual_body_pose = init_node.get_virtual_body_pose()
+        # final_virtual_body_pose = final_node.get_virtual_body_pose()
+        # init_virtual_body_pose_SE2 = init_virtual_body_pose[0:2] + [init_virtual_body_pose[5]]
+        # final_virtual_body_pose_SE2 = final_virtual_body_pose[0:2] + [final_virtual_body_pose[5]]
 
         # self.init_virtual_body_cell = position_to_cell_index(init_virtual_body_pose_SE2, grid_resolution)
         # self.final_virtual_body_cell = position_to_cell_index(final_virtual_body_pose_SE2, grid_resolution)
@@ -140,9 +133,11 @@ class contact_transition:
 
 
     def get_feature_vector_contact_part(self):
-        self.get_contact_transition_type()
 
         # center the poses about the mean feet pose
+
+        self.get_contact_transition_type()
+
         inv_mean_feet_transform = xyzrpy_to_inverse_SE3(self.init_node.get_mean_feet_xyzrpy())
 
         init_left_leg = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_leg)))
@@ -204,10 +199,9 @@ class contact_transition:
 
 # def extract_env_feature():
 
-def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index):
+def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index,transitions):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
-    handles = []
     init_node_list = []
     for orientation in range(-75,91,15):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
@@ -290,13 +284,32 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, han
         for child_node in child_node_list:
             # ??????????
             one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
-            contact_transition_list.append(one_contact_transition)
             temp_dict = {}
             temp_dict['environment_index'] = environment_index
             temp_dict['p1'] = one_contact_transition.init_node.get_virtual_body_pose()
             temp_dict['p2'] = one_contact_transition.final_node.get_virtual_body_pose()
-            temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
+
+            # check if the robot is moving with right side manipulators
+            if one_contact_transition.final_node.prev_move_manip == RIGHT_LEG or one_contact_transition.final_node.prev_move_manip == RIGHT_ARM:
+                # random_number = random.uniform(-5.0, 5.0)
+                # handles = []
+                # if random_number > 4:
+                #     DrawStance(init_node, robot_obj, handles)
+                #     DrawStance(child_node, robot_obj, handles)
+
+                mean_feet_transform = xyzrpy_to_SE3(one_contact_transition.init_node.get_mean_feet_xyzrpy())
+                one_contact_transition.init_node = one_contact_transition.init_node.get_mirror_node(mean_feet_transform)
+                one_contact_transition.final_node = one_contact_transition.final_node.get_mirror_node(mean_feet_transform)
+                one_contact_transition.move_manip = one_contact_transition.final_node.prev_move_manip
+
+                # if random_number > 4:
+                #     DrawStance(one_contact_transition.init_node, robot_obj, handles)
+                #     DrawStance(one_contact_transition.final_node, robot_obj, handles)
+                #     IPython.embed()
+                #     handles = []
+            
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
+            temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
             temp_dict['normalized_init_r_leg'] = one_contact_transition.normalized_init_r_leg
             temp_dict['normalized_init_l_arm'] = one_contact_transition.normalized_init_l_arm
@@ -304,6 +317,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, han
             temp_dict['mean_feet_pose'] = one_contact_transition.init_node.get_mean_feet_xyzrpy()
 
             transitions.append(temp_dict)
+            contact_transition_list.append(one_contact_transition)
 
             # print(contact_transition_list[-1].init_virtual_body_cell)
             # print(init_node.get_virtual_body_pose())
@@ -423,10 +437,9 @@ def main(robot_name='athena'): # for test
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
     # sample environments and contact transitions
-    for i in range(SAMPLE_SIZE_EACH_ENVIRONMENT):
+    for i in range(100, 200):
         print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
-
         # save the environment
         env = {}
         env['ground_vertices'] = []
@@ -443,18 +456,20 @@ def main(robot_name='athena'): # for test
             else:
                 print('invalid structure type')
                 exit(1)
-        environments.append(env)
-                
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
-        # IPython.embed()
+        with open('../data/medium_dataset_normal_wall/' + environment_file + '_' + str(i), 'w') as file:
+            pickle.dump(env, file)
 
-    with open('../data/medium_dataset_normal_wall/' + transition_file, 'w') as file:
-        pickle.dump(transitions, file)
-    with open('../data/medium_dataset_normal_wall/' + environment_file, 'w') as file:
-        pickle.dump(environments, file)
+        # save all transitions to this list
+        transitions = []                
+        sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i, transitions)
+        with open('../data/medium_dataset_normal_wall/' + transition_file + '_' + str(i), 'w') as file:
+            pickle.dump(transitions, file)
+        print('environment {} index {} is finished'.format(environment_type, i))
+        # IPython.embed()
+    
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
-    print('data is saved in file: {} and {}'.format(environment_file, transition_file))
+    
 
 
 if __name__ == "__main__":

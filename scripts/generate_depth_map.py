@@ -10,7 +10,7 @@ SIDE = 1.6
 GROUND_DEFAULT_DEPTH = -1.0
 RADIUS = 1.0
 # RADIUS = 0.7
-WALL_DEFAULT_DEPTH = 2.0
+WALL_DEFAULT_DEPTH = 1.0
 # WALL_DEFAULT_DEPTH = 0.7
 # WALL_MIN_HEIGHT = 1.0
 # WALL_MAX_HEIGHT = 2.0
@@ -207,9 +207,9 @@ def entire_depth_map(coordinates, map_type, resolution, wall_min_height=None, wa
         # IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int((wall_max_height - wall_min_height) / resolution) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
+        entire_map = np.ones((int(round((wall_max_height - wall_min_height) / resolution, 0)) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
-            patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
+            patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]], wall_min_height, wall_max_height)
         # IPython.embed()
 
     else:
@@ -220,16 +220,16 @@ def entire_depth_map(coordinates, map_type, resolution, wall_min_height=None, wa
 
 
 def main():
-    for environment_type in [6]:
+    for environment_type in [4]:
         with open('../data/medium_dataset_normal_wall/environments_' + str(environment_type), 'r') as env_file:
             environments = pickle.load(env_file)
             # for environment_index in range(NUM_ENVIRONMENT_PER_TYPE):
-            for environment_index in [30]:
-                if os.path.exists('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index)):
-                    print('process data in file dynamic_cost_{}_{}'.format(environment_type, environment_index))
+            for environment_index in [22]:
+                if os.path.exists('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index)):
+                    print('process data in file dynamic_cost_plus_type_{}_{}'.format(environment_type, environment_index))
                     ground_vertices = environments[environment_index]['ground_vertices']
                     others_vertices = environments[environment_index]['others_vertices']
-                    with open('../data/medium_dataset_normal_wall/dynamic_cost_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
+                    with open('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
                         data = pickle.load(file)
                         p1_list = sorted(data.keys(), key=lambda element: (element[0], element[1], element[2]))
                         for p1 in p1_list:
@@ -240,7 +240,7 @@ def main():
                             with open('../data/test/ground_depth_maps/' + depth_map_id, 'w') as depth_map_file:  
                                 pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), depth_map_file)
                             wall_patch_coordinates = rotate_quadrilaterals(others_vertices, p1[2] * ANGLE_RESOLUTION)
-                            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION)
+                            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION, wall_min_height=1.0, wall_max_height=2.0)
                             with open('../data/test/wall_depth_maps/' + depth_map_id, 'w') as depth_map_file:
                                 pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), depth_map_file)
 

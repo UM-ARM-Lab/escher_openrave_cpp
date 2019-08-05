@@ -1,20 +1,24 @@
 import os, torch, pickle, shutil, IPython
 import numpy as np
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 
 from torch import nn, optim
 from torch.utils import data
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from model_v8 import Model
+from model_B_0 import Model
 from dataset import Dataset
 
-model_version = 'model_v8_0001_Adam_Weighted_Loss'
+model_version = 'model_B_0_0001_Adam_L1Loss'
 
-def save_checkpoint(epoch, model, optimizer, checkpoint_dir):
+def save_checkpoint(epoch, model, optimizer, scheduler, checkpoint_dir):
     state = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
+        'scheduler_state_dict': scheduler.state_dict(),
     }
     filename = os.path.join(checkpoint_dir, 'epoch={}.checkpoint.pth.tar'.format(epoch))
     torch.save(state, filename)
@@ -29,13 +33,13 @@ def loss_across_epoch(loss_list, length_list):
     return total_loss / total_length
 
 
-class Weighted_Loss(torch.nn.Module):
-    def __init__(self):
-        super(Weighted_Loss, self).__init__()
+# class Weighted_Loss(torch.nn.Module):
+#     def __init__(self):
+#         super(Weighted_Loss, self).__init__()
 
-    def forward(self, Input, Target):
-        loss = Input - Target
-        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
+#     def forward(self, Input, Target):
+#         loss = Input - Target
+#         return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
 
 
 def main():
@@ -60,7 +64,9 @@ def main():
     model = Model().to(device)
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    criterion = Weighted_Loss()
+    scheduler = ReduceLROnPlateau(optimizer, verbose=True)
+    # criterion = Weighted_Loss()
+    criterion = nn.L1Loss()
     
     start_from_saved_model = False
     if os.path.exists(model_version + '_checkpoint/'):
@@ -89,6 +95,7 @@ def main():
                 finished_epoch_last_time = checkpoint['epoch']
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                scheduler.load_state_dict(checkpoint['optimizer_state_dict'])
                 print('Successfully load the model and optimizer from epoch {}'.format(finished_epoch_last_time))
             except:
                 print('Fail to load the model or optimizer from epoch {}'.format(finished_epoch_last_time))
@@ -137,7 +144,6 @@ def main():
             training_loss = []
             validation_loss = []
 
-    num_epoch_no_improvement = 0
     for epoch in range(num_epoch):
         print('epoch: {}'.format(epoch + finished_epoch_last_time + 1))
         # train
@@ -149,7 +155,7 @@ def main():
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
             optimizer.step()
-        save_checkpoint(epoch + finished_epoch_last_time + 1, model, optimizer, model_version + '_checkpoint/')
+        save_checkpoint(epoch + finished_epoch_last_time + 1, model, optimizer, scheduler, model_version + '_checkpoint/')
 
         # loss on training data and validation data
         model.eval()
@@ -177,13 +183,8 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss.cpu().data.tolist())
             print('validation loss: {:4.2f}'.format(epoch_loss))
-        if validation_loss[-1] > np.min(np.array(validation_loss)) + 1:
-            num_epoch_no_improvement += 1
-        else:
-            num_epoch_no_improvement = 0
-        if num_epoch_no_improvement == 10:
-            print('change optimizer')
-            optimizer = optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
+        scheduler.step(training_loss[-1])
+
 
     plt.figure()
     plt.plot(range(len(training_loss)), training_loss, 'o-', label='Training')
