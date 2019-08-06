@@ -66,6 +66,7 @@ typedef std::array<float,3> GridPositions3D;
 const float RAD2DEG = 180.0/M_PI;
 const float DEG2RAD = M_PI/180.0;
 
+// Only used in legacy code of Contact Point, the new way is to pull those information from robot_properties //
 const float FOOT_HEIGHT = 0.25;
 const float FOOT_WIDTH = 0.135;
 const float FOOT_RADIUS = hypot(FOOT_HEIGHT/2.0,FOOT_WIDTH/2.0);
@@ -75,6 +76,7 @@ const float HAND_RADIUS = hypot(HAND_HEIGHT/2.0,HAND_WIDTH/2.0);
 
 const float MIN_ARM_LENGTH = 0.3;
 const float MAX_ARM_LENGTH = 0.65; // to make it more conservative
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
@@ -228,6 +230,15 @@ struct pointer_less
     bool operator()(const T& lhs, const T& rhs) const
     {
         return *lhs < *rhs;
+    }
+};
+
+struct pointer_more
+{
+    template <typename T>
+    bool operator()(const T& lhs, const T& rhs) const
+    {
+        return *lhs > *rhs;
     }
 };
 

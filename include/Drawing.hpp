@@ -7,6 +7,7 @@
 class ContactState;
 class RobotProperties;
 class TorsoPoseState;
+class MapCell3D;
 
 class DrawingHandler{
 	std::vector< OpenRAVE::GraphHandlePtr > graphptrs;
@@ -19,7 +20,7 @@ public:
 	DrawingHandler(OpenRAVE::EnvironmentBasePtr _penv, std::shared_ptr<RobotProperties> _robot_properties);
 	void ClearHandler();
 	// void DrawBodyPath(Node* current); // Draw the upperbody path in thr door planning, postpone this implementation.(DrawPaths)
-	void DrawGridPath(); // Draw the Dijkstra grid path, postpone implementation.
+	void DrawGridPath(std::shared_ptr<MapCell3D> current_state); // Draw the Dijkstra grid path
 	void DrawContactPath(std::shared_ptr<ContactState> current_state); // Draw the contact path given the final state(DrawStances)
 	void DrawTorsoPath(std::shared_ptr<TorsoPoseState> current_state);
 	void DrawContacts(std::shared_ptr<ContactState> current_state); // Draw the contacts of one node(DrawStance)

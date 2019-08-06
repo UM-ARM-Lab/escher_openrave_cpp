@@ -2722,11 +2722,11 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
     else if(heuristics_type_ == PlanningHeuristicsType::DIJKSTRA)
     {
         GridIndices3D cell_indices = map_grid_->positionsToIndices({current_state->mean_feet_position_[0], current_state->mean_feet_position_[1], current_state->getFeetMeanHorizontalYaw()});
-        MapCell3D cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
+        MapCell3DPtr cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
 
-        if(cell.terrain_type_ == TerrainType::SOLID)
+        if(cell->terrain_type_ == TerrainType::SOLID)
         {
-            return cell.g_;
+            return cell->g_;
         }
         else
         {

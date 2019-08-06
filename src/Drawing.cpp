@@ -48,9 +48,27 @@ void DrawingHandler::ClearHandler()
 
 // }
 
-void DrawingHandler::DrawGridPath() // Draw the Dijkstra grid path, postpone implementation.
+void DrawingHandler::DrawGridPath(std::shared_ptr<MapCell3D> current_state) // Draw the Dijkstra grid path, postpone implementation.
 {
+    std::shared_ptr<MapCell3D> c = current_state;
 
+    while(true)
+    {
+        if(c->is_root_)
+        {
+            break;
+        }
+
+        GridPositions3D current_grid_position = c->getPositions();
+        GridPositions3D parent_grid_position = c->parent_->getPositions();
+
+        Translation3D current_position(current_grid_position[0], current_grid_position[1], 0.2);
+        Translation3D parent_position(parent_grid_position[0], parent_grid_position[1], 0.2);
+
+        DrawLineSegment(current_position, parent_position, {1,0,0,1});
+
+        c = c->parent_;
+    }
 }
 
 void DrawingHandler::DrawContactPath(std::shared_ptr<ContactState> current_state) // Draw the contact path given the final state(DrawStances)

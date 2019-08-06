@@ -19,6 +19,7 @@ class environment_handler:
             rave.misc.InitOpenRAVELogging()
             self.env = rave.Environment()  # create openrave environment
             self.env.SetViewer('qtcoin')  # attach viewer (optional)
+            self.env.GetViewer().SetCamera(np.array([[1,0,0,1],[0,-1,0,0],[0,0,-1,4],[0,0,0,1]], dtype=float))
 
             fcl = rave.RaveCreateCollisionChecker(self.env, "fcl_")
             if fcl is not None:
@@ -1916,6 +1917,29 @@ class environment_handler:
         #     self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] - x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (-0.5-1)*stepping_stone_size[1] + y_random + in_random, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.15, slope=0)
         #     self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] + x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (col_num-0.5-1)*stepping_stone_size[1] + y_random - in_random, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.65, slope=0)
         #     self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] - x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (-0.5-1)*stepping_stone_size[1] + y_random + in_random, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.65, slope=0)
+
+        elif surface_source == 'torso_path_planning_test_env_0':
+
+            self.goal_x = 4.0
+            self.goal_y = 0.0
+
+            lateral_surface_vertices = [(0.2,-0.5),(0.2,0.2),(-0.2,0.2),(-0.2,-0.5)]
+            vertical_surface_vertices = [(2.2,-0.2),(2.2,0.2),(-2.2,0.2),(-2.2,-0.2)]
+
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [1.0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [2.0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [3.0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [4.0,0,0,0,0,0])
+
+            self.add_quadrilateral_surface(structures, vertical_surface_vertices, [2.0,-0.7,0,0,0,0])
+            self.add_quadrilateral_surface(structures, vertical_surface_vertices, [2.0,0.4,0,0,0,0])
+
+
+            # # side wall
+            # x_wall_length = row_num*stepping_stone_size[0]
+            self.construct_tilted_rectangle_wall(structures, [-0.2, -1.0, 0, 0, 0, 0], 0.5, 20, 4.4, wall_height=1.15, slope=0)
+            # self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] + x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (col_num-0.5-1)*stepping_stone_size[1] - stepping_stone_size[1] * 2 + y_random, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.65, slope=0)
 
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))

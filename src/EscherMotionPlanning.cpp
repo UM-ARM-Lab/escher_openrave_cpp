@@ -186,7 +186,7 @@ void EscherMotionPlanning::parseMapGridDimCommand(std::istream& sinput)
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION, drawing_handler_);
 }
 
 void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
@@ -200,13 +200,13 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION, drawing_handler_);
 
     for(int i = 0; i < map_grid_->dim_x_; i++)
     {
         for(int j = 0; j < map_grid_->dim_y_; j++)
         {
-            sinput >> map_grid_->cell_2D_list_[i][j].height_;
+            sinput >> map_grid_->cell_2D_list_[i][j]->height_;
 
             int foot_ground_projection_surface_id;
             int safe_projection;
@@ -215,12 +215,12 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 
             if(foot_ground_projection_surface_id == -99)
             {
-                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ =
+                map_grid_->cell_2D_list_[i][j]->foot_ground_projection_ =
                 std::make_pair(safe_projection != 0, nullptr);
             }
             else
             {
-                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ =
+                map_grid_->cell_2D_list_[i][j]->foot_ground_projection_ =
                 std::make_pair(safe_projection != 0, structures_dict_[foot_ground_projection_surface_id]);
             }
 
@@ -230,18 +230,23 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
             for(int n = 0; n < cell_ground_surfaces_num; n++)
             {
                 sinput >> cell_ground_surface_id;
-                map_grid_->cell_2D_list_[i][j].all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
+                map_grid_->cell_2D_list_[i][j]->all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
             }
 
             for(int k = 0; k < map_grid_->dim_theta_; k++)
             {
                 std::array<int,3> parent_indices;
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[0];
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[1];
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[2];
+                sinput >> parent_indices[0];
+                sinput >> parent_indices[1];
+                sinput >> parent_indices[2];
 
-                sinput >> map_grid_->cell_3D_list_[i][j][k].g_;
-                sinput >> map_grid_->cell_3D_list_[i][j][k].h_;
+                map_grid_->cell_3D_list_[i][j][k]->parent_ = map_grid_->cell_3D_list_[parent_indices[0]][parent_indices[1]][parent_indices[2]];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[0];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[1];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[2];
+
+                sinput >> map_grid_->cell_3D_list_[i][j][k]->g_;
+                sinput >> map_grid_->cell_3D_list_[i][j][k]->h_;
 
                 int left_hand_checking_surfaces_num, right_hand_checking_surfaces_num;
                 int surface_id;
@@ -250,14 +255,14 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
                 for(int n = 0; n < left_hand_checking_surfaces_num; n++)
                 {
                     sinput >> surface_id;
-                    map_grid_->cell_3D_list_[i][j][k].left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
+                    map_grid_->cell_3D_list_[i][j][k]->left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
                 }
 
                 sinput >> right_hand_checking_surfaces_num;
                 for(int n = 0; n < right_hand_checking_surfaces_num; n++)
                 {
                     sinput >> surface_id;
-                    map_grid_->cell_3D_list_[i][j][k].right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
+                    map_grid_->cell_3D_list_[i][j][k]->right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
                 }
             }
         }
@@ -1497,10 +1502,10 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
             int lfiy = iy + lfn_it->at(1);
 
             if(map_grid_->insideGrid(GridIndices3D({lfix,lfiy,itheta})) &&
-               map_grid_->cell_2D_list_[lfix][lfiy].height_ > -0.5 &&
-               map_grid_->cell_2D_list_[lfix][lfiy].height_ < 0.5)
+               map_grid_->cell_2D_list_[lfix][lfiy]->height_ > -0.5 &&
+               map_grid_->cell_2D_list_[lfix][lfiy]->height_ < 0.5)
             {
-                left_mean_height = left_mean_height + map_grid_->cell_2D_list_[lfix][lfiy].height_;
+                left_mean_height = left_mean_height + map_grid_->cell_2D_list_[lfix][lfiy]->height_;
                 left_counted_cell_num = left_counted_cell_num + 1;
             }
         }
@@ -1520,10 +1525,10 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
             int rfiy = iy + rfn_it->at(1);
 
             if(map_grid_->insideGrid(GridIndices3D({rfix,rfiy,itheta})) &&
-               map_grid_->cell_2D_list_[rfix][rfiy].height_ > -0.5 &&
-               map_grid_->cell_2D_list_[rfix][rfiy].height_ < 0.5)
+               map_grid_->cell_2D_list_[rfix][rfiy]->height_ > -0.5 &&
+               map_grid_->cell_2D_list_[rfix][rfiy]->height_ < 0.5)
             {
-                right_mean_height = right_mean_height + map_grid_->cell_2D_list_[rfix][rfiy].height_;
+                right_mean_height = right_mean_height + map_grid_->cell_2D_list_[rfix][rfiy]->height_;
                 right_counted_cell_num = right_counted_cell_num + 1;
             }
         }
@@ -2113,6 +2118,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         else if(strcmp(param.c_str(), "robot_properties") == 0)
         {
             parseRobotPropertiesCommand(sinput);
+            drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
         }
 
         else if(strcmp(param.c_str(), "initial_state") == 0)
@@ -2333,14 +2339,42 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
 
-    drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
-
     RAVELOG_INFO("Command Parsing Done. \n");
 
     map_grid_->obstacleAndGapMapping(penv_, structures_);
-    // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
+    RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
+    // manually generate the 8-connected transition model
+    std::map< int,std::vector<GridIndices3D> > transition_model;
+    std::vector<GridIndices3D> transition;
+    for(int ix = -1; ix <= 1; ix++)
+    {
+        for(int iy = -1; iy <= 1; iy++)
+        {
+            // for(int itheta = -1; itheta <= 1; itheta++)
+            // {
+                if(ix != 0 || iy != 0)
+                {
+                    transition.push_back({ix,iy,0});
+                }
+            // }
+        }
+    }
+    for(int itheta = 0; itheta < map_grid_->dim_theta_; itheta++)
+    {
+        transition_model.insert(std::make_pair(itheta, transition));
+    }
+
+    GridIndices3D initial_cell_indices = {2,9,6};
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
+
+    MapCell3DPtr initial_cell = map_grid_->get3DCell(initial_cell_indices);
+    MapCell3DPtr goal_cell = map_grid_->get3DCell(goal_cell_indices);
+
+    map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
+
+    getchar();
+
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
     // map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
