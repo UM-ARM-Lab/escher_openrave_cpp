@@ -63,6 +63,24 @@ typedef std::array<float,2> GridPositions2D;
 typedef std::array<int,3> GridIndices3D;
 typedef std::array<float,3> GridPositions3D;
 
+namespace std
+{
+    template <>
+    class hash<GridIndices3D>{
+        public:
+            size_t operator()(const GridIndices3D& grid_indices) const
+            {
+                size_t hash_number = 0;
+
+                hash_number ^= hash<int>()(grid_indices[0]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<int>()(grid_indices[1]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<int>()(grid_indices[2]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+
+                return hash_number;
+            }
+    };
+}
+
 const float RAD2DEG = 180.0/M_PI;
 const float DEG2RAD = M_PI/180.0;
 

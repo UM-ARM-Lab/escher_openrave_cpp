@@ -266,6 +266,45 @@ TransformationMatrix ContactState::getFeetMeanTransform()
     return XYZRPYToSE3(RPYTF(feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw));
 }
 
+
+RPYTF ContactState::getVirtualBodyPose()
+{
+    float feet_mean_x = (stances_vector_[0]->left_foot_pose_.x_ + stances_vector_[0]->right_foot_pose_.x_) / 2.0;
+    float feet_mean_y = (stances_vector_[0]->left_foot_pose_.y_ + stances_vector_[0]->right_foot_pose_.y_) / 2.0;
+    Translation2D mean_feet_position(feet_mean_x, feet_mean_y);
+    float virtual_body_yaw = getFeetMeanHorizontalYaw();
+
+    RotationMatrix orientation_rotation_matrix = RPYToSO3(RPYTF(0,0,0,0,0,virtual_body_yaw));
+    Vector2D orientation_unit_vec(std::cos(virtual_body_yaw*DEG2RAD), std::sin(virtual_body_yaw*DEG2RAD));
+
+    int foot_contact_num = 2;
+    int hand_contact_num = 0;
+    float rotated_x = 0; // initialize to the sum of left_feet_x and right_feet_x, which is also 0 because the origin is the mean_feet_x
+
+    if(manip_in_contact(ContactManipulator::L_ARM))
+    {
+        Translation2D left_hand_position(stances_vector_[0]->left_hand_pose_.x_, stances_vector_[0]->left_hand_pose_.y_);
+        rotated_x += orientation_unit_vec.dot(left_hand_position-mean_feet_position);
+        hand_contact_num++;
+    }
+
+    if(manip_in_contact(ContactManipulator::R_ARM))
+    {
+        Translation2D right_hand_position(stances_vector_[0]->right_hand_pose_.x_, stances_vector_[0]->right_hand_pose_.y_);
+        rotated_x += orientation_unit_vec.dot(right_hand_position-mean_feet_position);
+        hand_contact_num++;
+    }
+
+    if(hand_contact_num != 0)
+    {
+        rotated_x = rotated_x / (hand_contact_num + foot_contact_num);
+    }
+
+    Translation2D virtual_body_position = mean_feet_position + orientation_rotation_matrix.block(0,0,2,2) * Vector2D(rotated_x,0);
+
+    return RPYTF(roundf(virtual_body_position[0]*1000)/1000, roundf(virtual_body_position[1]*1000)/1000, 0, 0, 0, virtual_body_yaw);
+}
+
 std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix& reference_frame)
 {
     // mirror the left and right end-effector poses

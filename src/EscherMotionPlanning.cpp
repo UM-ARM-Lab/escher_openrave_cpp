@@ -2365,18 +2365,22 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         transition_model.insert(std::make_pair(itheta, transition));
     }
 
-    GridIndices3D initial_cell_indices = {2,9,6};
+    RPYTF initial_virtual_body_pose = initial_state->getVirtualBodyPose();
+
+    GridIndices3D initial_cell_indices = map_grid_->positionsToIndices({initial_virtual_body_pose.x_, initial_virtual_body_pose.y_, initial_virtual_body_pose.yaw_});
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
 
     MapCell3DPtr initial_cell = map_grid_->get3DCell(initial_cell_indices);
     MapCell3DPtr goal_cell = map_grid_->get3DCell(goal_cell_indices);
 
-    map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
+    std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
+    map_grid_->generateDijkstraHeuristics(goal_cell, transition_model, region_mask);
 
     getchar();
 
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
-    // map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
+    // map_grid_->generateDijkstraHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 

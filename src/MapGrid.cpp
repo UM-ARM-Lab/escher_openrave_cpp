@@ -298,7 +298,7 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
     }
 }
 
-void MapGrid::generateDijkstrHeuristics(MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model)
+void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model, std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask)
 {
     resetCellCostsAndParent();
 
@@ -313,7 +313,15 @@ void MapGrid::generateDijkstrHeuristics(MapCell3DPtr& goal_cell, std::map< int,s
     while(!open_heap.empty())
     {
         MapCell3DPtr current_cell = open_heap.top();
+        open_heap.pop();
+
+        if(current_cell->explore_state_ != ExploreState::OPEN)
+        {
+            continue;
+        }
+
         GridIndices3D current_cell_indices = current_cell->getIndices();
+        current_cell->explore_state_ = ExploreState::CLOSED;
 
         for(auto & transition : reverse_transition_model[current_cell->itheta_])
         {
@@ -323,7 +331,7 @@ void MapGrid::generateDijkstrHeuristics(MapCell3DPtr& goal_cell, std::map< int,s
 
             GridIndices3D child_cell_indices = {current_cell_indices[0]+ix, current_cell_indices[1]+iy, (current_cell_indices[2]+itheta)%dim_theta_};
 
-            if(insideGrid(child_cell_indices))
+            if(insideGrid(child_cell_indices) && (region_mask.empty() || region_mask.find(child_cell_indices) != region_mask.end()))
             {
                 MapCell3DPtr child_cell = cell_3D_list_[child_cell_indices[0]][child_cell_indices[1]][child_cell_indices[2]];
                 if(child_cell->terrain_type_ == TerrainType::SOLID)
@@ -339,14 +347,15 @@ void MapGrid::generateDijkstrHeuristics(MapCell3DPtr& goal_cell, std::map< int,s
                 }
             }
         }
-
-        open_heap.pop();
     }
+
+    RAVELOG_INFO("Finish Generation of Dijkstra Heuristic.");
 }
 
 std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initial_cell, MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > transition_model)
 {
     resetCellCostsAndParent();
+
     std::vector<MapCell3DPtr> torso_path;
 
     std::priority_queue< MapCell3DPtr, std::vector< MapCell3DPtr >, pointer_more > open_heap;
@@ -418,7 +427,7 @@ std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initia
             break;
         }
 
-        std::cout << "child nodes: " << std::endl;
+        // std::cout << "child nodes: " << std::endl;
 
         for(auto & transition : transition_model[current_cell->itheta_])
         {
@@ -459,6 +468,101 @@ std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initia
     }
 
     return torso_path;
+}
+
+std::unordered_set<GridIndices3D, hash<GridIndices3D> > MapGrid::getRegionMask(std::vector<MapCell3DPtr> torso_path, float neighbor_distance_range, float neighbor_orientation_range)
+{
+    std::vector<GridIndices3D> grid_indices_vec(torso_path.size());
+    int cell_counter = 0;
+
+    for(auto & cell : torso_path)
+    {
+        grid_indices_vec[cell_counter] = cell->getIndices();
+        cell_counter++;
+    }
+
+    return getRegionMask(grid_indices_vec, neighbor_distance_range, neighbor_orientation_range);
+}
+
+std::unordered_set<GridIndices3D, hash<GridIndices3D> > MapGrid::getRegionMask(std::vector<GridIndices3D> grid_indices_vec, float neighbor_distance_range, float neighbor_orientation_range)
+{
+    assert(neighbor_distance_range > 0);
+    assert(neighbor_orientation_range > 0);
+
+    std::vector<GridIndices3D> local_mask;
+
+    // get the local mask
+    int distance_range = int(neighbor_distance_range / xy_resolution_);
+    int orientation_range = int(neighbor_orientation_range / theta_resolution_);
+
+    for(int ix = -distance_range; ix <= distance_range; ix++)
+    {
+        for(int iy = -distance_range; iy <= distance_range; iy++)
+        {
+            if(std::hypot(ix*1.0, iy*1.0) * xy_resolution_ < neighbor_distance_range)
+            {
+                for(int itheta = -orientation_range; itheta <= orientation_range; itheta++)
+                {
+                    local_mask.push_back({ix,iy,itheta});
+                }
+            }
+        }
+    }
+
+    // map the local mask to all the grid indices in grid_indices_vec
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask;
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > path_mask;
+
+    for(auto & grid_indices : grid_indices_vec)
+    {
+        path_mask.insert(grid_indices);
+        for(auto & local_grid_indices : local_mask)
+        {
+            GridIndices3D candidate_grid_indices = {grid_indices[0]+local_grid_indices[0], grid_indices[1]+local_grid_indices[1], grid_indices[2]+local_grid_indices[2]};
+
+            if(insideGrid(candidate_grid_indices))
+            {
+                region_mask.insert(candidate_grid_indices);
+            }
+        }
+    }
+
+    std::cout << "Mask Visualization (in XY): (P: The path, O: Inside mask with solid terrain, I: Inside mask but not solid terrain, X: Outside mask)" << std::endl;
+    for(int ix = dim_x_-1; ix >= 0; ix--)
+    {
+        for(int iy = dim_y_-1; iy >= 0; iy--)
+        {
+            bool inside_mask = false;
+            bool solid_ground = false;
+            bool inside_path = false;
+
+            for(int itheta = 0; itheta < dim_theta_; itheta++)
+            {
+                if(path_mask.find({ix,iy,itheta}) != path_mask.end())
+                    inside_path = true;
+
+                if(region_mask.find({ix,iy,itheta}) != region_mask.end())
+                    inside_mask = true;
+
+                if(cell_3D_list_[ix][iy][itheta]->terrain_type_ == TerrainType::SOLID)
+                    solid_ground = true;
+            }
+
+            if(inside_mask)
+                if(inside_path)
+                    std::cout << "P ";
+                else
+                    if(solid_ground)
+                        std::cout << "O ";
+                    else
+                        std::cout << "I ";
+            else
+                std::cout << "X ";
+        }
+        std::cout << std::endl;
+    }
+
+    return region_mask;
 }
 
 void MapGrid::resetCellCostsAndParent()

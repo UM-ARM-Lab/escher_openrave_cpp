@@ -1925,6 +1925,7 @@ class environment_handler:
 
             lateral_surface_vertices = [(0.2,-0.5),(0.2,0.2),(-0.2,0.2),(-0.2,-0.5)]
             vertical_surface_vertices = [(2.2,-0.2),(2.2,0.2),(-2.2,0.2),(-2.2,-0.2)]
+            # vertical_surface_vertices = [(1.0,-0.2),(1.0,0.2),(-1.0,0.2),(-1.0,-0.2)]
 
             self.add_quadrilateral_surface(structures, lateral_surface_vertices, [0,0,0,0,0,0])
             self.add_quadrilateral_surface(structures, lateral_surface_vertices, [1.0,0,0,0,0,0])
@@ -1934,6 +1935,8 @@ class environment_handler:
 
             self.add_quadrilateral_surface(structures, vertical_surface_vertices, [2.0,-0.7,0,0,0,0])
             self.add_quadrilateral_surface(structures, vertical_surface_vertices, [2.0,0.4,0,0,0,0])
+            # self.add_quadrilateral_surface(structures, vertical_surface_vertices, [1.0,-0.7,0,0,0,0])
+            # self.add_quadrilateral_surface(structures, vertical_surface_vertices, [3.0,0.4,0,0,0,0])
 
 
             # # side wall
