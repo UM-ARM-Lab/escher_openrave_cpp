@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from model_B_0 import Model
 from dataset import Dataset
 
-model_version = 'model_B_0_0001_Adam_L1Loss'
+model_version = 'model_B_0_Adam_0001_Weighted_Loss'
 
 def save_checkpoint(epoch, model, optimizer, scheduler, checkpoint_dir):
     state = {
@@ -33,13 +33,13 @@ def loss_across_epoch(loss_list, length_list):
     return total_loss / total_length
 
 
-# class Weighted_Loss(torch.nn.Module):
-#     def __init__(self):
-#         super(Weighted_Loss, self).__init__()
+class Weighted_Loss(torch.nn.Module):
+    def __init__(self):
+        super(Weighted_Loss, self).__init__()
 
-#     def forward(self, Input, Target):
-#         loss = Input - Target
-#         return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
+    def forward(self, Input, Target):
+        loss = Input - Target
+        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
 
 
 def main():
@@ -65,8 +65,8 @@ def main():
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = ReduceLROnPlateau(optimizer, verbose=True)
-    # criterion = Weighted_Loss()
-    criterion = nn.L1Loss()
+    criterion = Weighted_Loss()
+    # criterion = nn.L1Loss()
     
     start_from_saved_model = False
     if os.path.exists(model_version + '_checkpoint/'):
@@ -154,6 +154,7 @@ def main():
             predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10)
             optimizer.step()
         save_checkpoint(epoch + finished_epoch_last_time + 1, model, optimizer, scheduler, model_version + '_checkpoint/')
 

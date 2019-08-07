@@ -13,7 +13,7 @@ class Dataset(data.Dataset):
     def __getitem__(self, index):
         # example_id is a string
         example_id = self.example_ids[index]
-        depth_map_id, p2, ddyn = self.p2_ddyn[example_id]
+        depth_map_id, p2, _, ddyn = self.p2_ddyn[example_id]
         with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_maps/' + depth_map_id, 'r') as file:
             ground_depth_map = pickle.load(file)
         with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_maps/' + depth_map_id, 'r') as file:
