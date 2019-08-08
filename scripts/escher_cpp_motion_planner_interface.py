@@ -153,15 +153,30 @@ def main(meta_path_generation_method='all_planning',
 
     ### Construct the hand transition model
     hand_transition_model = []
+    # # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
+    # # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
+    # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # # hand_yaw = [0.0]
+    # hand_yaw = [-20.0,0.0,20.0]
+    # for pitch in hand_pitch:
+    #     for yaw in hand_yaw:
+    #         hand_transition_model.append((pitch,yaw))
+    hand_transition_model.append((-99.0,-99.0))
+
+    ### Construct the disturbance rejection hand transition model
+    disturbance_rejection_hand_transition_model = []
     # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
     # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
-    hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # hand_pitch = [-40.0,-35.0,-30.0,-25.0,-20.0,-15.0,-10.0,-5.0,0.0,0.5,10.0,15.0,20.0,25.0,30.0,35.0,40.0]
+    hand_pitch = [0.0,-5.0,5.0,-10.0,10.0,-15.0,15.0,-20.0,20.0,-25.0,25.0,-30.0,30.0,-35.0,35.0,-40.0,40.0]
     # hand_yaw = [0.0]
-    hand_yaw = [-20.0,0.0,20.0]
+    hand_yaw = [-20.0,-15.0,-10.0,-5.0,0.0,5.0,10.0,15.0,20.0]
+    # hand_yaw = [0.0,-5.0,5.0,-10.0,10.0,-15.0,15.0,-20.0,20.0]
     for pitch in hand_pitch:
         for yaw in hand_yaw:
-            hand_transition_model.append((pitch,yaw))
-    hand_transition_model.append((-99.0,-99.0))
+            disturbance_rejection_hand_transition_model.append((pitch,yaw))
+    # disturbance_rejection_hand_transition_model.append((-99.0,-99.0))
 
     ### Load the step transition model
     try:
@@ -182,6 +197,32 @@ def main(meta_path_generation_method='all_planning',
             if(line == ''):
                 break
             step_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+
+        f.close()
+        print('Done.')
+    except Exception:
+        raw_input('Not Found.')
+
+
+    ### Load the capture step transition model
+    try:
+        print('Load step_transition_model...', end='')
+        # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
+        f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_straight_dynopt_test.txt','r')
+        line = ' '
+        disturbance_rejection_step_transition_model = []
+
+        while(True):
+            line = f.readline()
+            if(line == ''):
+                break
+            disturbance_rejection_step_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
 
         f.close()
         print('Done.')
@@ -249,17 +290,56 @@ def main(meta_path_generation_method='all_planning',
 
         disturbance_samples = []
         robot_mass = 63.47
-        disturbance_magnitude = 0.2 * robot_mass
-        disturbance_sample_num = 8
-        for i in range(disturbance_sample_num):
-            disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
-                                        disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
-                                        0, 0, 0, 0, 1.0/disturbance_sample_num])
+
+        # disturbance_magnitude = 0.5 * robot_mass
+        # disturbance_sample_num = 8
+        # for i in range(disturbance_sample_num):
+        #     disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
+        #                                 disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
+        #                                 0, 0, 0, 0, 1.0/disturbance_sample_num])
+
+        # disturbance_magnitude = 0.5 * robot_mass
+        # disturbance_samples.append([0, disturbance_magnitude, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([0, -disturbance_magnitude, 0, 0, 0, 0, 0.5])
+
+        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
+
+        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.4 * robot_mass, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+
+        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.15])
+        disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.8])
+        disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.2])
+
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
+
+        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([0, 0.9 * robot_mass, 0, 0, 0, 0, 0.25])
+
+        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 1.0])
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.5])
+
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.5])
+
+        # disturbance_magnitude = 0.5 * robot_mass
+        # disturbance_samples.append([disturbance_magnitude, 0, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([-disturbance_magnitude, 0, 0, 0, 0, 0, 0.5])
+
+        # disturbance_samples.append([0, 0.2*robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.4*robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.6*robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.8*robot_mass, 0, 0, 0, 0, 0.25])
+
         # disturbance_sample_num = 1
         # for i in range(disturbance_sample_num):
         #     disturbance_samples.append([0, 0, 0, 0, 0, 0, 1.0])
 
-        # generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+
         # # for collect data
         # escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
         #                                         escher=escher,
@@ -288,19 +368,23 @@ def main(meta_path_generation_method='all_planning',
         #                                         planning_id=env_id,
         #                                         printing=False)
 
+        escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
+
         # for planning test
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
                                                 escher=escher,
                                                 initial_state=initial_node,
                                                 goal=goal,
-                                                epsilon=0.1,
+                                                epsilon=0.0,
                                                 foot_transition_model=step_transition_model,
                                                 hand_transition_model=hand_transition_model,
+                                                disturbance_rejection_foot_transition_model=disturbance_rejection_step_transition_model,
+                                                disturbance_rejection_hand_transition_model=disturbance_rejection_hand_transition_model,
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=300.0,
-                                                planning_heuristics='dijkstra',
+                                                time_limit=10.0,
+                                                planning_heuristics='euclidean',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,
                                                 goal_as_exact_poses=False,
@@ -313,7 +397,9 @@ def main(meta_path_generation_method='all_planning',
                                                 thread_num=1,
                                                 # thread_num=multiprocessing.cpu_count(),
                                                 planning_id=env_id,
-                                                printing=True)
+                                                printing=False)
+
+        generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/push_recovery/", structures)
 
         env_id += 1
 

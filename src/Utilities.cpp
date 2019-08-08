@@ -545,3 +545,15 @@ Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t)
 
     return transformed_position;
 }
+
+bool directory_exist(const std::string& directory_path)
+{
+    struct stat info;
+
+    if(stat( directory_path.c_str(), &info ) != 0)
+        return false;
+    else if(info.st_mode & S_IFDIR) // for windows?
+        return true;
+    else
+        return false;
+}

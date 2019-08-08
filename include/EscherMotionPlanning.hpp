@@ -31,6 +31,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         void SetActiveRobot(std::string robot_name);
 
         void parseStructuresCommand(std::istream& sinput);
+        void parseFootTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,3> >& foot_transition_model);
+        void parseHandTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,2> >& hand_transition_model);
         void parseFootTransitionModelCommand(std::istream& sinput);
         void parseHandTransitionModelCommand(std::istream& sinput);
         void parseMapGridDimCommand(std::istream& sinput);

@@ -128,12 +128,12 @@ void EscherMotionPlanning::parseStructuresCommand(std::istream& sinput)
     }
 }
 
-void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
+void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,3> >& foot_transition_model)
 {
     int foot_transition_num;
     sinput >> foot_transition_num;
 
-    foot_transition_model_.resize(foot_transition_num);
+    foot_transition_model.resize(foot_transition_num);
 
     if(printing_)
     {
@@ -148,16 +148,26 @@ void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
         sinput >> dy;
         sinput >> dtheta;
 
-        foot_transition_model_[i] = {dx, dy, dtheta};
+        foot_transition_model[i] = {dx, dy, dtheta};
     }
 }
 
 void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
 {
+    parseHandTransitionModelCommand(sinput, hand_transition_model_);
+}
+
+void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
+{
+    parseFootTransitionModelCommand(sinput, foot_transition_model_);
+}
+
+void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,2> >& hand_transition_model)
+{
     int hand_transition_num;
     sinput >> hand_transition_num;
 
-    hand_transition_model_.resize(hand_transition_num);
+    hand_transition_model.resize(hand_transition_num);
 
     if(printing_)
     {
@@ -171,7 +181,7 @@ void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
         sinput >> hand_pitch;
         sinput >> hand_yaw;
 
-        hand_transition_model_[i] = {hand_pitch,hand_yaw};
+        hand_transition_model[i] = {hand_pitch,hand_yaw};
     }
 }
 
@@ -1893,6 +1903,11 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
     BranchingManipMode branching_manip_mode = BranchingManipMode::ALL;
 
+    std::vector< std::array<float,3> > foot_transition_model;
+    std::vector< std::array<float,2> > hand_transition_model;
+    std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model;
+    std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model;
+
     disturbance_samples_.clear();
     Vector6D zero_disturbance;
     zero_disturbance << 0, 0, 0, 0, 0, 0;
@@ -1925,12 +1940,22 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
 
         else if(strcmp(param.c_str(), "foot_transition_model") == 0)
         {
-            parseFootTransitionModelCommand(sinput);
+            parseFootTransitionModelCommand(sinput, foot_transition_model);
         }
 
         else if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
-            parseHandTransitionModelCommand(sinput);
+            parseHandTransitionModelCommand(sinput, hand_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput, disturbance_rejection_foot_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput, disturbance_rejection_hand_transition_model);
         }
 
         else if(strcmp(param.c_str(), "planning_id") == 0)
@@ -2045,7 +2070,8 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
     // enumerate all the initial states
-    ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model_, hand_transition_model_,
+    ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model, hand_transition_model,
+                                              disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model,
                                               structures_, structures_dict_, NULL, general_ik_interface_, 1,
                                               thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
                                               PlanningApplication::COLLECT_DATA, check_zero_step_capturability,
@@ -2081,6 +2107,11 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     bool enforce_stop_in_the_end;
     PlanningHeuristicsType heuristics_type;
     BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
+
+    std::vector< std::array<float,3> > foot_transition_model;
+    std::vector< std::array<float,2> > hand_transition_model;
+    std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model;
+    std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model;
 
     bool check_zero_step_capturability = false;
     bool check_one_step_capturability = false;
@@ -2136,12 +2167,22 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
         else if(strcmp(param.c_str(), "foot_transition_model") == 0)
         {
-            parseFootTransitionModelCommand(sinput);
+            parseFootTransitionModelCommand(sinput, foot_transition_model);
         }
 
         else if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
-            parseHandTransitionModelCommand(sinput);
+            parseHandTransitionModelCommand(sinput, hand_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput, disturbance_rejection_foot_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput, disturbance_rejection_hand_transition_model);
         }
 
         else if(strcmp(param.c_str(), "planning_parameters") == 0)
@@ -2346,7 +2387,10 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
+    std::cout << foot_transition_model.size() << std::endl;
+
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model, hand_transition_model,
+                                               disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model,
                                                structures_, structures_dict_, map_grid_,
                                                general_ik_interface_, 1, thread_num, drawing_handler_,
                                                planning_id, use_dynamics_planning, disturbance_samples_,

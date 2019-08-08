@@ -23,6 +23,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // Eigen
 #include <Eigen/Core>
@@ -80,6 +82,8 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
+// const float STEP_TRANSITION_TIME = 1.0;
+// const float SUPPORT_PHASE_TIME = 1.0;
 const float STEP_TRANSITION_TIME = 0.5;
 const float SUPPORT_PHASE_TIME = 0.5;
 
@@ -266,6 +270,7 @@ class RPYTF
 
         inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
         inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+        inline Translation2D getXY() const {return Translation2D(x_, y_);}
         inline Vector3D getRPY() const {return Vector3D(roll_, pitch_, yaw_);}
 
         inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
@@ -373,6 +378,7 @@ Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
 Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
 
 // check if file exist
+bool directory_exist(const std::string& directory_path);
 inline bool file_exist(const std::string& file_path) {ifstream f(file_path.c_str()); return f.good();}
 
 // Color

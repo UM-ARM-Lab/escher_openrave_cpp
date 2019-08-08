@@ -48,15 +48,30 @@ def main(start_env_id=0,
 
     ### Construct the hand transition model
     hand_transition_model = []
+    # # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
+    # # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
+    # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # # hand_yaw = [0.0]
+    # hand_yaw = [-20.0,0.0,20.0]
+    # for pitch in hand_pitch:
+    #     for yaw in hand_yaw:
+    #         hand_transition_model.append((pitch,yaw))
+    hand_transition_model.append((-99.0,-99.0))
+
+    ### Construct the disturbance rejection hand transition model
+    disturbance_rejection_hand_transition_model = []
     # hand_pitch = [-100.0,-90.0,-80.0,-70.0,-60.0,-50.0,-40.0,-30.0,-20.0,-10.0,0.0,10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0,90.0,100.0]
     # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0,70.0,80.0]
-    hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # hand_pitch = [10.0,20.0,30.0,40.0,50.0,60.0]
+    # hand_pitch = [-40.0,-35.0,-30.0,-25.0,-20.0,-15.0,-10.0,-5.0,0.0,0.5,10.0,15.0,20.0,25.0,30.0,35.0,40.0]
+    hand_pitch = [0.0,-5.0,5.0,-10.0,10.0,-15.0,15.0,-20.0,20.0,-25.0,25.0,-30.0,30.0,-35.0,35.0,-40.0,40.0]
     # hand_yaw = [0.0]
-    hand_yaw = [-20.0,0.0,20.0]
+    hand_yaw = [-20.0,-15.0,-10.0,-5.0,0.0,5.0,10.0,15.0,20.0]
+    # hand_yaw = [0.0,-5.0,5.0,-10.0,10.0,-15.0,15.0,-20.0,20.0]
     for pitch in hand_pitch:
         for yaw in hand_yaw:
-            hand_transition_model.append((pitch,yaw))
-    hand_transition_model.append((-99.0,-99.0))
+            disturbance_rejection_hand_transition_model.append((pitch,yaw))
+    # disturbance_rejection_hand_transition_model.append((-99.0,-99.0))
 
     ### Load the step transition model
     try:
@@ -64,7 +79,8 @@ def main(start_env_id=0,
         # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
         f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
-        # f = open(escher_planning_data_path + 'step_transition_model_test.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_dynopt_test.txt','r')
@@ -76,6 +92,33 @@ def main(start_env_id=0,
             if(line == ''):
                 break
             step_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
+
+        f.close()
+        print('Done.')
+    except Exception:
+        raw_input('Not Found.')
+
+
+    ### Load the capture step transition model
+    try:
+        print('Load disturbance_rejection_step_transition_model...', end='')
+        # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
+        f = open(escher_planning_data_path + 'step_transition_model_mid_range_symmetric.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_straight_dynopt_test.txt','r')
+        line = ' '
+        disturbance_rejection_step_transition_model = []
+
+        while(True):
+            line = f.readline()
+            if(line == ''):
+                break
+            disturbance_rejection_step_transition_model.append((float(line[0:5]),float(line[6:11]),float(line[12:17])))
 
         f.close()
         print('Done.')
@@ -111,13 +154,15 @@ def main(start_env_id=0,
                                                             escher=escher,
                                                             foot_transition_model=step_transition_model,
                                                             hand_transition_model=hand_transition_model,
-                                                            check_zero_step_capturability=True,
-                                                            check_one_step_capturability=False,
-                                                            specified_motion_code=1,
+                                                            disturbance_rejection_foot_transition_model=disturbance_rejection_step_transition_model,
+                                                            disturbance_rejection_hand_transition_model=disturbance_rejection_hand_transition_model,
+                                                            check_zero_step_capturability=False,
+                                                            check_one_step_capturability=True,
+                                                            specified_motion_code=2,
                                                             check_contact_transition_feasibility=False,
                                                             sample_feet_only_state=True,
-                                                            sample_feet_and_one_hand_state=True,
-                                                            sample_feet_and_two_hands_state=True,
+                                                            sample_feet_and_one_hand_state=False,
+                                                            sample_feet_and_two_hands_state=False,
                                                             thread_num=1,
                                                             contact_sampling_iteration=20000,
                                                             # thread_num=multiprocessing.cpu_count(),

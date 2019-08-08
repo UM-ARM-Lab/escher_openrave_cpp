@@ -40,15 +40,34 @@ void ContactPlanFromContactSequence::addViapoint(int eff_id, RPYTF& prev_eff_pos
     int via_id = this->viapointSequence().endeffectorViapoints(eff_id).size() - 1;
 
     this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointTime() = this->timer_ - 0.5 * this->step_transition_time_;
-    this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointPosition() = Eigen::Vector3d((prev_eff_pose.x_ + eff_pose.x_)/2.0,
-                                                                                                       (prev_eff_pose.y_ + eff_pose.y_)/2.0,
-                                                                                                       (prev_eff_pose.z_ + eff_pose.z_)/2.0 + 0.2);
+
+    if(contact_manipulator_id_map_.find(ContactManipulator::L_LEG)->second == eff_id ||
+       contact_manipulator_id_map_.find(ContactManipulator::R_LEG)->second == eff_id)
+    {
+        this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointPosition() = Eigen::Vector3d((prev_eff_pose.x_ + eff_pose.x_)/2.0,
+                                                                                                           (prev_eff_pose.y_ + eff_pose.y_)/2.0,
+                                                                                                           (prev_eff_pose.z_ + eff_pose.z_)/2.0 + 0.05);
+    }
+    else if(contact_manipulator_id_map_.find(ContactManipulator::L_ARM)->second == eff_id)
+    {
+        this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointPosition() = Eigen::Vector3d((prev_eff_pose.x_ + eff_pose.x_)/2.0 + 0.05,
+                                                                                                           (prev_eff_pose.y_ + eff_pose.y_)/2.0,
+                                                                                                           (prev_eff_pose.z_ + eff_pose.z_)/2.0);
+    }
+    else if(contact_manipulator_id_map_.find(ContactManipulator::R_ARM)->second == eff_id)
+    {
+        this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointPosition() = Eigen::Vector3d((prev_eff_pose.x_ + eff_pose.x_)/2.0 - 0.05,
+                                                                                                           (prev_eff_pose.y_ + eff_pose.y_)/2.0,
+                                                                                                           (prev_eff_pose.z_ + eff_pose.z_)/2.0);
+    }
 
     this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointOrientation() = Eigen::Quaternion<double>(Eigen::AngleAxisf(getAngleMean(prev_eff_pose.roll_, eff_pose.roll_) * DEG2RAD, Eigen::Vector3f::UnitX()) *
                                                                                                                     Eigen::AngleAxisf(getAngleMean(prev_eff_pose.pitch_, eff_pose.pitch_) * DEG2RAD, Eigen::Vector3f::UnitY()) *
                                                                                                                     Eigen::AngleAxisf(getAngleMean(prev_eff_pose.yaw_, eff_pose.yaw_) * DEG2RAD, Eigen::Vector3f::UnitZ()));
 
+    this->viapointSequence().endeffectorViapoints(eff_id)[via_id].viapointId() = this->viapoints_per_endeff_.sum();
     this->viapointSequence().numViapoints()++;
+    this->viapoints_per_endeff_[eff_id]++;
 }
 
 solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(const momentumopt::DynamicsState& ini_state, momentumopt::DynamicsSequence& dyn_seq)
@@ -62,6 +81,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         this->contactSequence().endeffectorContacts(eff_id).clear();
         this->contacts_per_endeff_[eff_id] = 0;
         this->viapointSequence().endeffectorViapoints(eff_id).clear();
+        this->viapoints_per_endeff_[eff_id] = 0;
     }
 
     int state_counter = 0;
@@ -124,7 +144,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
                 if(prev_stance->ee_contact_status_[moving_manip])
                 {
                     prev_eff_pose = transformPoseFromOpenraveToSL(prev_stance->ee_contact_poses_[moving_manip], ee_offset_transform_to_dynopt[moving_manip]);
-                    // this->addViapoint(eff_id, prev_eff_pose, eff_pose);
+                    this->addViapoint(eff_id, prev_eff_pose, eff_pose);
                 }
             }
             else // the robot is breaking contact
@@ -1130,8 +1150,18 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
     {
         com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).centerOfMass());
         com_dot = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum()) / robot_mass;
-        drawing_handler->DrawLocation(com, color);
-        drawing_handler->DrawArrow(com, com_dot, color);
+
+        if(time_id % 10 == 5)
+        {
+            drawing_handler->DrawLocation(com, Vector3D(1.0,1.0,0));
+            std::cout << com.transpose() << std::endl;
+            drawing_handler->DrawArrow(com, com_dot, Vector3D(1.0,1.0,0));
+        }
+        else
+        {
+            drawing_handler->DrawLocation(com, color);
+        }
+        // drawing_handler->DrawArrow(com, com_dot, color);
 
         if(time_id != 0)
         {
@@ -1163,19 +1193,21 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
     YAML::Node optimization_cfg = YAML::LoadFile(template_path.c_str());
 
     // modify the contact poses, and the initial contact poses
-    std::vector<std::string> eff_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    std::vector<std::string> effcnt_name_vec = {"effcnt_rf", "effcnt_lf", "effcnt_rh", "effcnt_lh"};
+    std::vector<std::string> effvia_name_vec = {"effvia_rf", "effvia_lf", "effvia_rh", "effvia_lh"};
     std::vector<std::string> init_eff_name_vec = {"eef_rf", "eef_lf", "eef_rh", "eef_lh"};
     for(auto & manip : ALL_MANIPULATORS)
     {
         int eff_id = contact_manipulator_id_map_.find(manip)->second;
         int num_contacts = contact_sequence_interpreter_.contacts_per_endeff_[eff_id];
+        int num_viapoints = contact_sequence_interpreter_.viapoints_per_endeff_[eff_id];
         bool init_pose_specified = false;
         YAML::Node init_cnt_node = optimization_cfg["initial_robot_state"]["eef_pose"][init_eff_name_vec[eff_id]];
 
         optimization_cfg["contact_plan"]["num_contacts"][eff_id] = num_contacts;
         for(int cnt_id = 0; cnt_id < num_contacts; cnt_id++)
         {
-            std::string eff_name = eff_name_vec[eff_id];
+            std::string eff_name = effcnt_name_vec[eff_id];
             std::string cnt_name = "cnt"+std::to_string(cnt_id);
             YAML::Node cnt_node = optimization_cfg["contact_plan"][eff_name][cnt_name];
             auto cnt_obj = contact_sequence_interpreter_.contactSequence().endeffectorContacts(eff_id)[cnt_id];
@@ -1205,6 +1237,24 @@ void OptimizationInterface::exportOptimizationConfigFile(std::string template_pa
 
                 init_pose_specified = true;
             }
+        }
+
+        optimization_cfg["planner_variables"]["num_viapoints"][eff_id] = num_viapoints;
+        for(int via_id = 0; via_id < num_viapoints; via_id++)
+        {
+            std::string eff_name = effvia_name_vec[eff_id];
+            std::string via_name = "via"+std::to_string(via_id);
+            YAML::Node via_node = optimization_cfg["planner_variables"][eff_name][via_name];
+            auto via_obj = contact_sequence_interpreter_.viapointSequence().endeffectorViapoints(eff_id)[via_id];
+
+            via_node[0] = via_obj.viapointTime();
+            via_node[1] = via_obj.viapointPosition()[0];
+            via_node[2] = via_obj.viapointPosition()[1];
+            via_node[3] = via_obj.viapointPosition()[2];
+            via_node[4] = via_obj.viapointOrientation().w();
+            via_node[5] = via_obj.viapointOrientation().x();
+            via_node[6] = via_obj.viapointOrientation().y();
+            via_node[7] = via_obj.viapointOrientation().z();
         }
 
         if(!init_pose_specified)
@@ -1331,4 +1381,9 @@ Vector3D OptimizationInterface::getLinearMomentum(int time_id)
 Vector3D OptimizationInterface::getAngularMomentum(int time_id)
 {
     return rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).angularMomentum());
+}
+
+momentumopt::DynamicsSequence OptimizationInterface::getDynamicsSequence()
+{
+    return dynamics_optimizer_.dynamicsSequence();
 }

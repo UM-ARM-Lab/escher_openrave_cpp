@@ -18,9 +18,13 @@ class environment_handler:
 
             if enable_viewer:
                 self.env.SetViewer('qtcoin')  # attach viewer (optional)
-                self.env.GetViewer().SetCamera(np.array([[1, 0, 0, 2.0],
-                                                         [0,-1, 0, 0],
-                                                         [0, 0,-1, 5.0],
+                # self.env.GetViewer().SetCamera(np.array([[1, 0, 0, 2.0],
+                #                                          [0,-1, 0, 0],
+                #                                          [0, 0,-1, 5.0],
+                #                                          [0, 0, 0, 1]], dtype=float))
+                self.env.GetViewer().SetCamera(np.array([[0, -1, 0, 1.0],
+                                                         [-1, 0, 0, 0.0],
+                                                         [0, 0, -1, 5.0],
                                                          [0, 0, 0, 1]], dtype=float))
 
             fcl = rave.RaveCreateCollisionChecker(self.env, "fcl_")
@@ -101,15 +105,15 @@ class environment_handler:
 
         self.draw_handles.append(self.env.drawlinestrip(points = region_boundary_points,linewidth = 5.0,colors = np.array((0,0,0))))
 
-        arrow_points = np.zeros((5,3),dtype=float)
+        # arrow_points = np.zeros((5,3),dtype=float)
 
-        arrow_points[0:1,:] = (center - radius*2.0/3.0 * x_vector).T
-        arrow_points[1:2,:] = (center + radius*2.0/3.0 * x_vector).T
-        arrow_points[2:3,:] = (center + radius/2.0 * y_vector).T
-        arrow_points[3:4,:] = (center + radius*2.0/3.0 * x_vector).T
-        arrow_points[4:5,:] = (center - radius/2.0 * y_vector).T
+        # arrow_points[0:1,:] = (center - radius*2.0/3.0 * x_vector).T
+        # arrow_points[1:2,:] = (center + radius*2.0/3.0 * x_vector).T
+        # arrow_points[2:3,:] = (center + radius/2.0 * y_vector).T
+        # arrow_points[3:4,:] = (center + radius*2.0/3.0 * x_vector).T
+        # arrow_points[4:5,:] = (center - radius/2.0 * y_vector).T
 
-        self.draw_handles.append(self.env.drawlinestrip(points = arrow_points,linewidth = 5.0,colors = np.array((0,0,0))))
+        # self.draw_handles.append(self.env.drawlinestrip(points = arrow_points,linewidth = 5.0,colors = np.array((0,0,0))))
 
     def add_quadrilateral_surface(self,structures,projected_vertices,global_transform,surface_type='ground',surface_transparancy=1.0):
         # the projected surface must be in counter-clockwise order
@@ -157,7 +161,7 @@ class environment_handler:
 
         structures.append(random_surface)
         self.DrawSurface(random_surface, transparency=surface_transparancy, style='random_green_yellow_color')
-        self.DrawOrientation(global_transform)
+        # self.DrawOrientation(global_transform)
 
     def construct_tilted_rectangle_wall(self, structures, origin_pose, wall_spacing, max_tilted_angle, wall_length, wall_height=1.5, slope=0):
 
@@ -228,13 +232,13 @@ class environment_handler:
                                                         (wall_max_x,wall_max_y),
                                                         (wall_min_x,wall_max_y),
                                                         (wall_min_x,wall_min_y)],
-                                                       [0,ground_max_y+0.1,1.2,90,0,0], surface_transparancy=0.5)
+                                                       [0,ground_max_y+0.1,1.2,90,0,0], surface_transparancy=0.5, surface_type='others')
 
             self.add_quadrilateral_surface(structures, [(wall_max_x,wall_min_y),
                                                         (wall_max_x,wall_max_y),
                                                         (wall_min_x,wall_max_y),
                                                         (wall_min_x,wall_min_y)],
-                                                       [0,ground_min_y-0.1,1.2,-90,0,0], surface_transparancy=0.5)
+                                                       [0,ground_min_y-0.1,1.2,-90,0,0], surface_transparancy=0.5, surface_type='others')
 
         elif(surface_source == 'flat_ground_env'):
             flat_ground_max_x = 4.0
@@ -247,21 +251,74 @@ class environment_handler:
                                                         (flat_ground_min_x,flat_ground_max_y),
                                                         (flat_ground_min_x,flat_ground_min_y)], [0,0,0,0,0,0])
 
-            self.goal_x = 3.0
+            self.goal_x = 1.0
             self.goal_y = 0.0
+
+        elif(surface_source == 'rubble_field_env'):
+            stepping_stone_size = (0.3,0.3)
+            row_num = 8
+            col_num = 10
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    surface_transform = [(row+0.5)*stepping_stone_size[0] + 0.2,
+                                         (col+0.5)*stepping_stone_size[1] - 1.5,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+            self.add_quadrilateral_surface(structures, [(0.2,-0.2,0),(0.2,0.2,0),(-0.2,0.2,0),(-0.2,-0.2,0)], [0,0,0,0,0,0])
+
+            self.goal_x = random.random() * 1.0 + 1.0
+            self.goal_y = random.random() * 2.5 - 1.25
+
+        elif(surface_source == 'flat_ground_and_wall_env'):
+            self.goal_x = 0.8
+            self.goal_y = 0.0
+
+            # add the ground
+            ground_max_x = 4.5
+            ground_min_x = -1.0
+            ground_max_y = 0.55
+            ground_min_y = -0.75
+
+            self.add_quadrilateral_surface(structures, [(ground_max_x,ground_min_y),
+                                                        (ground_max_x,ground_max_y),
+                                                        (ground_min_x,ground_max_y),
+                                                        (ground_min_x,ground_min_y)], [0,0,0,0,0,0])
+
+            # add the walls
+            wall_max_x = ground_max_x
+            wall_min_x = ground_min_x
+            wall_max_y = 0.5
+            wall_min_y = -0.5
+
+            self.add_quadrilateral_surface(structures, [(wall_max_x,wall_min_y),
+                                                        (wall_max_x,wall_max_y),
+                                                        (wall_min_x,wall_max_y),
+                                                        (wall_min_x,wall_min_y)],
+                                                       [0,ground_max_y+0.1,1.2,90,0,0], surface_transparancy=0.5, surface_type='others')
 
         elif(surface_source == 'thin_flat_ground_env'):
             flat_ground_max_x = 4.0
             flat_ground_min_x = -1.0
-            flat_ground_max_y = 0.15
-            flat_ground_min_y = -0.15
+            flat_ground_max_y = 0.25
+            flat_ground_min_y = -0.25
+            # flat_ground_max_y = 0.15
+            # flat_ground_min_y = -0.15
 
             self.add_quadrilateral_surface(structures, [(flat_ground_max_x,flat_ground_min_y),
                                                         (flat_ground_max_x,flat_ground_max_y),
                                                         (flat_ground_min_x,flat_ground_max_y),
                                                         (flat_ground_min_x,flat_ground_min_y)], [0,0,0,0,0,0])
 
-            self.goal_x = 3.0
+            self.goal_x = 1.0
             self.goal_y = 0.0
 
         elif(surface_source == 'stepping_stone_sequence'):
@@ -939,7 +996,7 @@ class environment_handler:
         elif(surface_source == 'capture_test_env_3'): # a room for the robot to go from one end to the other
 
             corridor_length = 2.0
-            corridor_width = 1.0
+            corridor_width = 0.6
 
             # initial platform
             self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
@@ -962,6 +1019,99 @@ class environment_handler:
             #                                             (corridor_length,-corridor_width/2.0),
             #                                             (corridor_length,corridor_width/2.0)],
             #                                             [0,-corridor_width/2.0-0.1,1.3,-90,0,0],
+            #                                             surface_type='others')
+
+            self.goal_x = corridor_length - 0.2
+            self.goal_y = 0
+
+        elif(surface_source == 'capture_test_env_4'): # a room for the robot to go from one end to the other
+
+            corridor_length = 2.0
+            # corridor_width = 0.6
+            # corridor_width = 1.2
+            corridor_width = 1.8
+
+            random.seed(532) # 9(14,20,25), 3
+            # random.seed(2478) # 10(15,21,26), 4
+            # random.seed(8) # 11(16,22,27), 5
+            # random.seed(78945) # 12(17,23,28), 6
+            # random.seed(29854745) # 13(18,24,29), 7
+
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+                                                        (-0.2,-0.3),
+                                                        (0.2,-0.3),
+                                                        (0.2,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            # final platform
+            self.add_quadrilateral_surface(structures, [(corridor_length-0.4,corridor_width/2.0),
+                                                        (corridor_length-0.4,-0.3),
+                                                        (corridor_length,-0.3),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            stepping_stone_size = (0.35,0.3)
+            row_num = 4
+            col_num = 2
+            stepping_stone_start_x = 0.2
+            stepping_stone_start_y = -0.3
+
+            # stepping stone
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(0,col_num): # columns of stepping stones
+                    surface_transform = [(row+0.5) * stepping_stone_size[0] + stepping_stone_start_x,
+                                         (col+0.5) * stepping_stone_size[1] + stepping_stone_start_y,
+                                         random.uniform(-0.05, 0.05),
+                                         random.uniform(-20, 20),
+                                         random.uniform(-20, 20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num,col_num+2): # columns of stepping stones
+                    surface_transform = [(row+0.5) * stepping_stone_size[0] + stepping_stone_start_x,
+                                         (col+0.5) * stepping_stone_size[1] + stepping_stone_start_y,
+                                         random.uniform(-0.05, 0.05),
+                                         random.uniform(-20, 20),
+                                         random.uniform(-20, 20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+            # left wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,corridor_width/2.0+0.2,1.2,90,0,0],
+            #                                             surface_type='others')
+
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,corridor_width/2.0+0.35,1.2,90,0,0],
+            #                                             surface_type='others')
+            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+                                                        (-0.2,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,corridor_width/2.0+0.2,1.2,90,0,0],
+                                                        surface_type='others')
+
+            # right wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,-corridor_width/2.0-0.1,1.2,-90,0,0],
             #                                             surface_type='others')
 
             self.goal_x = corridor_length - 0.2

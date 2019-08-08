@@ -42,6 +42,7 @@ class ContactState
         void printStateInfo();
 
         const int num_stance_in_state_;
+        int depth_;
 
         std::vector<std::shared_ptr<Stance> > stances_vector_;
         Translation3D nominal_com_;
@@ -99,6 +100,7 @@ class ContactState
 
         std::vector<CapturePose> support_phase_capture_poses_vector_; // a list of possible capture states during the motion from prev_state to current_state
         std::vector<CapturePose> transition_phase_capture_poses_vector_; // a list of possible capture states in current_state
+        std::vector<int> transition_phase_capture_poses_prediction_vector_; // a list of capture states prediction
 
     private:
 

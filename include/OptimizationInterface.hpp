@@ -69,6 +69,7 @@ class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
         float support_phase_time_;
         float timer_;
         Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> contacts_per_endeff_;
+        Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> viapoints_per_endeff_;
 
         DynOptApplication dynamics_optimizer_application_;
 };
@@ -150,6 +151,7 @@ class OptimizationInterface
         Translation3D getCoM(int time_id);
         Vector3D getLinearMomentum(int time_id);
         Vector3D getAngularMomentum(int time_id);
+        momentumopt::DynamicsSequence getDynamicsSequence();
 
         float step_transition_time_;
         float support_phase_time_;

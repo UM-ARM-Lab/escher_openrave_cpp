@@ -61,6 +61,8 @@ class NeuralNetworkInterface
         bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state);
         bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state);
 
+        Eigen::VectorXd getOneStepCaptureFeatureVector(std::shared_ptr<ContactState> one_step_capture_state);
+
     private:
         std::unordered_map<ContactTransitionCode, ClassificationModel, EnumClassHash> contact_transition_feasibility_calssification_models_map_;
         std::unordered_map<ContactTransitionCode, RegressionModel, EnumClassHash> contact_transition_dynamics_cost_regression_models_map_;

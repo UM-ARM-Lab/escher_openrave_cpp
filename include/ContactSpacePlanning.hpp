@@ -10,6 +10,8 @@ class ContactSpacePlanning
         ContactSpacePlanning(std::shared_ptr<RobotProperties> _robot_properties,
                              std::vector< std::array<float,3> > _foot_transition_model,
                              std::vector< std::array<float,2> > _hand_transition_model,
+                             std::vector< std::array<float,3> > _disturbance_rejection_foot_transition_model,
+                             std::vector< std::array<float,2> > _disturbance_rejection_hand_transition_model,
                              std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                              std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                              std::shared_ptr<MapGrid> _map_grid,
@@ -68,6 +70,8 @@ class ContactSpacePlanning
         // transition models
         const std::vector< std::array<float,3> > foot_transition_model_;
         const std::vector< std::array<float,2> > hand_transition_model_;
+        const std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model_;
+        const std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model_;
 
         // disturbance samples
         std::vector<std::pair<Vector6D, float> > disturbance_samples_;
@@ -75,10 +79,10 @@ class ContactSpacePlanning
         // cost parameters
         // const float step_cost_weight_ = 10.0;
         const float step_cost_weight_ = 3.0;
-        const float dynamics_cost_weight_ = 0.0; // test
-        // const float dynamics_cost_weight_ = 0.1; // original
+        // const float dynamics_cost_weight_ = 0.0; // test
+        const float dynamics_cost_weight_ = 0.0; // original
         // const float dynamics_cost_weight_ = 1.0; // simplified
-        const float disturbance_cost_weight_ = 1000.0;
+        const float disturbance_cost_weight_ = 10000.0;
         // const float disturbance_cost_weight_ = 0.0;
 
         // random number generator & randomness parameter
@@ -130,6 +134,7 @@ class ContactSpacePlanning
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
+        std::vector< std::shared_ptr<ContactState> > getBranchingStates(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator>& branching_manips, std::vector< std::array<float,3> > foot_transition_model, std::vector< std::array<float,2> > hand_transition_model);
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);

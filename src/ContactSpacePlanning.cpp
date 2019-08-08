@@ -4,6 +4,8 @@
 ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _robot_properties,
                                            std::vector< std::array<float,3> > _foot_transition_model,
                                            std::vector< std::array<float,2> > _hand_transition_model,
+                                           std::vector< std::array<float,3> > _disturbance_rejection_foot_transition_model,
+                                           std::vector< std::array<float,2> > _disturbance_rejection_hand_transition_model,
                                            std::vector< std::shared_ptr<TrimeshSurface> > _structures,
                                            std::map<int, std::shared_ptr<TrimeshSurface> > _structures_dict,
                                            std::shared_ptr<MapGrid> _map_grid,
@@ -21,6 +23,8 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
 robot_properties_(_robot_properties),
 foot_transition_model_(_foot_transition_model),
 hand_transition_model_(_hand_transition_model),
+disturbance_rejection_foot_transition_model_(_disturbance_rejection_foot_transition_model),
+disturbance_rejection_hand_transition_model_(_disturbance_rejection_hand_transition_model),
 structures_(_structures),
 structures_dict_(_structures_dict),
 map_grid_(_map_grid),
@@ -84,6 +88,10 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
             dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME,
                                                                                           "../data/SL_optim_config_template/cfg_kdopt_demo_contact_transition_hermes_full.yaml",
                                                                                           _robot_properties->ee_offset_transform_to_dynopt_);
+
+            // dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME,
+            //                                                                               "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_hermes_full.yaml",
+            //                                                                               _robot_properties->ee_offset_transform_to_dynopt_);
         }
 
     }
@@ -143,7 +151,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
         // construct the training sample config file storing path
         // training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_high_disturbance/";
         // training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_testing_data/";
-        training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_diverse_initial_state/";
+        training_sample_config_folder_ = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_" + robot_properties_->name_ + "/config/capture_test_new_round/";
         std::string file_path;
 
         for (int motion_code_int = ZeroStepCaptureCode::ONE_FOOT; motion_code_int <= ZeroStepCaptureCode::FEET_AND_ONE_HAND; motion_code_int++)
@@ -262,6 +270,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     std::vector< std::vector<std::shared_ptr<ContactState> > > all_solution_contact_paths;
     std::vector<float> all_solution_planning_times;
 
+    // int depth_limit = 15;
+    int depth_limit = 100000;
+
     {
         OpenRAVE::EnvironmentMutex::scoped_lock lockenv(general_ik_interface_->env_->GetMutex());
 
@@ -306,6 +317,12 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     if(!use_dynamics_planning_ && !stateFeasibilityCheck(current_state, dummy_dynamics_cost, dummy_index))
                     {
                         // getchar();
+                        current_state->explore_state_ = ExploreState::CLOSED;
+                        continue;
+                    }
+
+                    if(current_state->depth_ > depth_limit)
+                    {
                         current_state->explore_state_ = ExploreState::CLOSED;
                         continue;
                     }
@@ -388,12 +405,14 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         }
 
                         std::reverse(solution_contact_path.begin(), solution_contact_path.end());
+                        float total_disturbance_cost = 0;
                         for(unsigned int i = 0; i < solution_contact_path.size(); i++)
                         {
                             if(!solution_contact_path[i]->is_root_)
                             {
                                 solution_contact_path[i]->parent_ = solution_contact_path[i-1];
-                                std::cout << solution_contact_path[i]->prev_disturbance_cost_ << ", ";
+                                std::cout << solution_contact_path[i]->prev_disturbance_cost_ << "(" << 100*exp(-solution_contact_path[i]->prev_disturbance_cost_) << "%), ";
+                                total_disturbance_cost += solution_contact_path[i]->prev_disturbance_cost_;
 
                                 // std::cout << "prev move manip: " << solution_contact_path[i]->prev_move_manip_;
                                 // std::cout << ", disturbance cost: " << solution_contact_path[i]->prev_disturbance_cost_ << std::endl;
@@ -408,12 +427,12 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                         all_solution_planning_times.push_back(planning_time);
 
-                        RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
+                        RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, DisturbCost: %5.3f, Success Prob: %5.2f\%, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, total_disturbance_cost, 100*exp(-total_disturbance_cost), step_count);
 
                         drawing_handler_->ClearHandler();
                         drawing_handler_->DrawContactPath(solution_contact_path[solution_contact_path.size()-1]);
 
-                        getchar();
+                        // getchar();
 
                         planning_result.push_back(std::make_tuple(planning_id_, planning_time, G_, current_state->accumulated_dynamics_cost_, step_count));
 
@@ -494,6 +513,19 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
         std::reverse(contact_state_path.begin(), contact_state_path.end());
 
+        // std::cout << "start from middle planning test" << std::endl;
+        // std::shared_ptr<ContactState> restart_state = all_solution_contact_paths[all_solution_contact_paths.size()-1][3];
+        // std::shared_ptr<ContactState> new_initial_state = std::make_shared<ContactState>(restart_state->stances_vector_[0], restart_state->com_, restart_state->com_dot_, restart_state->lmom_, restart_state->amom_, 1);
+        // std::cout << "left foot: "; restart_state->stances_vector_[0]->left_foot_pose_.printPose();
+        // std::cout << "right foot: "; restart_state->stances_vector_[0]->right_foot_pose_.printPose();
+        // std::cout << "left hand: "; restart_state->stances_vector_[0]->left_hand_pose_.printPose();
+        // std::cout << "right hand: "; restart_state->stances_vector_[0]->left_hand_pose_.printPose();
+        // getchar();
+        // drawing_handler_->ClearHandler();
+        // ANAStarPlanning(new_initial_state, goal, goal_radius, heuristics_type,
+        //                 branching_method, time_limit, epsilon, output_first_solution, goal_as_exact_poses,
+        //                 use_learned_dynamics_model, enforce_stop_in_the_end);
+
         // return contact_state_path;
 
         float total_learned_dynamics_cost = contact_state_path[contact_state_path.size()-1]->accumulated_dynamics_cost_;
@@ -529,170 +561,443 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
             total_learned_dynamics_cost = all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]->accumulated_dynamics_cost_;
 
+            std::cout << "State CoMs: " << std::endl;
+            for(int state_id = 1; state_id < all_solution_contact_paths[i].size(); state_id++)
+            {
+                std::vector<int> capture_pose_num_vec(int(ContactManipulator::MANIP_NUM), 0);
+                std::vector<int> valid_capture_pose_num_vec(int(ContactManipulator::MANIP_NUM), 0);
+
+                for(int capture_id = 0; capture_id < all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_.size(); capture_id++)
+                {
+                    auto capture_pose = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_[capture_id];
+                    int capture_pose_prediction = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_prediction_vector_[capture_id];
+
+                    capture_pose_num_vec[int(capture_pose.contact_manip_)]++;
+                    valid_capture_pose_num_vec[int(capture_pose.contact_manip_)] += capture_pose_prediction;
+                }
+
+                std::cout << "State " << state_id <<
+                          ", prev move manip: " << all_solution_contact_paths[i][state_id]->prev_move_manip_ <<
+                          ", CoM: " << all_solution_contact_paths[i][state_id]->com_.transpose();
+
+                std::cout << ", Capture Pose Num: [";
+                for(int manip_id = 0; manip_id < int(ContactManipulator::MANIP_NUM); manip_id++)
+                {
+                    std::cout << capture_pose_num_vec[manip_id];
+                    if(manip_id < int(ContactManipulator::MANIP_NUM)-1)
+                        std::cout << ",";
+                }
+                std::cout << "]";
+
+                std::cout << ", Valid Capture Pose Num: [";
+                for(int manip_id = 0; manip_id < int(ContactManipulator::MANIP_NUM); manip_id++)
+                {
+                    std::cout << valid_capture_pose_num_vec[manip_id];
+                    if(manip_id < int(ContactManipulator::MANIP_NUM)-1)
+                        std::cout << ",";
+                }
+                std::cout << "]";
+
+
+
+
+                std::cout << std::endl;
+
+
+                // std::shared_ptr<ContactState> current_state = all_solution_contact_paths[i][state_id];
+                // std::shared_ptr<ContactState> prev_state = current_state->parent_;
+                // ContactManipulator move_manip = current_state->prev_move_manip_;
+                // Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
+                // if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
+                // {
+                //     current_state->com_ = prev_state->com_;
+                //     // if(!prev_state->manip_in_contact(move_manip) || !current_state->manip_in_contact(move_manip))
+                //     // {
+                //     //     current_state->com_ = prev_state->com_;
+                //     // }
+                //     // else
+                //     // {
+                //     //     current_state->com_ = prev_state->com_ + (current_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ() - prev_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ()) * 0.1;
+                //     // }
+                // }
+                // else if(move_manip == ContactManipulator::L_LEG)
+                // {
+                //     current_state->com_ = 0.6 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+                //                           0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+                // }
+                // else if(move_manip == ContactManipulator::R_LEG)
+                // {
+                //     current_state->com_ = 0.6 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
+                //                           0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+                // }
+            }
+
             if(use_dynamics_planning_)
             {
                 kinematicsVerification_StateOnly(all_solution_contact_paths[i]);
                 std::cout << "Predicted CoM trajectory(Red)." << std::endl;
-                // getchar();
+                getchar();
             }
+
+            // for(auto & state : all_solution_contact_paths[i])
+            // {
+            //     std::cout << "Contact state: " << state->stances_vector_[0]->ee_contact_status_[0] << " "
+            //                                    << state->stances_vector_[0]->ee_contact_status_[1] << " "
+            //                                    << state->stances_vector_[0]->ee_contact_status_[2] << " "
+            //                                    << state->stances_vector_[0]->ee_contact_status_[3] << std::endl;
+
+            //     std::cout << "Left foot: ";
+            //     state->stances_vector_[0]->ee_contact_poses_[0].printPose();
+            //     std::cout << "Right foot: ";
+            //     state->stances_vector_[0]->ee_contact_poses_[1].printPose();
+
+            //     std::cout << "CoM: " << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
+            // }
 
             // total_dynamics_cost_segment_by_segment = fillDynamicsSequenceSegmentBySegment(all_solution_contact_paths[i]);
             // std::cout << "Piecewise Optimization CoM trajectory(Green)." << std::endl;
 
+            // std::vector< std::shared_ptr<ContactState> > test_contact_sequence;
+            // test_contact_sequence.push_back(all_solution_contact_paths[i][0]);
+            // test_contact_sequence.push_back(all_solution_contact_paths[i][1]);
+            // test_contact_sequence.push_back(all_solution_contact_paths[i][2]);
+            // test_contact_sequence.push_back(all_solution_contact_paths[i][3]);
+            // test_contact_sequence[1]->parent_ = test_contact_sequence[0];
+            // test_contact_sequence[2]->parent_ = test_contact_sequence[1];
+            // test_contact_sequence[3]->parent_ = test_contact_sequence[2];
+
             total_dynamics_cost = fillDynamicsSequence(all_solution_contact_paths[i]);
+            // total_dynamics_cost = fillDynamicsSequence(test_contact_sequence);
             std::cout << "Whole Contact Sequence Optimization CoM trajectory(Blue)." << std::endl;
+            momentumopt::DynamicsSequence optimized_dynamics_sequence = dynamics_optimizer_interface_vector_[0]->getDynamicsSequence();
             getchar();
 
-            // if(total_dynamics_cost != 99999.0)
-            if(false)
+            if(total_dynamics_cost != 99999.0)
+            // if(false)
             {
-                // getchar();
-                num_contact_sequence_tried = all_solution_contact_paths.size() - i;
-
-                // export the movement & capture contact sequence for kinematics optimization
-                exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                                                             all_solution_contact_paths[i],
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
-
-                exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                                                             all_solution_contact_paths[i],
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/initial_motion_cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
-
-                // sample the time to take impact
                 float time_step = 0.1;
                 float duration_per_state = dynamics_optimizer_interface_vector_[0]->support_phase_time_ + dynamics_optimizer_interface_vector_[0]->step_transition_time_;
                 float start_sample_time = dynamics_optimizer_interface_vector_[0]->support_phase_time_ + time_step; // we do not sample the initial support phase
                 float end_sample_time = duration_per_state * (all_solution_contact_paths[i].size()-1); // we do not sample the final support phase
-                std::uniform_real_distribution<double> sample_time_distribution(start_sample_time, end_sample_time);
-                float sampled_impact_time = floor(sample_time_distribution(rng_)/time_step) * time_step;
-                int time_id = int((sampled_impact_time + 0.00001) / time_step);
+                int sample_id = -1;
+                bool enable_file_output = false;
 
-                // sample the disturbance
-                std::vector<float> disturbance_probability_weights;
-                for(auto & disturbance : disturbance_samples_)
+                std::string config_path = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/";
+                std::string experiment_name = "one_wall_flat_ground_1";
+                std::string kindynopt_config_locomotion_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_hermes_full.yaml";
+                // std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_capture_motion_hermes_full.yaml";
+                std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_hermes_full.yaml";
+                std::string kindynopt_config_test_path = config_path + experiment_name + "/";
+
+                std::ofstream fout_prediction((kindynopt_config_test_path + "network_predictions.txt").c_str());
+                std::ofstream fout_feature_vector((kindynopt_config_test_path + "feature_vectors.txt").c_str());
+                std::ofstream fout_capture_pose_num((kindynopt_config_test_path + "capture_pose_num.txt").c_str());
+
+                // for(int sample_id = 0; sample_id < 100; sample_id++)
+                for(double sampled_impact_time = start_sample_time; sampled_impact_time < end_sample_time; sampled_impact_time = sampled_impact_time + time_step)
                 {
-                    disturbance_probability_weights.push_back(disturbance.second);
+                    float phase_time = round(fmod(sampled_impact_time + 0.0001, duration_per_state) * 100) * 0.01;
+                    if(phase_time <= dynamics_optimizer_interface_vector_[0]->support_phase_time_ + 0.001)
+                    {
+                        continue;
+                    }
+
+                    sample_id++;
+
+                    // getchar();
+                    num_contact_sequence_tried = all_solution_contact_paths.size() - i;
+
+                    std::string kindynopt_config_output_path = kindynopt_config_test_path + experiment_name + "_" + std::to_string(sample_id) + "/";
+
+                    if(enable_file_output)
+                    {
+                        if(!directory_exist(kindynopt_config_test_path))
+                        {
+                            mkdir(kindynopt_config_test_path.c_str(), 0777);
+                        }
+
+                        if(!directory_exist(kindynopt_config_output_path))
+                        {
+                            mkdir(kindynopt_config_output_path.c_str(), 0777);
+                        }
+
+                        // export the movement & capture contact sequence for kinematics optimization
+                        exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+                                                                    all_solution_contact_paths[i],
+                                                                    kindynopt_config_locomotion_template_path,
+                                                                    kindynopt_config_output_path + "cfg_kdopt_demo.yaml",
+                                                                    kindynopt_config_output_path + "Objects.cf");
+
+                        exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+                                                                    all_solution_contact_paths[i],
+                                                                    kindynopt_config_locomotion_template_path,
+                                                                    kindynopt_config_output_path + "initial_motion_cfg_kdopt_demo.yaml",
+                                                                    kindynopt_config_output_path + "Objects.cf");
+                    }
+
+                    // sample the time to take impact
+                    // std::uniform_real_distribution<double> sample_time_distribution(start_sample_time, end_sample_time);
+                    // float sampled_impact_time = floor(sample_time_distribution(rng_)/time_step) * time_step;
+
+                    // while(phase_time <= dynamics_optimizer_interface_vector_[0]->support_phase_time_ + 0.001) // sample only the transition phases
+                    // {
+                    //     sampled_impact_time = floor(sample_time_distribution(rng_)/time_step) * time_step;
+                    //     phase_time = round(fmod(sampled_impact_time + 0.0001, duration_per_state) * 100) * 0.01;
+                    // }
+
+                    int impact_time_id = int((sampled_impact_time + 0.00001) / time_step) - 1;
+
+                    std::cout << "Sampled impact time: " << sampled_impact_time << " s." << std::endl;
+                    std::cout << "Sampled impact time id: " << impact_time_id << std::endl;
+
+                    // sample the disturbance
+                    std::vector<float> disturbance_probability_weights;
+                    for(auto & disturbance : disturbance_samples_)
+                    {
+                        disturbance_probability_weights.push_back(disturbance.second);
+                    }
+                    std::discrete_distribution<int> disturbance_distribution(disturbance_probability_weights.begin(), disturbance_probability_weights.end());
+                    Vector6D sampled_disturbance = disturbance_samples_[disturbance_distribution(rng_)].first;
+
+                    std::cout << "Sampled disturbance: (" << sampled_disturbance[0] << ", "
+                                                          << sampled_disturbance[1] << ", "
+                                                          << sampled_disturbance[2] << ")" << std::endl;
+
+                    // check what is the corresponding state and in support or transition phase
+                    std::vector<CapturePose> capture_poses_vector;
+                    int impact_state_id = int(sampled_impact_time/duration_per_state);
+                    std::shared_ptr<ContactState> impact_state; // the state-to-be if the disturbance does not happen
+                    std::shared_ptr<Stance> post_impact_stance;
+                    std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
+                    std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses;
+
+                    // std::cout << "remaining time: " << phase_time << std::endl;
+                    // std::cout << "impact state id: " << impact_state_id << std::endl;
+
+                    if(phase_time <= dynamics_optimizer_interface_vector_[0]->support_phase_time_ + 0.001) // support phase
+                    {
+                        std::cout << "Disturbance on support phase." << std::endl;
+                        capture_poses_vector = all_solution_contact_paths[i][impact_state_id]->support_phase_capture_poses_vector_;
+                        impact_state = all_solution_contact_paths[i][impact_state_id];
+                        post_impact_stance = impact_state->stances_vector_[0];
+
+                        std::cout << "Planned State CoM: (" << impact_state->com_[0] << ", "
+                                                            << impact_state->com_[1] << ", "
+                                                            << impact_state->com_[2] << ")" << std::endl;
+
+                        std::cout << "Planned State LMOM: (" << impact_state->lmom_[0] << ", "
+                                                             << impact_state->lmom_[1] << ", "
+                                                             << impact_state->lmom_[2] << ")" << std::endl;
+                    }
+                    else // contact transition phase
+                    {
+                        std::cout << "Disturbance on contact transition phase." << std::endl;
+                        capture_poses_vector = all_solution_contact_paths[i][impact_state_id+1]->transition_phase_capture_poses_vector_;
+                        impact_state = all_solution_contact_paths[i][impact_state_id+1];
+
+                        std::shared_ptr<ContactState> prev_state = impact_state->parent_;
+                        ContactManipulator move_manip = impact_state->prev_move_manip_;
+
+                        ee_contact_status = prev_state->stances_vector_[0]->ee_contact_status_;
+                        ee_contact_status[move_manip] = false;
+                        ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
+                        ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+                        post_impact_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                      ee_contact_poses[2], ee_contact_poses[3],
+                                                                      ee_contact_status);
+
+                        std::cout << "Planned State CoM: (" << impact_state->parent_->com_[0] << ", "
+                                                            << impact_state->parent_->com_[1] << ", "
+                                                            << impact_state->parent_->com_[2] << ")" << std::endl;
+
+                        std::cout << "Planned State LMOM: (" << impact_state->parent_->lmom_[0] << ", "
+                                                             << impact_state->parent_->lmom_[1] << ", "
+                                                             << impact_state->parent_->lmom_[2] << ")" << std::endl;
+                    }
+
+                    Vector3D sampled_disturbance_lmom = sampled_disturbance.block(0,0,3,1);
+                    auto sampled_disturbance_lmom_SL = rotateVectorFromOpenraveToSL(sampled_disturbance_lmom);
+                    if(enable_file_output)
+                    {
+                        // store the disturbance configuration
+                        int disturbance_counter = 0;
+                        for(auto & disturbance : disturbance_samples_)
+                        {
+                            Vector3D disturbance_lmom = disturbance.first.block(0,0,3,1);
+                            auto disturbance_lmom_SL = rotateVectorFromOpenraveToSL(disturbance_lmom);
+                            YAML::Node disturbance_cfg;
+                            disturbance_cfg["impact_time_id"] = impact_time_id;
+                            for(int axis_id = 0; axis_id < 3; axis_id++)
+                                disturbance_cfg["disturbance"][axis_id] = disturbance_lmom_SL[axis_id];
+
+                            std::ofstream fout((kindynopt_config_output_path + "disturbance_config_" + std::to_string(disturbance_counter) + ".yaml").c_str());
+                            fout << disturbance_cfg;
+                            fout.close();
+                            disturbance_counter++;
+                        }
+                    }
+
+                    // get the post impact com and com dot from the optimized com trajectory (Blue)
+                    Translation3D post_impact_com = transformPositionFromSLToOpenrave(optimized_dynamics_sequence.dynamicsState(impact_time_id).centerOfMass());
+                    Vector3D post_impact_lmom = rotateVectorFromSLToOpenrave(optimized_dynamics_sequence.dynamicsState(impact_time_id).linearMomentum()) + sampled_disturbance_lmom;
+
+                    // Translation3D post_impact_com = impact_state->parent_->com_;
+                    // Vector3D post_impact_lmom = impact_state->parent_->lmom_ + sampled_disturbance_lmom;
+
+
+                    // Vector3D post_impact_amom = rotateVectorFromSLToOpenrave(optimized_dynamics_sequence.dynamicsState(impact_time_id).angularMomentum());
+                    Vector3D post_impact_amom = Vector3D(0,0,0);
+                    Vector3D post_impact_com_dot = post_impact_lmom / robot_properties_->mass_;
+
+                    std::cout << "Post-impact CoM: (" << post_impact_com[0] << ", "
+                                                      << post_impact_com[1] << ", "
+                                                      << post_impact_com[2] << ")" << std::endl;
+
+                    std::cout << "Post-impact LMOM: (" << post_impact_lmom[0] << ", "
+                                                       << post_impact_lmom[1] << ", "
+                                                       << post_impact_lmom[2] << ")" << std::endl;
+
+                    std::shared_ptr<ContactState> post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+
+                    std::cout << "Sampled Disturbance: " << sampled_disturbance_lmom_SL.transpose() << std::endl;
+                    std::cout << "Initial CoM: " << transformPositionFromOpenraveToSL(post_impact_state->com_).transpose() << std::endl;
+                    std::cout << "Initial LMOM: " << rotateVectorFromOpenraveToSL(post_impact_state->lmom_).transpose() << std::endl;
+                    std::cout << "Initial AMOM: " << rotateVectorFromOpenraveToSL(post_impact_state->amom_).transpose() << std::endl;
+                    std::cout << "Left Foot: "; post_impact_state->stances_vector_[0]->left_foot_pose_.printPose();
+                    std::cout << "Right Foot: "; post_impact_state->stances_vector_[0]->right_foot_pose_.printPose();
+
+
+                    // zero step capture
+                    std::vector< std::shared_ptr<ContactState> > zero_step_capture_path;
+                    zero_step_capture_path.push_back(post_impact_state);
+
+                    if(enable_file_output)
+                    {
+                        exportContactSequenceOptimizationConfigFiles(zero_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                     zero_step_capture_path,
+                                                                     kindynopt_config_capture_template_path,
+                                                                     kindynopt_config_output_path + "capture_motion_cfg_kdopt_demo_0.yaml",
+                                                                     kindynopt_config_output_path + "Objects.cf");
+                    }
+
+
+                    // one step capture
+                    // std::cout << "Number of capture contacts: " << capture_poses_vector.size() << std::endl;
+                    int capture_pose_id = 1;
+                    int predicted_capture_pose_num = 0;
+
+                    std::cout << "time: " << sampled_impact_time << ": ";
+                    for(auto & capture_info : capture_poses_vector)
+                    {
+                        // construct the contact floating state, the capture state, and the come back state
+                        std::shared_ptr<ContactState> capture_state, come_back_state;
+                        std::vector< std::shared_ptr<ContactState> > one_step_capture_path, later_path;
+
+                        RPYTF capture_pose = capture_info.capture_pose_;
+                        ContactManipulator capture_contact_manip = capture_info.contact_manip_;
+
+                        post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+                        ee_contact_status = post_impact_state->stances_vector_[0]->ee_contact_status_;
+                        ee_contact_status[capture_contact_manip] = true;
+                        ee_contact_poses = post_impact_state->stances_vector_[0]->ee_contact_poses_;
+                        ee_contact_poses[capture_contact_manip] = capture_pose;
+
+                        std::shared_ptr<Stance> capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                                          ee_contact_poses[2], ee_contact_poses[3],
+                                                                                          ee_contact_status);
+
+                        capture_state = std::make_shared<ContactState>(capture_stance, post_impact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+
+                        // std::cout << "Postimpact Left Foot: "; post_impact_state->stances_vector_[0]->left_foot_pose_.printPose();
+                        // std::cout << "Postimpact Right Foot: "; post_impact_state->stances_vector_[0]->right_foot_pose_.printPose();
+                        // std::cout << "Capture Left Foot: "; capture_state->stances_vector_[0]->left_foot_pose_.printPose();
+                        // std::cout << "Capture Right Foot: "; capture_state->stances_vector_[0]->right_foot_pose_.printPose();
+
+                        bool one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(capture_state);
+
+                        std::cout << one_step_dynamically_feasible << " ";
+                        // fout_prediction << one_step_dynamically_feasible << " ";
+
+                        Eigen::VectorXd feature_vector = neural_network_interface_vector_[0]->getOneStepCaptureFeatureVector(capture_state).transpose();
+
+                        // std::cout << std::endl << feature_vector.transpose() << std::endl;
+                        fout_feature_vector << feature_vector.transpose() << std::endl;
+
+                        if(one_step_dynamically_feasible)
+                        {
+                            predicted_capture_pose_num++;
+                        }
+
+                        // ee_contact_status = capture_state->stances_vector_[0]->ee_contact_status_;
+                        // ee_contact_status[move_manip] = impact_state->stances_vector_[0]->ee_contact_status_[move_manip];
+                        // ee_contact_poses = capture_state->stances_vector_[0]->ee_contact_poses_;
+                        // ee_contact_poses[move_manip] = impact_state->stances_vector_[0]->ee_contact_poses_[move_manip];
+
+                        // std::shared_ptr<Stance> come_back_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                        //                                                                     ee_contact_poses[2], ee_contact_poses[3],
+                        //                                                                     ee_contact_status);
+
+                        // come_back_state = std::make_shared<ContactState>(come_back_stance, capture_state, move_manip, 1, robot_properties_->robot_z_);
+
+                        // impact_state->prev_move_manip_ = capture_contact_manip;
+                        // impact_state->parent_ = come_back_state;
+
+                        one_step_capture_path.push_back(post_impact_state);
+                        one_step_capture_path.push_back(capture_state);
+
+                        // later_path.push_back(capture_state);
+                        // later_path.push_back(come_back_state);
+                        // later_path.insert(later_path.end(), all_solution_contact_paths[i].begin()+impact_state_id, all_solution_contact_paths[i].end());
+
+                        if(enable_file_output)
+                        {
+                            exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                         one_step_capture_path,
+                                                                         kindynopt_config_capture_template_path,
+                                                                         kindynopt_config_output_path + "capture_motion_cfg_kdopt_demo_" + std::to_string(capture_pose_id) + ".yaml",
+                                                                         kindynopt_config_output_path + "Objects.cf");
+                        }
+
+                        // exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+                        //                                              later_path,
+                        //                                              kindynopt_config_template_path,
+                        //                                              kindynopt_config_output_path + "final_motion_cfg_kdopt_demo.yaml",
+                        //                                              kindynopt_config_output_path + "Objects.cf");
+
+                        capture_pose_id++;
+                    }
+
+                    std::cout << std::endl;
+                    fout_prediction << sampled_impact_time << " "
+                                    << sampled_disturbance_lmom_SL[0] << " "
+                                    << sampled_disturbance_lmom_SL[1] << " "
+                                    << sampled_disturbance_lmom_SL[2] << " "
+                                    << predicted_capture_pose_num << " "
+                                    << capture_poses_vector.size() << " "
+                                    << impact_state->prev_move_manip_ << std::endl;
+                    // getchar();
+
+                    // std::ofstream planning_contact_list_fstream("contact_list.txt", std::ofstream::out);
+
+                    // for(auto & state : all_solution_contact_paths[i])
+                    // {
+                    //     if(!state->is_root_)
+                    //     {
+                    //         int move_manip = int(state->prev_move_manip_);
+                    //         planning_contact_list_fstream << move_manip << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].x_ << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].y_ << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].z_ << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].roll_ << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].pitch_ << " "
+                    //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].yaw_ << " "
+                    //                                       << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
+                    //     }
+                    // }
                 }
-                std::discrete_distribution<int> disturbance_distribution(disturbance_probability_weights.begin(), disturbance_probability_weights.end());
-                Vector6D sampled_disturbance = disturbance_samples_[disturbance_distribution(rng_)].first;
 
-                // check what is the corresponding state and in support or transition phase
-                std::vector<CapturePose> capture_poses_vector;
-                int impact_state_id;
-                std::shared_ptr<ContactState> impact_state; // the state-to-be if the disturbance does not happen
-                std::shared_ptr<Stance> post_impact_stance;
-                std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
-                std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses;
-
-                if(remquo(sampled_impact_time, duration_per_state, &impact_state_id) <= dynamics_optimizer_interface_vector_[0]->support_phase_time_) // support phase
-                {
-                    capture_poses_vector = all_solution_contact_paths[i][impact_state_id]->support_phase_capture_poses_vector_;
-                    impact_state = all_solution_contact_paths[i][impact_state_id];
-                    post_impact_stance = impact_state->stances_vector_[0];
-                }
-                else // contact transition phase
-                {
-                    capture_poses_vector = all_solution_contact_paths[i][impact_state_id+1]->transition_phase_capture_poses_vector_;
-                    impact_state = all_solution_contact_paths[i][impact_state_id+1];
-
-                    std::shared_ptr<ContactState> prev_state = impact_state->parent_;
-                    ContactManipulator move_manip = impact_state->prev_move_manip_;
-
-                    ee_contact_status = prev_state->stances_vector_[0]->ee_contact_status_;
-                    ee_contact_status[move_manip] = false;
-                    ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
-                    ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
-                    post_impact_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                  ee_contact_poses[2], ee_contact_poses[3],
-                                                                  ee_contact_status);
-                }
-
-                // get the post impact com and com dot from the optimized com trajectory (blue)
-                Translation3D post_impact_com = dynamics_optimizer_interface_vector_[0]->getCoM(time_id);
-                Vector3D post_impact_lmom = dynamics_optimizer_interface_vector_[0]->getLinearMomentum(time_id) + sampled_disturbance.block(0,0,3,1);
-                Vector3D post_impact_amom = dynamics_optimizer_interface_vector_[0]->getAngularMomentum(time_id);
-                Vector3D post_impact_com_dot = post_impact_lmom / robot_properties_->mass_;
-
-                std::shared_ptr<ContactState> post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
-
-                std::cout << "***" << std::endl;
-                std::cout << capture_poses_vector.size() << std::endl;
-
-                for(auto & capture_info : capture_poses_vector)
-                {
-                    // construct the contact floating state, the capture state, and the come back state
-                    std::shared_ptr<ContactState> capture_state, come_back_state;
-                    std::vector< std::shared_ptr<ContactState> > capture_path, later_path;
-
-                    RPYTF capture_pose = capture_info.capture_pose_;
-                    ContactManipulator capture_contact_manip = capture_info.contact_manip_;
-
-                    ee_contact_status = post_impact_state->stances_vector_[0]->ee_contact_status_;
-                    ee_contact_status[capture_contact_manip] = true;
-                    ee_contact_poses = post_impact_state->stances_vector_[0]->ee_contact_poses_;
-                    ee_contact_poses[capture_contact_manip] = capture_pose;
-
-                    std::shared_ptr<Stance> capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                      ee_contact_poses[2], ee_contact_poses[3],
-                                                                                      ee_contact_status);
-
-                    capture_state = std::make_shared<ContactState>(capture_stance, post_impact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
-
-                    // ee_contact_status = capture_state->stances_vector_[0]->ee_contact_status_;
-                    // ee_contact_status[move_manip] = impact_state->stances_vector_[0]->ee_contact_status_[move_manip];
-                    // ee_contact_poses = capture_state->stances_vector_[0]->ee_contact_poses_;
-                    // ee_contact_poses[move_manip] = impact_state->stances_vector_[0]->ee_contact_poses_[move_manip];
-
-                    // std::shared_ptr<Stance> come_back_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                    //                                                                     ee_contact_poses[2], ee_contact_poses[3],
-                    //                                                                     ee_contact_status);
-
-                    // come_back_state = std::make_shared<ContactState>(come_back_stance, capture_state, move_manip, 1, robot_properties_->robot_z_);
-
-                    // impact_state->prev_move_manip_ = capture_contact_manip;
-                    // impact_state->parent_ = come_back_state;
-
-                    capture_path.push_back(post_impact_state);
-                    capture_path.push_back(capture_state);
-
-                    // later_path.push_back(capture_state);
-                    // later_path.push_back(come_back_state);
-                    // later_path.insert(later_path.end(), all_solution_contact_paths[i].begin()+impact_state_id, all_solution_contact_paths[i].end());
-
-                    exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                                capture_path,
-                                                                "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/capture_motion_cfg_kdopt_demo.yaml",
-                                                                "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
-
-                    // exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                    //                                             later_path,
-                    //                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                    //                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/final_motion_cfg_kdopt_demo.yaml",
-                    //                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
-                }
-
-                // std::ofstream planning_contact_list_fstream("contact_list.txt", std::ofstream::out);
-
-                // for(auto & state : all_solution_contact_paths[i])
-                // {
-                //     if(!state->is_root_)
-                //     {
-                //         int move_manip = int(state->prev_move_manip_);
-                //         planning_contact_list_fstream << move_manip << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].x_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].y_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].z_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].roll_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].pitch_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].yaw_ << " "
-                //                                       << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
-                //     }
-                // }
+                fout_prediction.close();
+                fout_feature_vector.close();
 
                 break;
             }
@@ -1342,6 +1647,7 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
 
             // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
             dynamically_feasible = neural_network_interface_vector_[0]->predictContactTransitionDynamics(current_state, dynamics_cost);
+            current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
             // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
             // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
 
@@ -1357,8 +1663,8 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
         {
             // update the state cost and CoM
 
-            dynamics_optimizer_interface_vector_[index]->step_transition_time_ = 0.5;
-            dynamics_optimizer_interface_vector_[index]->support_phase_time_ = 0.5;
+            dynamics_optimizer_interface_vector_[index]->step_transition_time_ = STEP_TRANSITION_TIME;
+            dynamics_optimizer_interface_vector_[index]->support_phase_time_ = SUPPORT_PHASE_TIME;
             std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
             dynamics_optimizer_interface_vector_[index]->updateContactSequence(contact_state_sequence);
 
@@ -1456,9 +1762,43 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
     // verify the state kinematic and dynamic feasibility
     if(use_dynamics_planning_)
     {
-        // bool state_feasibility = kinematicsFeasibilityCheck(current_state, index);
-        bool state_feasibility = kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
+        bool state_feasibility = kinematicsFeasibilityCheck(current_state, index);
+        // bool state_feasibility = kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
         // bool state_feasibility = dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
+        current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
+
+        dynamics_cost = 0;
+        std::shared_ptr<ContactState> prev_state = current_state->parent_;
+        ContactManipulator move_manip = current_state->prev_move_manip_;
+        Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
+        if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
+        {
+            current_state->com_ = prev_state->com_;
+            // if(!prev_state->manip_in_contact(move_manip) || !current_state->manip_in_contact(move_manip))
+            // {
+            //     current_state->com_ = prev_state->com_;
+            // }
+            // else
+            // {
+            //     current_state->com_ = prev_state->com_ + (current_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ() - prev_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ()) * 0.1;
+            // }
+        }
+        else if(move_manip == ContactManipulator::L_LEG)
+        {
+            // current_state->com_ = 0.6 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+            //                       0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+            current_state->com_ = 0.7 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+                                  0.3 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        }
+        else if(move_manip == ContactManipulator::R_LEG)
+        {
+            // current_state->com_ = 0.6 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
+            //                       0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+            current_state->com_ = 0.7 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
+                                  0.3 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        }
+        current_state->com_dot_ = (current_state->com_ - current_state->parent_->com_) / (STEP_TRANSITION_TIME+SUPPORT_PHASE_TIME);
+        current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
 
         bool left_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM];
         bool right_hand_in_contact = current_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_ARM];
@@ -1532,37 +1872,9 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
     }
 }
 
-void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode, int specified_motion_code)
+std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingStates(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator>& branching_manips, std::vector< std::array<float,3> > foot_transition_model, std::vector< std::array<float,2> > hand_transition_model)
 {
-    std::vector<ContactManipulator> branching_manips;
-    std::vector< std::array<float,2> > hand_transition_model;
-    bool printing_capturability_info = false;
-
-    if(branching_mode == BranchingManipMode::ALL)
-    {
-        branching_manips = ALL_MANIPULATORS;
-        hand_transition_model = hand_transition_model_;
-    }
-    else if(branching_mode == BranchingManipMode::FEET_CONTACTS)
-    {
-        branching_manips = LEG_MANIPULATORS;
-    }
-    else if(branching_mode == BranchingManipMode::HAND_CONTACTS)
-    {
-        branching_manips = ARM_MANIPULATORS;
-        hand_transition_model = hand_transition_model_;
-    }
-    else if(branching_mode == BranchingManipMode::BREAKING_HAND_CONTACTS)
-    {
-        branching_manips = ARM_MANIPULATORS;
-        hand_transition_model.push_back({-99.0, -99.0});
-    }
-    else
-    {
-        RAVELOG_ERROR("Unknown branching mode.");
-        getchar();
-    }
-
+    std::vector< std::shared_ptr<ContactState> > branching_states;
     // remove the last branched manipulator from the branching manips list
     if(!current_state->is_root_)
     {
@@ -1584,18 +1896,15 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     float current_height = (current_stance->left_foot_pose_.z_ + current_stance->right_foot_pose_.z_) / 2.0;
     std::uniform_real_distribution<float> projection_height_unif(current_height - 0.15, current_height + 0.15);
 
-    std::vector< std::shared_ptr<ContactState> > branching_states;
     std::vector<bool> has_branch(ContactManipulator::MANIP_NUM, false);
     // std::vector< std::vector<std::shared_ptr<ContactState> > > branching_states_by_move_manip(ContactManipulator::MANIP_NUM);
-
-    std::uniform_real_distribution<double> unsigned_unit_unif(0, 1.0);
 
     // get all the possible branching states of the current state
     for(auto & move_manip : branching_manips)
     {
         if(move_manip == ContactManipulator::L_LEG || move_manip == ContactManipulator::R_LEG)
         {
-            for(auto & step : foot_transition_model_)
+            for(auto & step : foot_transition_model)
             {
                 std::array<float,6> l_foot_xyzrpy = current_stance->left_foot_pose_.getXYZRPY();
                 std::array<float,6> r_foot_xyzrpy = current_stance->right_foot_pose_.getXYZRPY();
@@ -1683,7 +1992,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             }
 
             // iterate through the arm transition model
-            for(auto & arm_orientation : hand_transition_model_)
+            for(auto & arm_orientation : hand_transition_model)
             {
                 std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_ee_contact_status;
                 RPYTF new_left_hand_pose = current_state->stances_vector_[0]->left_hand_pose_;
@@ -1770,32 +2079,110 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         }
     }
 
+    return branching_states;
+}
+
+void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> current_state, BranchingManipMode branching_mode, int specified_motion_code)
+{
+    std::vector< std::shared_ptr<ContactState> > branching_states, disturbance_rejection_branching_states;
+    std::vector<ContactManipulator> branching_manips;
+    std::vector<ContactManipulator> dummy_branching_manips = ALL_MANIPULATORS;
+    std::vector< std::array<float,2> > hand_transition_model;
+    std::vector< std::array<float,3> > foot_transition_model = foot_transition_model_;
+    std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model = disturbance_rejection_hand_transition_model_;
+    std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model = disturbance_rejection_foot_transition_model_;
+    bool printing_capturability_info = false;
+
+    if(branching_mode == BranchingManipMode::ALL)
+    {
+        branching_manips = ALL_MANIPULATORS;
+        hand_transition_model = hand_transition_model_;
+    }
+    else if(branching_mode == BranchingManipMode::FEET_CONTACTS)
+    {
+        branching_manips = LEG_MANIPULATORS;
+    }
+    else if(branching_mode == BranchingManipMode::HAND_CONTACTS)
+    {
+        branching_manips = ARM_MANIPULATORS;
+        hand_transition_model = hand_transition_model_;
+    }
+    else if(branching_mode == BranchingManipMode::BREAKING_HAND_CONTACTS)
+    {
+        branching_manips = ARM_MANIPULATORS;
+        hand_transition_model.push_back({-99.0, -99.0});
+    }
+    else
+    {
+        RAVELOG_ERROR("Unknown branching mode.");
+        getchar();
+    }
+
+    if(planning_application_ == PlanningApplication::COLLECT_DATA)
+    {
+        branching_manips.clear();
+        branching_manips.push_back(ContactManipulator::R_LEG);
+    }
+
+    branching_states = getBranchingStates(current_state, branching_manips, foot_transition_model, hand_transition_model);
+    disturbance_rejection_branching_states = getBranchingStates(current_state, dummy_branching_manips, disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model);
+
+
     // Find the forces rejected by each category of the moving manipulator
     std::vector< std::unordered_set<int> > failing_disturbances_by_manip(ContactManipulator::MANIP_NUM);
+    std::vector< std::map<int,int> > disturbance_rejection_contact_num_by_manip(ContactManipulator::MANIP_NUM);
     std::vector<float> disturbance_costs(ContactManipulator::MANIP_NUM, 0.0);
-    std::vector< std::vector<CapturePose> > capture_poses_by_manip(ContactManipulator::MANIP_NUM);
+    std::vector< std::vector<CapturePose> > capture_poses_by_manip(int(ContactManipulator::MANIP_NUM)); // the vector of capture poses by moving manipulator
+    std::vector< std::vector<int> > capture_poses_prediction_by_manip(int(ContactManipulator::MANIP_NUM)); // the vector of capture poses prediction by moving manipulator
+    std::uniform_real_distribution<double> unsigned_unit_unif(0, 1.0);
+
     if(!disturbance_samples_.empty() && (check_zero_step_capturability_ || check_one_step_capturability_))
     {
         // get all the possible contacts available for the support phase
         current_state->support_phase_capture_poses_vector_.clear();
-        for(int i = 0; i < branching_states.size(); i++)
+        for(auto & branching_state : disturbance_rejection_branching_states)
         {
-            ContactManipulator capture_contact_manip = branching_states[i]->prev_move_manip_;
-            if(branching_states[i]->manip_in_contact(capture_contact_manip) && // only consider branches making a new contact
+            ContactManipulator capture_contact_manip = branching_state->prev_move_manip_;
+            if(branching_state->manip_in_contact(capture_contact_manip) && // only consider branches making a new contact
                !current_state->manip_in_contact(capture_contact_manip)) // only consider manip that are free to make contacts
             {
+                // if(capture_contact_manip == ContactManipulator::L_ARM || capture_contact_manip == ContactManipulator::R_ARM)
+                // {
+                //     float min_xy_dist_hand_foot = 9999.0;
+
+                //     for(auto & leg_manip : LEG_MANIPULATORS)
+                //     {
+                //         float xy_dist_hand_foot = (branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip].getXY()-current_state->stances_vector_[0]->ee_contact_poses_[leg_manip].getXY()).norm();
+                //         if(xy_dist_hand_foot < min_xy_dist_hand_foot)
+                //         {
+                //             min_xy_dist_hand_foot = xy_dist_hand_foot;
+                //         }
+                //     }
+
+                //     if(min_xy_dist_hand_foot > 0.8)
+                //     {
+                //         continue;
+                //     }
+                // }
+                // else if(capture_contact_manip == ContactManipulator::L_LEG || capture_contact_manip == ContactManipulator::R_LEG)
+                // {
+                //     continue;
+                // }
+
                 current_state->support_phase_capture_poses_vector_.push_back( CapturePose(capture_contact_manip,
-                                                                                          branching_states[i]->stances_vector_[0]->ee_contact_poses_[capture_contact_manip]));
+                                                                                          branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip]));
             }
         }
 
         std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_set<int> > checked_zero_capture_state;
+        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::map<int,int> > checked_zero_capture_state_2;
         for(auto & move_manip : branching_manips)
         {
             // std::cout << "Branch manip: " << move_manip << std::endl;
 
             // get the initial state for this move_manip
             std::unordered_set<int> failing_disturbances;
+            std::map<int,int> disturbance_rejection_contact_num_map;
 
             // construct the state for the floating moving end-effector
             std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = current_state->stances_vector_[0]->ee_contact_status_;
@@ -1803,14 +2190,40 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
             if(check_one_step_capturability_)
             {
-                for(int i = 0; i < branching_states.size(); i++)
+                for(auto & branching_state : disturbance_rejection_branching_states)
                 {
-                    ContactManipulator capture_contact_manip = branching_states[i]->prev_move_manip_;
-                    if(branching_states[i]->manip_in_contact(capture_contact_manip) && // only consider branches making a new contact
+                    ContactManipulator capture_contact_manip = branching_state->prev_move_manip_;
+                    if(branching_state->manip_in_contact(capture_contact_manip) && // only consider branches making a new contact
                        !ee_contact_status[capture_contact_manip]) // only consider manip that are free to make contacts
                     {
-                        capture_poses_by_manip[move_manip].push_back( CapturePose(capture_contact_manip,
-                                                                                  branching_states[i]->stances_vector_[0]->ee_contact_poses_[capture_contact_manip]));
+                        // if(capture_contact_manip == ContactManipulator::L_ARM || capture_contact_manip == ContactManipulator::R_ARM)
+                        // {
+                        //     float min_xy_dist_hand_foot = 9999.0;
+
+                        //     for(auto & leg_manip : LEG_MANIPULATORS)
+                        //     {
+                        //         if(ee_contact_status[leg_manip])
+                        //         {
+                        //             float xy_dist_hand_foot = (branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip].getXY()-current_state->stances_vector_[0]->ee_contact_poses_[leg_manip].getXY()).norm();
+                        //             if(xy_dist_hand_foot < min_xy_dist_hand_foot)
+                        //             {
+                        //                 min_xy_dist_hand_foot = xy_dist_hand_foot;
+                        //             }
+                        //         }
+                        //     }
+
+                        //     if(min_xy_dist_hand_foot > 0.7)
+                        //     {
+                        //         continue;
+                        //     }
+                        // }
+                        // else if(capture_contact_manip == ContactManipulator::L_LEG || capture_contact_manip == ContactManipulator::R_LEG)
+                        // {
+                        //     continue;
+                        // }
+
+                        capture_poses_by_manip[int(move_manip)].push_back( CapturePose(capture_contact_manip,
+                                                                                       branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip]));
                     }
                 }
             }
@@ -1819,6 +2232,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             if(checked_zero_capture_state.find(ee_contact_status) != checked_zero_capture_state.end())
             {
                 failing_disturbances_by_manip[move_manip] = checked_zero_capture_state.find(ee_contact_status)->second;
+                disturbance_rejection_contact_num_by_manip[move_manip] = checked_zero_capture_state_2.find(ee_contact_status)->second;
                 continue;
             }
 
@@ -1847,6 +2261,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
             {
                 bool disturbance_rejected = false;
+                int disturbance_rejection_contact_num = 0;
                 auto disturbance = disturbance_samples_[disturb_id];
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first.head(3) / robot_properties_->mass_;
                 Vector3D post_impact_lmom = current_state->lmom_ + disturbance.first.head(3);
@@ -1919,10 +2334,10 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             // store the config file
                             exportContactSequenceOptimizationConfigFiles(zero_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                                        zero_step_capture_contact_state_sequence,
-                                                                        "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                                                                        training_sample_path + "cfg_kdopt_zero_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
-                                                                        training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
+                                                                         zero_step_capture_contact_state_sequence,
+                                                                         "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
+                                                                         training_sample_path + "cfg_kdopt_zero_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
+                                                                         training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
                             zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(zero_step_capture_contact_state,
                                                                                                                         training_sample_path,
@@ -1938,17 +2353,17 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     {
                         // std::cout << "Disturbance " << disturb_id << " rejected by zero step." << std::endl;
                         disturbance_rejected = true;
-                        continue;
+                        disturbance_rejection_contact_num++;
+                        // continue;
                     }
                 }
 
                 // one step capturability
                 if(check_one_step_capturability_)
                 {
-                    for(int i = 0; i < branching_states.size(); i++) // check all possible capture poses
+                    for(auto & capture_pose : capture_poses_by_manip[int(move_manip)])
                     {
-                        std::shared_ptr<ContactState> branching_state = branching_states[i];
-                        ContactManipulator capture_contact_manip = branching_state->prev_move_manip_;
+                        ContactManipulator capture_contact_manip = capture_pose.contact_manip_;
 
                         // if(branching_state->prev_move_manip_ != move_manip)
                         // {
@@ -1956,129 +2371,132 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         //     getchar();
                         // }
 
-                        if(branching_state->manip_in_contact(capture_contact_manip) &&
-                           !zero_step_capture_contact_state->manip_in_contact(capture_contact_manip)) // only consider branches making a new contact
+                        std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
+
+                        // construct the state for the floating moving end-effector
+                        std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_contact_state->stances_vector_[0]->ee_contact_status_;
+                        ee_contact_status[capture_contact_manip] = true;
+                        std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_contact_state->stances_vector_[0]->ee_contact_poses_;
+                        ee_contact_poses[capture_contact_manip] = capture_pose.capture_pose_;
+
+                        std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                                                    ee_contact_poses[2], ee_contact_poses[3],
+                                                                                                    ee_contact_status);
+
+                        std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+                        std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
+
+                        // std::cout << "##########" << std::endl;
+                        // std::cout << capture_contact_manip << std::endl;
+                        // std::cout << one_step_capture_contact_state->prev_move_manip_ << std::endl;
+                        // std::cout << "^^^^^^^^^" << std::endl;
+
+                        bool one_step_dynamically_feasible;
+
+                        if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
                         {
-                            std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
-
-                            // construct the state for the floating moving end-effector
-                            std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_contact_state->stances_vector_[0]->ee_contact_status_;
-                            ee_contact_status[capture_contact_manip] = true;
-                            std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_contact_state->stances_vector_[0]->ee_contact_poses_;
-                            ee_contact_poses[capture_contact_manip] = branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip];
-
-                            std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                                       ee_contact_poses[2], ee_contact_poses[3],
-                                                                                                       ee_contact_status);
-
-                            std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
-                            std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
-
-                            // std::cout << "##########" << std::endl;
-                            // std::cout << capture_contact_manip << std::endl;
-                            // std::cout << one_step_capture_contact_state->prev_move_manip_ << std::endl;
-                            // std::cout << "^^^^^^^^^" << std::endl;
-
-                            bool one_step_dynamically_feasible;
-
-                            if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
+                            if(use_learned_dynamics_model_)
                             {
-                                if(use_learned_dynamics_model_)
-                                {
-                                    // std::cout << "initial com: " << initial_com.transpose() << std::endl;
-                                    // std::cout << "initial lmom: " << post_impact_lmom.transpose() << std::endl;
-                                    // std::cout << "initial amom: " << post_impact_amom.transpose() << std::endl;
+                                // std::cout << "initial com: " << initial_com.transpose() << std::endl;
+                                // std::cout << "initial lmom: " << post_impact_lmom.transpose() << std::endl;
+                                // std::cout << "initial amom: " << post_impact_amom.transpose() << std::endl;
 
-                                    one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state);
-                                    // std::cout << "One Step Capture Check, Capture Manip: " << capture_contact_manip << ", " << one_step_dynamically_feasible << std::endl;
+                                one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state);
+                                // std::cout << "One Step Capture Check, Capture Manip: " << capture_contact_manip << ", " << one_step_dynamically_feasible << std::endl;
 
-                                    // std::cout << "Prediction: " << one_step_dynamically_feasible << std::endl;
-                                }
-                                else
-                                {
-                                    one_step_capture_dynamics_optimizer_interface_vector_[i]->updateContactSequence(one_step_capture_contact_state_sequence);
-
-                                    float one_step_dummy_dynamics_cost = 0.0;
-                                    one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[i]->dynamicsOptimization(one_step_dummy_dynamics_cost);
-
-                                    one_step_capture_dynamics_optimizer_interface_vector_[i]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
-
-                                    // drawing_handler_->ClearHandler();
-                                    // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
-                                    // // getchar();
-                                }
+                                // std::cout << "Prediction: " << one_step_dynamically_feasible << std::endl;
                             }
-                            else if(planning_application_ == PlanningApplication::COLLECT_DATA)
+                            else
                             {
-                                if(unsigned_unit_unif(rng_) < 0.95)
+                                one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
+
+                                float one_step_dummy_dynamics_cost = 0.0;
+                                one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(one_step_dummy_dynamics_cost);
+
+                                one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
+
+                                // drawing_handler_->ClearHandler();
+                                // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
+                                // // getchar();
+                            }
+                        }
+                        else if(planning_application_ == PlanningApplication::COLLECT_DATA)
+                        {
+                            if(unsigned_unit_unif(rng_) < 0.95)
+                            {
+                                continue;
+                            }
+
+                            // get the motion code and path
+                            one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
+                            std::shared_ptr<ContactState> standard_one_step_capture_contact_state = one_step_capture_contact_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+                            auto motion_code_poses_pair = standard_one_step_capture_contact_state->getOneStepCapturabilityCodeAndPoses();
+                            OneStepCaptureCode motion_code = motion_code_poses_pair.first;
+
+                            if(specified_motion_code == -1 || specified_motion_code == int(motion_code))
+                            {
+
+                                if(one_step_capture_file_index_[motion_code] > 104000)
                                 {
-                                    continue;
+                                    break;
                                 }
 
-                                // get the motion code and path
-                                one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
-                                std::shared_ptr<ContactState> standard_one_step_capture_contact_state = one_step_capture_contact_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
-                                auto motion_code_poses_pair = standard_one_step_capture_contact_state->getOneStepCapturabilityCodeAndPoses();
-                                OneStepCaptureCode motion_code = motion_code_poses_pair.first;
+                                std::string motion_code_str = std::to_string(int(motion_code));
+                                std::string file_number_str = std::to_string(one_step_capture_file_index_[motion_code]);
 
-                                if(specified_motion_code == -1 || specified_motion_code == int(motion_code))
-                                {
+                                // store the feature vector file
+                                std::string training_sample_path = training_sample_config_folder_ + "one_step_capture_" + motion_code_str + "/";
 
-                                    if(one_step_capture_file_index_[motion_code] > 104000)
-                                    {
-                                        break;
-                                    }
+                                std::cout << "Export one step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
 
-                                    std::string motion_code_str = std::to_string(int(motion_code));
-                                    std::string file_number_str = std::to_string(one_step_capture_file_index_[motion_code]);
+                                // store the config file
+                                exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+                                                                            one_step_capture_contact_state_sequence,
+                                                                            "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
+                                                                            training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
+                                                                            training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
 
-                                    // store the feature vector file
-                                    std::string training_sample_path = training_sample_config_folder_ + "one_step_capture_" + motion_code_str + "/";
-
-                                    std::cout << "Export one step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
-
-                                    // store the config file
-                                    exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                                                one_step_capture_contact_state_sequence,
-                                                                                "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                                                                                training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
-                                                                                training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
-
-                                    one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(one_step_capture_contact_state,
+                                one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(one_step_capture_contact_state,
                                                                                                                             training_sample_path,
                                                                                                                             one_step_capture_file_index_[motion_code]);
 
-                                    one_step_capture_file_index_[motion_code]++;
-                                }
-
-                                one_step_dynamically_feasible = false; // for collecting data
+                                one_step_capture_file_index_[motion_code]++;
                             }
 
-                            if(one_step_dynamically_feasible)
-                            {
-                                // exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                                //                                              one_step_capture_contact_state_sequence,
-                                //                                              "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                //                                              "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/capture_motion_cfg_kdopt_demo.yaml",
-                                //                                              "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf");
+                            one_step_dynamically_feasible = false; // for collecting data
+                        }
 
-                                // std::cout << "A one step capture has been recorded." << std::endl;
-                                if(printing_capturability_info)
-                                    std::cout << "One Step Capture Check: " << one_step_dynamically_feasible << ", Capture Contact Manip: " << capture_contact_manip << std::endl;
-                                // getchar();
+                        if(one_step_dynamically_feasible)
+                        {
+                            // exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+                            //                                              one_step_capture_contact_state_sequence,
+                            //                                              "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+                            //                                              "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/capture_motion_cfg_kdopt_demo.yaml",
+                            //                                              "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/capture_test/Objects.cf");
 
-                                // std::cout << "Disturbance " << disturb_id << " rejected by one step using " << capture_contact_manip << std::endl;
-                                disturbance_rejected = true;
-                                // capture_poses_by_manip[move_manip].push_back( CapturePose(capture_contact_manip,
-                                //                                                           one_step_capture_stance->ee_contact_poses_[capture_contact_manip]));
-                                break;
-                            }
+                            // std::cout << "A one step capture has been recorded." << std::endl;
+                            if(printing_capturability_info)
+                                std::cout << "One Step Capture Check: " << one_step_dynamically_feasible << ", Capture Contact Manip: " << capture_contact_manip << std::endl;
+                            // getchar();
+
+                            // std::cout << "Disturbance " << disturb_id << " rejected by one step using " << capture_contact_manip << std::endl;
+                            disturbance_rejected = true;
+                            disturbance_rejection_contact_num++;
+
+                            capture_poses_prediction_by_manip[int(move_manip)].push_back(1);
+                            // break;
+                        }
+                        else
+                        {
+                            capture_poses_prediction_by_manip[int(move_manip)].push_back(0);
                         }
                     }
                 }
 
                 // std::cout << "====================" << std::endl;
                 // getchar();
+
+                disturbance_rejection_contact_num_map.insert(std::make_pair(disturb_id,disturbance_rejection_contact_num));
 
                 if(!disturbance_rejected)
                 {
@@ -2093,15 +2511,44 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             // getchar();
 
             checked_zero_capture_state.insert(std::make_pair(ee_contact_status, failing_disturbances));
+            checked_zero_capture_state_2.insert(std::make_pair(ee_contact_status, disturbance_rejection_contact_num_map));
             failing_disturbances_by_manip[move_manip] = failing_disturbances;
+            disturbance_rejection_contact_num_by_manip[move_manip] = disturbance_rejection_contact_num_map;
         }
+
+        // std::cout << "Disturbance samples: " << disturbance_samples_.size() << std::endl;
 
         for(auto & manip_id : branching_manips)
         {
-            for(auto disturb_id : failing_disturbances_by_manip[int(manip_id)])
+            // std::cout << "Manip ID: " << manip_id << std::endl;
+
+            // for(auto & disturb_id : failing_disturbances_by_manip[manip_id])
+            // {
+            //     disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second;
+            // }
+
+            // for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+            // {
+            //     int disturbance_rejection_contact_num = disturbance_rejection_contact_num_by_manip[int(manip_id)][disturb_id];
+            //     // disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second * exp(-disturbance_rejection_contact_num*0.1);
+            //     disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second * exp(-disturbance_rejection_contact_num*0.1);
+            // }
+
+            for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
             {
-                disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second;
+                int disturbance_rejection_contact_num = disturbance_rejection_contact_num_by_manip[int(manip_id)][disturb_id];
+                disturbance_costs[int(manip_id)] += (disturbance_samples_[disturb_id].second * exp(-disturbance_rejection_contact_num*0.1));
+
+                // std::cout << "Branching Manip: " << manip_id << ", Disturbance ID: " << disturb_id << ", Capture Pose Num: " << disturbance_rejection_contact_num << "/" << capture_poses_by_manip[int(manip_id)].size()+1 << std::endl;
             }
+
+            // std::cout << disturbance_costs[int(manip_id)] << std::endl;
+
+            float disturbance_probability = 0.1;
+            float disturbance_rejection_success_rate = (1-disturbance_probability) + disturbance_probability * (1-disturbance_costs[int(manip_id)]);
+            disturbance_costs[int(manip_id)] = std::min(-log(disturbance_rejection_success_rate), float(100.0));
+
+            // std::cout << disturbance_costs[int(manip_id)] << std::endl;
 
             // if(failing_disturbances_by_manip[int(manip_id)].size() != disturbance_samples_.size())
             // {
@@ -2111,6 +2558,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             //     std::cout << "disturbance cost: " << disturbance_costs[int(manip_id)] << std::endl;
             // }
         }
+
+        // getchar();
     }
 
     // RAVELOG_WARN("finish check capturability.\n");
@@ -2125,6 +2574,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             float dynamics_cost = 0.0;
             float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
             branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
+            branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
             if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
             {
                 state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
@@ -2143,6 +2593,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             float dynamics_cost = 0.0;
             float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
             branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
+            branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
             state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
         }
     }
@@ -2450,7 +2901,6 @@ void ContactSpacePlanning::branchingHandContacts(std::shared_ptr<ContactState> c
                 std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
 
                 float dynamics_cost = 0.0;
-                float capturability_cost = 0.0;
                 if(!use_dynamics_planning_ || stateFeasibilityCheck(new_contact_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
                 {
                     state_feasibility_check_result[i] = std::make_tuple(true, new_contact_state, dynamics_cost);
@@ -2605,8 +3055,8 @@ bool ContactSpacePlanning::handPoseSampling(ContactManipulator& contact_manipula
                                             RPYTF& projection_pose)
 {
 
-    std::uniform_real_distribution<double> arm_length_unif(robot_properties_->min_arm_length_, robot_properties_->max_arm_length_);
-    // std::uniform_real_distribution<double> arm_length_unif(0.2, 0.5);
+    // std::uniform_real_distribution<double> arm_length_unif(robot_properties_->min_arm_length_, robot_properties_->max_arm_length_);
+    std::uniform_real_distribution<double> arm_length_unif(0.3, 0.9);
 
     float arm_length = arm_length_unif(rng_);
     Vector3D arm_projection_ray(std::cos(arm_orientation[0] * DEG2RAD) * std::cos(arm_orientation[1] * DEG2RAD),
@@ -2764,6 +3214,7 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
             existing_state->g_ = current_state->g_;
             existing_state->parent_ = current_state->parent_;
             existing_state->prev_move_manip_ = current_state->prev_move_manip_;
+            existing_state->depth_ = current_state->depth_;
 
             existing_state->prev_disturbance_cost_ = disturbance_cost;
 
@@ -2828,9 +3279,9 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
 float ContactSpacePlanning::getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost, float disturbance_cost)
 {
     // float traveling_distance_cost = std::sqrt(std::pow(current_state->com_(0) - prev_state->com_(0), 2) + std::pow(current_state->com_(1) - prev_state->com_(1), 2));
-    float traveling_distance_cost = std::sqrt(std::pow(current_state->mean_feet_position_[0] - prev_state->mean_feet_position_[0], 2) +
-                                              std::pow(current_state->mean_feet_position_[1] - prev_state->mean_feet_position_[1], 2));
-    // float traveling_distance_cost = current_state->max_manip_x_ - prev_state->max_manip_x_;
+    // float traveling_distance_cost = std::sqrt(std::pow(current_state->mean_feet_position_[0] - prev_state->mean_feet_position_[0], 2) +
+    //                                           std::pow(current_state->mean_feet_position_[1] - prev_state->mean_feet_position_[1], 2));
+    float traveling_distance_cost = current_state->max_manip_x_ - prev_state->max_manip_x_;
     float orientation_cost = 0.01 * fabs(current_state->getFeetMeanHorizontalYaw() - prev_state->getFeetMeanHorizontalYaw());
     float step_cost = step_cost_weight_;
 
@@ -2974,28 +3425,30 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
         {
             RPYTF floating_manip_pose;
 
-            // set the initial contact pose to be close to the one-step capture contacts
-            if(contact_sequence.size() > 1 && manip == contact_sequence[1]->prev_move_manip_ && contact_sequence[1]->manip_in_contact(manip))
-            {
-                Translation3D contact_position = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip].getXYZ();
-                Vector3D contact_com_unit_vector = contact_sequence[0]->com_ - contact_position;
-                contact_com_unit_vector.normalize();
-                float contact_distance = 0.05;
+            // // set the initial contact pose to be close to the one-step capture contacts
+            // if(contact_sequence.size() > 1 && manip == contact_sequence[1]->prev_move_manip_ && contact_sequence[1]->manip_in_contact(manip))
+            // {
+            //     Translation3D contact_position = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip].getXYZ();
+            //     Vector3D contact_com_unit_vector = contact_sequence[0]->com_ - contact_position;
+            //     contact_com_unit_vector.normalize();
+            //     float contact_distance = 0.05;
 
-                floating_manip_pose = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip];
-                floating_manip_pose.x_ += contact_distance * contact_com_unit_vector[0];
-                floating_manip_pose.y_ += contact_distance * contact_com_unit_vector[1];
-                floating_manip_pose.z_ += contact_distance * contact_com_unit_vector[2];
-            }
-            else
-            {
-                // std::string manip_name = robot_properties_->manipulator_name_map_[manip];
-                // OpenRAVE::Transform floating_manip_transform = general_ik_interface_->robot_->GetManipulator(manip_name)->GetTransform();
-                // floating_manip_pose = SE3ToXYZRPY(constructTransformationMatrix(floating_manip_transform));
-                floating_manip_pose = RPYTF(0, 0, 0, 0, 0, 0);
-            }
+            //     floating_manip_pose = contact_sequence[1]->stances_vector_[0]->ee_contact_poses_[manip];
+            //     floating_manip_pose.x_ += contact_distance * contact_com_unit_vector[0];
+            //     floating_manip_pose.y_ += contact_distance * contact_com_unit_vector[1];
+            //     floating_manip_pose.z_ += contact_distance * contact_com_unit_vector[2];
+            // }
+            // else
+            // {
+            //     // std::string manip_name = robot_properties_->manipulator_name_map_[manip];
+            //     // OpenRAVE::Transform floating_manip_transform = general_ik_interface_->robot_->GetManipulator(manip_name)->GetTransform();
+            //     // floating_manip_pose = SE3ToXYZRPY(constructTransformationMatrix(floating_manip_transform));
+            //     floating_manip_pose = RPYTF(0, 0, 0, 0, 0, 0);
+            // }
 
             // std::cout << "manip: " << manip << ", " << floating_manip_pose.x_ << ", " << floating_manip_pose.y_ << ", " << floating_manip_pose.z_ << std::endl;
+
+            floating_manip_pose = RPYTF(0, 0, 0, 0, 0, 0);
 
             floating_initial_contact_poses[manip] = floating_manip_pose;
         }
@@ -3097,11 +3550,26 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         Vector3D initial_lmom = initial_com_dot * robot_properties_->mass_;
         Vector3D initial_amom = Vector3D::Zero();
 
+        Vector3D initial_post_impact_com = initial_com + initial_com_dot * 0.1;
+        double xy_dist_to_foot = (initial_post_impact_com.head(2)-left_foot_pose.getXY()).norm();
+
+        // while(((left_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist || (right_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist || xy_dist_to_foot > 0.3) && invalid_sampling_counter < 100)
         while(((left_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist || (right_foot_pose.getXYZ() - initial_com).norm() > max_com_foot_dist) && invalid_sampling_counter < 100)
         {
             initial_com[0] = std::max(float(0.1), fabs(right_foot_pose.x_-left_foot_pose.x_)) * unit_unif(rng_);
             initial_com[1] = std::max(float(0.1), fabs(right_foot_pose.y_-left_foot_pose.y_)) * unit_unif(rng_);
             initial_com[2] = robot_properties_->robot_z_ + 0.1 * unit_unif(rng_);
+
+            initial_com_dot_pan_angle = 180.0 * unit_unif(rng_) * DEG2RAD;
+            initial_com_dot_tilt_angle = 45.0 * unit_unif(rng_) * DEG2RAD;
+            initial_com_dot_magnitude = 1.0 * unsigned_unit_unif(rng_);
+            initial_com_dot[0] = initial_com_dot_magnitude * std::cos(initial_com_dot_tilt_angle) * std::cos(initial_com_dot_pan_angle);
+            initial_com_dot[1] = initial_com_dot_magnitude * std::cos(initial_com_dot_tilt_angle) * std::sin(initial_com_dot_pan_angle);
+            initial_com_dot[2] = initial_com_dot_magnitude * std::sin(initial_com_dot_tilt_angle);
+
+            initial_post_impact_com = initial_com + initial_com_dot * 0.1;
+            xy_dist_to_foot = (initial_post_impact_com.head(2)-left_foot_pose.getXY()).norm();
+
             invalid_sampling_counter++;
         }
         if(invalid_sampling_counter >= 100)
@@ -3122,60 +3590,63 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
         }
 
         // sample a feet + one hand state
-        RPYTF left_hand_pose, right_hand_pose;
-        const float mean_horizontal_yaw = feet_only_state->getFeetMeanHorizontalYaw();
-        const RotationMatrix robot_yaw_rotation = RPYToSO3(RPYTF(0, 0, 0, 0, 0, mean_horizontal_yaw));
-
-        Translation3D global_left_shoulder_position = robot_yaw_rotation * left_relative_shoulder_position + feet_only_state->mean_feet_position_;
-        std::array<float,2> left_arm_orientation = {mean_horizontal_yaw + 90.0 - 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
-        handPoseSampling(left_arm, global_left_shoulder_position, left_arm_orientation, left_hand_pose);
-
-        while((left_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
+        if(sample_feet_and_one_hand_state || sample_feet_and_two_hands_state)
         {
+            RPYTF left_hand_pose, right_hand_pose;
+            const float mean_horizontal_yaw = feet_only_state->getFeetMeanHorizontalYaw();
+            const RotationMatrix robot_yaw_rotation = RPYToSO3(RPYTF(0, 0, 0, 0, 0, mean_horizontal_yaw));
+
+            Translation3D global_left_shoulder_position = robot_yaw_rotation * left_relative_shoulder_position + feet_only_state->mean_feet_position_;
+            std::array<float,2> left_arm_orientation = {mean_horizontal_yaw + 90.0 - 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
             handPoseSampling(left_arm, global_left_shoulder_position, left_arm_orientation, left_hand_pose);
-            invalid_sampling_counter++;
-        }
-        if(invalid_sampling_counter >= 100)
-        {
-            continue;
-        }
 
-        invalid_sampling_counter = 0;
+            while((left_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
+            {
+                handPoseSampling(left_arm, global_left_shoulder_position, left_arm_orientation, left_hand_pose);
+                invalid_sampling_counter++;
+            }
+            if(invalid_sampling_counter >= 100)
+            {
+                continue;
+            }
 
-        std::array<bool,ContactManipulator::MANIP_NUM> feet_and_one_hand_contact_status = {true,true,true,false};
-        std::shared_ptr<Stance> feet_and_one_hand_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose,
-                                                                                    RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
-                                                                                    feet_and_one_hand_contact_status);
-        std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+            invalid_sampling_counter = 0;
 
-        if(sample_feet_and_one_hand_state)
-        {
-            initial_states.push_back(feet_and_one_hand_state);
-        }
+            std::array<bool,ContactManipulator::MANIP_NUM> feet_and_one_hand_contact_status = {true,true,true,false};
+            std::shared_ptr<Stance> feet_and_one_hand_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose,
+                                                                                        RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
+                                                                                        feet_and_one_hand_contact_status);
+            std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
 
-        // sample a feet + two hands state
-        Translation3D global_right_shoulder_position = robot_yaw_rotation * right_relative_shoulder_position + feet_only_state->mean_feet_position_;
-        std::array<float,2> right_arm_orientation = {mean_horizontal_yaw - 90.0 + 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
-        handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
+            if(sample_feet_and_one_hand_state)
+            {
+                initial_states.push_back(feet_and_one_hand_state);
+            }
 
-        while((right_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
-        {
-            handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
-            invalid_sampling_counter++;
-        }
-        if(invalid_sampling_counter >= 100)
-        {
-            continue;
-        }
+            if(sample_feet_and_two_hands_state)
+            {
+                // sample a feet + two hands state
+                Translation3D global_right_shoulder_position = robot_yaw_rotation * right_relative_shoulder_position + feet_only_state->mean_feet_position_;
+                std::array<float,2> right_arm_orientation = {mean_horizontal_yaw - 90.0 + 60.0 * unit_unif(rng_), 20.0 * unit_unif(rng_)};
+                handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
 
-        std::array<bool,ContactManipulator::MANIP_NUM> feet_and_two_hands_contact_status = {true,true,true,true};
-        std::shared_ptr<Stance> feet_and_two_hands_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
-                                                                                     feet_and_two_hands_contact_status);
-        std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+                while((right_hand_pose.getXYZ() - initial_com).norm() > max_com_hand_dist && invalid_sampling_counter < 100)
+                {
+                    handPoseSampling(right_arm, global_right_shoulder_position, right_arm_orientation, right_hand_pose);
+                    invalid_sampling_counter++;
+                }
+                if(invalid_sampling_counter >= 100)
+                {
+                    continue;
+                }
 
-        if(sample_feet_and_two_hands_state)
-        {
-            initial_states.push_back(feet_and_two_hands_state);
+                std::array<bool,ContactManipulator::MANIP_NUM> feet_and_two_hands_contact_status = {true,true,true,true};
+                std::shared_ptr<Stance> feet_and_two_hands_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
+                                                                                            feet_and_two_hands_contact_status);
+                std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+
+                initial_states.push_back(feet_and_two_hands_state);
+            }
         }
     }
 

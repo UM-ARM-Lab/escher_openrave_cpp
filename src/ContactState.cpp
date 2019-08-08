@@ -103,6 +103,8 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
             }
         }
     }
+
+    this->depth_ = 0;
 }
 
 // Constructor for other states
@@ -174,6 +176,8 @@ ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<C
             }
         }
     }
+
+    this->depth_ = _parent->depth_ + 1;
 }
 
 bool ContactState::operator==(const ContactState& other) const

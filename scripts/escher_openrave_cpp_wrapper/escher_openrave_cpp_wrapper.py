@@ -129,6 +129,20 @@ class escher_openrave_cpp_wrapper(object):
         for foot_transition in foot_transition_model:
             cmd.extend(foot_transition)
 
+    def AppendDisturbanceRejectionHandTransitionModelCommand(self,cmd,hand_transition_model):
+        cmd.append('disturbance_rejection_hand_transition_model')
+        cmd.append(len(hand_transition_model))
+
+        for hand_transition in hand_transition_model:
+            cmd.extend(hand_transition)
+
+    def AppendDisturbanceRejectionFootTransitionModelCommand(self,cmd,foot_transition_model):
+        cmd.append('disturbance_rejection_foot_transition_model')
+        cmd.append(len(foot_transition_model))
+
+        for foot_transition in foot_transition_model:
+            cmd.extend(foot_transition)
+
     def AppendRobotPropertiesCommand(self,cmd,robot):
         cmd.append('robot_properties')
         for v in robot.OriginalDOFValues:
@@ -399,6 +413,7 @@ class escher_openrave_cpp_wrapper(object):
         result_str = self.module.SendCommand(cmd_str)
 
     def SendStartCollectDynamicsOptimizationData(self,robot_name=None,escher=None,foot_transition_model=None,hand_transition_model=None,
+                                                 disturbance_rejection_foot_transition_model=None,disturbance_rejection_hand_transition_model=None,
                                                  thread_num=None,planning_id=None,contact_sampling_iteration=None,printing=None,
                                                  branching_manip_mode='all',check_zero_step_capturability=True,
                                                  check_one_step_capturability=True,check_contact_transition_feasibility=True,
@@ -433,6 +448,12 @@ class escher_openrave_cpp_wrapper(object):
 
         if hand_transition_model is not None:
             self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
+
+        if disturbance_rejection_foot_transition_model is not None:
+            self.AppendDisturbanceRejectionFootTransitionModelCommand(cmd, disturbance_rejection_foot_transition_model)
+
+        if disturbance_rejection_hand_transition_model is not None:
+            self.AppendDisturbanceRejectionHandTransitionModelCommand(cmd, disturbance_rejection_hand_transition_model)
 
         if thread_num is not None:
             cmd.append('thread_num')
@@ -501,6 +522,7 @@ class escher_openrave_cpp_wrapper(object):
         print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
 
     def SendStartPlanningFromScratch(self,robot_name=None,escher=None,initial_state=None,goal=None,foot_transition_model=None,hand_transition_model=None,
+                                     disturbance_rejection_foot_transition_model=None,disturbance_rejection_hand_transition_model=None,
                                      structures=None,goal_radius=None,time_limit=None,epsilon=None,planning_heuristics='euclidean',map_grid=None,map_grid_dim=None,
                                      output_first_solution=False,goal_as_exact_poses=False,use_dynamics_planning=True,
                                      use_learned_dynamics_model=False,enforce_stop_in_the_end=False,disturbance_samples=None,
@@ -578,6 +600,12 @@ class escher_openrave_cpp_wrapper(object):
 
         if hand_transition_model is not None:
             self.AppendHandTransitionModelCommand(cmd, hand_transition_model)
+
+        if disturbance_rejection_foot_transition_model is not None:
+            self.AppendDisturbanceRejectionFootTransitionModelCommand(cmd, disturbance_rejection_foot_transition_model)
+
+        if disturbance_rejection_hand_transition_model is not None:
+            self.AppendDisturbanceRejectionHandTransitionModelCommand(cmd, disturbance_rejection_hand_transition_model)
 
         if map_grid is not None:
             self.AppendMapGridDimCommand(cmd, map_grid)
