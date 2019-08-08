@@ -309,6 +309,9 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
 
     open_heap.push(goal_cell);
 
+    float global_smallest_cost = std::numeric_limits<float>::max();
+    float global_highest_cost = 0;
+
     // assume 8-connected transition model
     while(!open_heap.empty())
     {
@@ -318,6 +321,16 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
         if(current_cell->explore_state_ != ExploreState::OPEN)
         {
             continue;
+        }
+
+        if(current_cell->g_ < global_smallest_cost)
+        {
+            global_smallest_cost = current_cell->g_;
+        }
+
+        if(current_cell->g_ > global_highest_cost)
+        {
+            global_highest_cost = current_cell->g_;
         }
 
         GridIndices3D current_cell_indices = current_cell->getIndices();
@@ -347,6 +360,43 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
                 }
             }
         }
+    }
+
+    // visualize the cost returned by the dijkstra (select the lowest value among all theta in each x,y)
+    std::cout << std::endl << "Dijkstra Cost Map Visualization: (0-9: number*0.1 is the cost ratio of the cost of each cell to the range between max/min costs), X: outside mask or not accessible" << std::endl;
+    for(int ix = dim_x_-1; ix >= 0; ix--)
+    {
+        for(int iy = dim_y_-1; iy >= 0; iy--)
+        {
+            bool inside_mask = false;
+            bool solid_ground = false;
+
+            float cell_cost = std::numeric_limits<float>::max();
+            for(int itheta = 0; itheta < dim_theta_; itheta++)
+            {
+                if(region_mask.find({ix,iy,itheta}) != region_mask.end())
+                    inside_mask = true;
+
+                if(cell_3D_list_[ix][iy][itheta]->terrain_type_ == TerrainType::SOLID)
+                    solid_ground = true;
+
+                if(cell_3D_list_[ix][iy][itheta]->g_ < cell_cost)
+                {
+                    cell_cost = cell_3D_list_[ix][iy][itheta]->g_;
+                }
+            }
+
+            if(inside_mask && solid_ground)
+            {
+                std::cout << int((cell_cost-global_smallest_cost)/(global_highest_cost-global_smallest_cost+0.001)*10) << " ";
+            }
+            else
+            {
+                std::cout << "X ";
+            }
+
+        }
+        std::cout << std::endl;
     }
 
     RAVELOG_INFO("Finish Generation of Dijkstra Heuristic.");
