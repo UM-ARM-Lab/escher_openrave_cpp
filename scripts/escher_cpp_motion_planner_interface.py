@@ -54,7 +54,7 @@ def main(meta_path_generation_method='all_planning',
     env_handler = environment_handler()
     env = env_handler.env
     structures = env_handler.structures
-    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.135)
+    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 15)
 
     ### Construct the hand transition model
     hand_transition_model = []

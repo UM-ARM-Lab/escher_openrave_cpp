@@ -106,7 +106,7 @@ const float SUPPORT_PHASE_TIME = 0.5;
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
 const int TORSO_GRID_MIN_THETA = -180;
-const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
+// const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;

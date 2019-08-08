@@ -36,10 +36,10 @@ max_x_(_max_x),
 min_y_(_min_y),
 max_y_(_max_y),
 min_theta_(-180),
-max_theta_(180 - TORSO_GRID_ANGULAR_RESOLUTION),
+max_theta_(180 - _theta_resolution),
 dim_x_(int(round((_max_x-_min_x)/_xy_resolution))),
 dim_y_(int(round((_max_y-_min_y)/_xy_resolution))),
-dim_theta_(360/TORSO_GRID_ANGULAR_RESOLUTION),
+dim_theta_(360/_theta_resolution),
 drawing_handler_(_drawing_handler)
 {
     // resize cell_lists to its dimension

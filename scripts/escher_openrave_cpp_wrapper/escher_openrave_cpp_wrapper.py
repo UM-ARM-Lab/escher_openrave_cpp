@@ -58,7 +58,8 @@ class escher_openrave_cpp_wrapper(object):
         cmd.append(dh_grid.max_x)
         cmd.append(dh_grid.min_y)
         cmd.append(dh_grid.max_y)
-        cmd.append(dh_grid.resolution)
+        cmd.append(dh_grid.distance_resolution)
+        cmd.append(dh_grid.orientation_resolution)
 
     def AppendMapGridCommand(self,cmd,dh_grid):
         cmd.append('map_grid')
@@ -66,7 +67,8 @@ class escher_openrave_cpp_wrapper(object):
         cmd.append(dh_grid.max_x)
         cmd.append(dh_grid.min_y)
         cmd.append(dh_grid.max_y)
-        cmd.append(dh_grid.resolution)
+        cmd.append(dh_grid.distance_resolution)
+        cmd.append(dh_grid.orientation_resolution)
 
         for i in range(dh_grid.dim_x):
             for j in range(dh_grid.dim_y):

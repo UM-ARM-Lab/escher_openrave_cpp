@@ -178,29 +178,31 @@ void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
 void EscherMotionPlanning::parseMapGridDimCommand(std::istream& sinput)
 {
     float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
-    float map_grid_xy_resolution;
+    float map_grid_xy_resolution, map_grid_orientation_resolution;
 
     sinput >> map_grid_min_x;
     sinput >> map_grid_max_x;
     sinput >> map_grid_min_y;
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
+    sinput >> map_grid_orientation_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION, drawing_handler_);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, map_grid_orientation_resolution, drawing_handler_);
 }
 
 void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 {
     float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
-    float map_grid_xy_resolution;
+    float map_grid_xy_resolution, map_grid_orientation_resolution;
 
     sinput >> map_grid_min_x;
     sinput >> map_grid_max_x;
     sinput >> map_grid_min_y;
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
+    sinput >> map_grid_orientation_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION, drawing_handler_);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, map_grid_orientation_resolution, drawing_handler_);
 
     for(int i = 0; i < map_grid_->dim_x_; i++)
     {
