@@ -255,3 +255,6 @@ epoch: 83
 training loss: 124.90
 validation loss: 188.42
 epoch: 84
+training loss: 123.51
+validation loss: 193.51
+epoch: 85
