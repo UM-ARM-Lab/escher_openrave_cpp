@@ -258,3 +258,18 @@ epoch: 84
 training loss: 123.51
 validation loss: 193.51
 epoch: 85
+training loss: 124.28
+validation loss: 189.36
+epoch: 86
+training loss: 122.72
+validation loss: 193.90
+epoch: 87
+training loss: 123.95
+validation loss: 187.53
+epoch: 88
+training loss: 123.08
+validation loss: 189.56
+epoch: 89
+training loss: 124.45
+validation loss: 191.34
+epoch: 90
