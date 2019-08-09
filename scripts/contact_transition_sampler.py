@@ -437,7 +437,7 @@ def main(robot_name='athena'): # for test
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
     # sample environments and contact transitions
-    for i in range(100, 200):
+    for i in range(200, 300):
         print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
         # save the environment
