@@ -1,17 +1,15 @@
-import os, torch, pickle, shutil, IPython
+import argparse, pickle, os, shutil, IPython, math
 import numpy as np
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-
+import torch
 from torch import nn, optim
 from torch.utils import data
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from model_B_0 import Model
-from dataset import Dataset
 
-model_version = 'model_B_0_0001_Adam_L1Loss'
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
 
 def save_checkpoint(epoch, model, optimizer, scheduler, checkpoint_dir):
     state = {
@@ -33,16 +31,48 @@ def loss_across_epoch(loss_list, length_list):
     return total_loss / total_length
 
 
-# class Weighted_Loss(torch.nn.Module):
-#     def __init__(self):
-#         super(Weighted_Loss, self).__init__()
+class Weighted_Loss(nn.Module):
+    def __init__(self):
+        super(Weighted_Loss, self).__init__()
 
-#     def forward(self, Input, Target):
-#         loss = Input - Target
-#         return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
+    def forward(self, Input, Target):
+        loss = Input - Target
+        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
 
 
 def main():
+    parser = argparse.ArgumentParser(description='PyTorch Model')
+    parser.add_argument('--depth_map_type', type=str,
+                        help='type of depth map (depth_only, depth_and_boundary_combined)')
+    parser.add_argument('--model', type=str, help='model type')
+    parser.add_argument('--loss', type=str, help='loss function (l1, weighted)')
+    parser.add_argument('--lr', type=float, help='learning rate')
+    args = parser.parse_args()
+    
+    if args.depth_map_type == 'depth_only':
+        from dataset_0 import Dataset
+    elif args.depth_map_type == 'depth_and_boundary_combined':
+        from dataset_1 import Dataset
+    else:
+        print('invalid depth map type')
+        exit(1)
+
+    if args.model == 'B_0':
+        from model_B_0 import Model
+    else:
+        print('invalid model')
+        exit(1)
+
+    if args.loss == 'l1':
+        criterion = nn.L1Loss()
+    elif args.loss == 'weighted':
+        criterion = Weighted_Loss()
+    else:
+        print('invalid loss')
+        exit(1)
+
+    model_version = args.depth_map_type + '_' + args.model + '_' + args.loss + '_' + str(args.lr)
+    
     with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn', 'r') as file:
         p2_ddyn = pickle.load(file)
 
@@ -51,22 +81,19 @@ def main():
     print('number of training examples: {}'.format(len(partition['training'])))
     print('number of validation examples: {}'.format(len(partition['validation'])))
 
-    torch.manual_seed(20190717)
+    torch.manual_seed(20190808)
     training_dataset = Dataset(p2_ddyn, partition['training'])
     training_generator = data.DataLoader(training_dataset, batch_size=64, shuffle=True, num_workers=4)
     validation_dataset = Dataset(p2_ddyn, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    num_epoch = 30
+    num_epoch = 100
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
 
     model = Model().to(device)
-    learning_rate = 0.001
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = ReduceLROnPlateau(optimizer, verbose=True)
-    # criterion = Weighted_Loss()
-    criterion = nn.L1Loss()
     
     start_from_saved_model = False
     if os.path.exists(model_version + '_checkpoint/'):
@@ -95,7 +122,7 @@ def main():
                 finished_epoch_last_time = checkpoint['epoch']
                 model.load_state_dict(checkpoint['model_state_dict'])
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-                scheduler.load_state_dict(checkpoint['optimizer_state_dict'])
+                scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
                 print('Successfully load the model and optimizer from epoch {}'.format(finished_epoch_last_time))
             except:
                 print('Fail to load the model or optimizer from epoch {}'.format(finished_epoch_last_time))
@@ -108,6 +135,8 @@ def main():
         training_loss = []
         validation_loss = []
         print('before training')
+        with open(model_version + '_log.txt', 'a+') as f_log:
+            f_log.write('before training\n')
         model.eval()
         with torch.set_grad_enabled(False):
             loss_list = []
@@ -121,6 +150,8 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             training_loss.append(epoch_loss.cpu().data.tolist())
             print('training loss: {:4.2f}'.format(epoch_loss))
+            with open(model_version + '_log.txt', 'a+') as f_log:
+                f_log.write('training loss: {:4.2f}\n'.format(epoch_loss))
 
             loss_list = []
             length_list = []
@@ -133,6 +164,8 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss.cpu().data.tolist())
             print('validation loss: {:4.2f}'.format(epoch_loss))
+            with open(model_version + '_log.txt', 'a+') as f_log:
+                f_log.write('validation loss: {:4.2f}\n'.format(epoch_loss))
 
     else:
         if os.path.exists(model_version + '_loss_history'):
@@ -146,6 +179,9 @@ def main():
 
     for epoch in range(num_epoch):
         print('epoch: {}'.format(epoch + finished_epoch_last_time + 1))
+        with open(model_version + '_log.txt', 'a+') as f_log:
+            f_log.write('epoch: {}\n'.format(epoch + finished_epoch_last_time + 1))
+
         # train
         model.train()
         for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
@@ -154,6 +190,7 @@ def main():
             predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
             loss = criterion(predicted_ddyns, ddyns)
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10)
             optimizer.step()
         save_checkpoint(epoch + finished_epoch_last_time + 1, model, optimizer, scheduler, model_version + '_checkpoint/')
 
@@ -171,6 +208,10 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             training_loss.append(epoch_loss.cpu().data.tolist())
             print('training loss: {:4.2f}'.format(epoch_loss))
+            with open(model_version + '_log.txt', 'a+') as f_log:
+                f_log.write('training loss: {:4.2f}\n'.format(epoch_loss))
+            if math.isnan(epoch_loss.cpu().data.tolist()):
+                exit(1)
 
             loss_list = []
             length_list = []
@@ -183,6 +224,8 @@ def main():
             epoch_loss = loss_across_epoch(loss_list, length_list)
             validation_loss.append(epoch_loss.cpu().data.tolist())
             print('validation loss: {:4.2f}'.format(epoch_loss))
+            with open(model_version + '_log.txt', 'a+') as f_log:
+                f_log.write('validation loss: {:4.2f}\n'.format(epoch_loss))
         scheduler.step(training_loss[-1])
 
 

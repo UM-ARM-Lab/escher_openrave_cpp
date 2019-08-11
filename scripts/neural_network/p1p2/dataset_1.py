@@ -14,10 +14,10 @@ class Dataset(data.Dataset):
         # example_id is a string
         example_id = self.example_ids[index]
         depth_map_id, p2, _, ddyn = self.p2_ddyn[example_id]
-        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_maps/' + depth_map_id, 'r') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + depth_map_id, 'r') as file:
             ground_depth_map = pickle.load(file)
-        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_maps/' + depth_map_id, 'r') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + depth_map_id, 'r') as file:
             wall_depth_map = pickle.load(file)
-        return ground_depth_map, wall_depth_map, p2, ddyn, example_id
+        return ground_depth_map, wall_depth_map, p2, ddyn
         
         

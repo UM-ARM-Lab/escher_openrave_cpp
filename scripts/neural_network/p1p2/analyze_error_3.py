@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 
 from torch.utils import data
 
-from model_v3 import Model
+from model_B_0 import Model
 from special_dataset import Dataset
 from train import loss_across_epoch
 
-model_version = 'model_v3_00005'
+model_version = 'model_B_0_0001_Adam_L1Loss'
 
 def restore_checkpoint(model, checkpoint_dir):
     files = [file for file in os.listdir(checkpoint_dir)
@@ -32,7 +32,7 @@ def restore_checkpoint(model, checkpoint_dir):
     checkpoint = torch.load(filename)
 
     try:
-        model.load_state_dict(checkpoint['state_dict'])
+        model.load_state_dict(checkpoint['model_state_dict'])
         print('Successfully load the model from epoch {}'.format(requested_epoch))
     except:
         print('Fail to load the model from epoch {}'.format(requested_epoch))

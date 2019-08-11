@@ -11,15 +11,16 @@ from structures_2 import *
 from color_library import *
 
 # random.seed(20190520)
-random.seed(20190731)
+# random.seed(20190731)
+random.seed(20190805)
 
 class environment_handler:
     def __init__(self,env=None,structures=None):
         if(env is None):
             rave.misc.InitOpenRAVELogging()
             self.env = rave.Environment()  # create openrave environment
-            self.env.SetViewer('qtcoin')  # attach viewer (optional)
-            self.env.GetViewer().SetCamera(np.array([[1,0,0,1],[0,-1,0,0],[0,0,-1,4],[0,0,0,1]], dtype=float))
+            # self.env.SetViewer('qtcoin')  # attach viewer (optional)
+
 
             fcl = rave.RaveCreateCollisionChecker(self.env, "fcl_")
             if fcl is not None:

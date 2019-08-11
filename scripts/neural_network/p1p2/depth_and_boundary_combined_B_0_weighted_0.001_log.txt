@@ -1,0 +1,275 @@
+before training
+before training
+training loss: 454.03
+validation loss: 452.24
+epoch: 0
+training loss: 229.12
+validation loss: 226.83
+epoch: 1
+training loss: 217.57
+validation loss: 212.84
+epoch: 2
+training loss: 210.97
+validation loss: 208.46
+epoch: 3
+training loss: 203.64
+validation loss: 201.54
+epoch: 4
+training loss: 224.09
+validation loss: 220.36
+epoch: 5
+training loss: 203.28
+validation loss: 200.27
+epoch: 6
+training loss: 201.39
+validation loss: 199.73
+epoch: 7
+training loss: 188.69
+validation loss: 191.88
+epoch: 8
+training loss: 181.28
+validation loss: 185.07
+epoch: 9
+training loss: 184.41
+validation loss: 187.43
+epoch: 10
+training loss: 175.73
+validation loss: 181.98
+epoch: 11
+training loss: 193.51
+validation loss: 194.41
+epoch: 12
+training loss: 180.72
+validation loss: 186.09
+epoch: 13
+training loss: 180.39
+validation loss: 190.78
+epoch: 14
+training loss: 187.07
+validation loss: 193.38
+epoch: 15
+training loss: 181.36
+validation loss: 186.00
+epoch: 16
+training loss: 176.01
+validation loss: 180.53
+epoch: 17
+training loss: 166.80
+validation loss: 178.45
+epoch: 18
+training loss: 168.82
+validation loss: 181.00
+epoch: 19
+training loss: 162.05
+validation loss: 177.14
+epoch: 20
+training loss: 167.41
+validation loss: 178.16
+epoch: 21
+training loss: 252.16
+validation loss: 260.28
+epoch: 22
+training loss: 172.28
+validation loss: 183.41
+epoch: 23
+training loss: 191.69
+validation loss: 194.13
+epoch: 24
+training loss: 303.13
+validation loss: 321.81
+epoch: 25
+training loss: 210.82
+validation loss: 210.08
+epoch: 26
+training loss: 180.16
+validation loss: 187.25
+epoch: 27
+training loss: 170.59
+validation loss: 180.87
+epoch: 28
+training loss: 169.71
+validation loss: 177.85
+epoch: 29
+training loss: 167.33
+validation loss: 184.22
+epoch: 30
+training loss: 178.51
+validation loss: 187.69
+epoch: 31
+training loss: 161.02
+validation loss: 176.26
+epoch: 32
+training loss: 160.43
+validation loss: 177.50
+epoch: 33
+training loss: 156.99
+validation loss: 175.75
+epoch: 34
+training loss: 158.38
+validation loss: 174.09
+epoch: 35
+training loss: 154.30
+validation loss: 174.04
+epoch: 36
+training loss: 155.94
+validation loss: 173.60
+epoch: 37
+training loss: 151.08
+validation loss: 174.35
+epoch: 38
+training loss: 151.17
+validation loss: 173.75
+epoch: 39
+training loss: 150.81
+validation loss: 179.58
+epoch: 40
+training loss: 149.47
+validation loss: 174.84
+epoch: 41
+training loss: 147.99
+validation loss: 176.54
+epoch: 42
+training loss: 148.80
+validation loss: 176.89
+epoch: 43
+training loss: 153.66
+validation loss: 185.22
+epoch: 44
+training loss: 147.37
+validation loss: 176.29
+epoch: 45
+training loss: 148.04
+validation loss: 176.86
+epoch: 46
+training loss: 144.98
+validation loss: 176.06
+epoch: 47
+training loss: 145.97
+validation loss: 177.15
+epoch: 48
+training loss: 144.04
+validation loss: 176.32
+epoch: 49
+training loss: 143.40
+validation loss: 177.62
+epoch: 50
+training loss: 144.36
+validation loss: 174.41
+epoch: 51
+training loss: 144.86
+validation loss: 176.51
+epoch: 52
+training loss: 144.08
+validation loss: 177.20
+epoch: 53
+training loss: 140.67
+validation loss: 181.04
+epoch: 54
+training loss: 140.38
+validation loss: 176.46
+epoch: 55
+training loss: 140.38
+validation loss: 177.58
+epoch: 56
+training loss: 140.19
+validation loss: 177.98
+epoch: 57
+training loss: 141.04
+validation loss: 181.23
+epoch: 58
+training loss: 140.01
+validation loss: 176.35
+epoch: 59
+training loss: 138.34
+validation loss: 179.35
+epoch: 60
+training loss: 135.97
+validation loss: 183.92
+epoch: 61
+training loss: 137.73
+validation loss: 178.54
+epoch: 62
+training loss: 137.09
+validation loss: 178.10
+epoch: 63
+training loss: 136.55
+validation loss: 178.47
+epoch: 64
+training loss: 136.78
+validation loss: 184.53
+epoch: 65
+training loss: 137.17
+validation loss: 179.19
+epoch: 66
+training loss: 135.78
+validation loss: 181.09
+epoch: 67
+training loss: 133.25
+validation loss: 183.60
+epoch: 68
+training loss: 134.26
+validation loss: 179.95
+epoch: 69
+training loss: 132.69
+validation loss: 184.70
+epoch: 70
+training loss: 132.46
+validation loss: 186.41
+epoch: 71
+training loss: 131.54
+validation loss: 186.34
+epoch: 72
+training loss: 131.60
+validation loss: 181.88
+epoch: 73
+training loss: 130.85
+validation loss: 182.66
+epoch: 74
+training loss: 129.21
+validation loss: 191.47
+epoch: 75
+training loss: 130.35
+validation loss: 185.60
+epoch: 76
+training loss: 129.14
+validation loss: 183.95
+epoch: 77
+training loss: 128.27
+validation loss: 182.78
+epoch: 78
+training loss: 129.59
+validation loss: 186.75
+epoch: 79
+training loss: 127.32
+validation loss: 186.72
+epoch: 80
+training loss: 127.92
+validation loss: 183.02
+epoch: 81
+training loss: 127.39
+validation loss: 188.75
+epoch: 82
+training loss: 124.84
+validation loss: 189.87
+epoch: 83
+training loss: 124.90
+validation loss: 188.42
+epoch: 84
+training loss: 123.51
+validation loss: 193.51
+epoch: 85
+training loss: 124.28
+validation loss: 189.36
+epoch: 86
+training loss: 122.72
+validation loss: 193.90
+epoch: 87
+training loss: 123.95
+validation loss: 187.53
+epoch: 88
+training loss: 123.08
+validation loss: 189.56
+epoch: 89
+training loss: 124.45
+validation loss: 191.34
+epoch: 90

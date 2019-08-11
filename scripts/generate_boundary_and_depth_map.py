@@ -10,10 +10,11 @@ SIDE = 1.6
 GROUND_DEFAULT_DEPTH = -1.0
 RADIUS = 1.0
 # RADIUS = 0.7
-WALL_DEFAULT_DEPTH = 2.0
+WALL_DEFAULT_DEPTH = 2
 # WALL_DEFAULT_DEPTH = 0.7
 # WALL_MIN_HEIGHT = 1.0
 # WALL_MAX_HEIGHT = 2.0
+BOUNDARY_LEVEL_THRESHOLD = 2
 
 def rotate_quadrilaterals(coordinates, theta):
     """
@@ -94,10 +95,10 @@ def angle(x, y):
     return np.pi - np.arctan(y * 1.0 / x) + (x < 0).astype(int) * ((y < 0).astype(int) * 2 - 1) * np.pi
 
 
-def patch_depth_map(entire_map, map_type, resolution, vertices, wall_min_height=None, wall_max_height=None):
+def generate_patch_depth_map(entire_depth_map, patch_index_map, patch_index, map_type, resolution, vertices, wall_min_height=None, wall_max_height=None):
     """
     Inputs:
-    "entire_map" should be a 2d numpy array. It will be modified in place.
+    "entire_depth_map" should be a 2d numpy array. It will be modified in place.
 
     "map_type" should be either "ground" or "wall".
 
@@ -132,8 +133,9 @@ def patch_depth_map(entire_map, map_type, resolution, vertices, wall_min_height=
                 if point_inside_polygon(np.array([x, y, z]), vertices_array, normal):
                     idx_1 = int(SIDE / 2.0 / resolution) - y_temp
                     idx_2 = int(SIDE / 2.0 / resolution) - x_temp
-                    if entire_map[idx_1][idx_2] < z:
-                        entire_map[idx_1][idx_2] = z
+                    if entire_depth_map[idx_1][idx_2] < z:
+                        entire_depth_map[idx_1][idx_2] = z
+                        patch_index_map[idx_1][idx_2] = patch_index
 
         # IPython.embed()
 
@@ -161,8 +163,9 @@ def patch_depth_map(entire_map, map_type, resolution, vertices, wall_min_height=
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(wall_max_height / resolution) - z_temp
                         idx_2 = theta_temp
-                        if entire_map[idx_1][idx_2] > rho:
-                            entire_map[idx_1][idx_2] = rho
+                        if entire_depth_map[idx_1][idx_2] > rho:
+                            entire_depth_map[idx_1][idx_2] = rho
+                            patch_index_map[idx_1][idx_2] = patch_index
 
         else:
             theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
@@ -178,15 +181,17 @@ def patch_depth_map(entire_map, map_type, resolution, vertices, wall_min_height=
                     if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
                         idx_1 = int(wall_max_height / resolution) - z_temp
                         idx_2 = theta_temp
-                        if entire_map[idx_1][idx_2] > rho:
-                            entire_map[idx_1][idx_2] = rho
+                        if entire_depth_map[idx_1][idx_2] > rho:
+                            entire_depth_map[idx_1][idx_2] = rho
+                            patch_index_map[idx_1][idx_2] = patch_index
 
     else:
         print('wrong type')
         exit(1)
 
 
-def entire_depth_map(coordinates, map_type, resolution, wall_min_height=None, wall_max_height=None):
+
+def generate_depth_map_and_boundary_map(coordinates, map_type, resolution, wall_min_height=None, wall_max_height=None):
     """
     Inputs:
     "coordinates" should be a 2d numpy array.
@@ -197,52 +202,100 @@ def entire_depth_map(coordinates, map_type, resolution, wall_min_height=None, wa
 
     "resolution" should be a float which represents the distance (in meter) between adjacent pixels on the depth map.
 
-    Output:
-    a 2d numpy array which represents a depth map.
+    Outputs:
+    a 2d depth map and a 2d boundary map (1: on the boundary, 0: not on the boundary)
     """
     if map_type == "ground":
-        entire_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=float) * GROUND_DEFAULT_DEPTH
+        patch_index_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=int) * -1
+        entire_depth_map = np.ones((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=float) * GROUND_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
-            patch_depth_map(entire_map, "ground", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
+            generate_patch_depth_map(entire_depth_map, patch_index_map, i, "ground", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]])
+        entire_boundary_map = np.zeros((int(SIDE / resolution) + 1, int(SIDE / resolution) + 1), dtype=int)
         # IPython.embed()
 
     elif map_type == "wall":
-        entire_map = np.ones((int(round((wall_max_height - wall_min_height) / resolution, 0)) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
+        patch_index_map = np.ones((int(round((wall_max_height - wall_min_height) / resolution, 0)) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=int) * -1
+        entire_depth_map = np.ones((int(round((wall_max_height - wall_min_height) / resolution, 0)) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=float) * WALL_DEFAULT_DEPTH
         for i in range(coordinates.shape[0] // 4):
-            patch_depth_map(entire_map, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]], wall_min_height, wall_max_height)
+            generate_patch_depth_map(entire_depth_map, patch_index_map, i, "wall", resolution, [coordinates[4*i], coordinates[4*i+1], coordinates[4*i+2], coordinates[4*i+3]], wall_min_height, wall_max_height)
+        entire_boundary_map = np.zeros((int(round((wall_max_height - wall_min_height) / resolution, 0)) + 1, int(2 * np.pi * RADIUS / resolution) + 1), dtype=int)
         # IPython.embed()
 
     else:
         print('wrong type')
         exit(1)
 
-    return entire_map
+    maximal_y = patch_index_map.shape[0] - 1
+    for idx in range(patch_index_map.shape[1]):
+        entire_boundary_map[0][idx] = 1
+        entire_boundary_map[maximal_y][idx] = 1
+    maximal_x = patch_index_map.shape[1] - 1
+    for idy in range(1, patch_index_map.shape[0] - 1):
+        entire_boundary_map[idy][0] = 1
+        entire_boundary_map[idy][maximal_x] = 1
+
+
+    level_sets = {0: set()}
+
+    for idx in range(1, patch_index_map.shape[1] - 1):
+        for idy in range(1, patch_index_map.shape[0] - 1):
+            if patch_index_map[idy][idx] != patch_index_map[idy-1][idx] or patch_index_map[idy][idx] != patch_index_map[idy+1][idx] or patch_index_map[idy][idx] != patch_index_map[idy][idx-1] or patch_index_map[idy][idx] != patch_index_map[idy][idx+1]:
+                entire_boundary_map[idy][idx] = 1
+                level_sets[0].add((idy, idx))
+
+    for level in range(BOUNDARY_LEVEL_THRESHOLD):
+        level_sets[level+1] = set()
+        for (idy, idx) in level_sets[level]:
+            if entire_boundary_map[idy-1][idx] == 0:
+                entire_boundary_map[idy-1][idx] = 1
+                level_sets[level+1].add((idy-1, idx))
+            if entire_boundary_map[idy+1][idx] == 0:
+                entire_boundary_map[idy+1][idx] = 1
+                level_sets[level+1].add((idy+1, idx))
+            if entire_boundary_map[idy][idx-1] == 0:
+                entire_boundary_map[idy][idx-1] = 1
+                level_sets[level+1].add((idy, idx-1))
+            if entire_boundary_map[idy][idx+1] == 0:
+                entire_boundary_map[idy][idx+1] = 1
+                level_sets[level+1].add((idy, idx+1))
+            
+
+
+    return entire_depth_map, entire_boundary_map
+
+
+def generate_combined_map(coordinates, map_type, resolution, wall_min_height=None, wall_max_height=None):
+    depth_map, boundary_map = generate_depth_map_and_boundary_map(coordinates, map_type, resolution, wall_min_height, wall_max_height)
+    if map_type == "ground":
+        combined_map = np.clip(depth_map + boundary_map * -2.0, -1, 1)
+
+    elif map_type == "wall":
+        combined_map = np.clip(depth_map + boundary_map * 2.0, 0, 2)
+
+    else:
+        print('wrong type')
+        exit(1)
+
+    return combined_map
 
 
 def main():
-    for environment_type in [4]:
-        with open('../data/medium_dataset_normal_wall/environments_' + str(environment_type), 'r') as env_file:
-            environments = pickle.load(env_file)
-            # for environment_index in range(NUM_ENVIRONMENT_PER_TYPE):
-            for environment_index in [22]:
-                if os.path.exists('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index)):
-                    print('process data in file dynamic_cost_plus_type_{}_{}'.format(environment_type, environment_index))
-                    ground_vertices = environments[environment_index]['ground_vertices']
-                    others_vertices = environments[environment_index]['others_vertices']
-                    with open('../data/medium_dataset_normal_wall/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
-                        data = pickle.load(file)
-                        p1_list = sorted(data.keys(), key=lambda element: (element[0], element[1], element[2]))
-                        for p1 in p1_list:
-                            print(p1)
-                            depth_map_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p1[0]) + str(p1[1]) + str(p1[2])
-                            ground_patch_coordinates = rotate_quadrilaterals(ground_vertices, p1[2] * ANGLE_RESOLUTION)
-                            ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', RESOLUTION)
-                            with open('../data/test/ground_depth_maps/' + depth_map_id, 'w') as depth_map_file:  
-                                pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), depth_map_file)
-                            wall_patch_coordinates = rotate_quadrilaterals(others_vertices, p1[2] * ANGLE_RESOLUTION)
-                            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', RESOLUTION, wall_min_height=1.0, wall_max_height=2.0)
-                            with open('../data/test/wall_depth_maps/' + depth_map_id, 'w') as depth_map_file:
-                                pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), depth_map_file)
+    environment_type = 9
+    environment_index = 181
+    with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall/environments_' + str(environment_type) + '_' + str(environment_index), 'r') as env_file:
+        environment = pickle.load(env_file)
+    ground_vertices = environment['ground_vertices']
+    others_vertices = environment['others_vertices']
+    p1 = (0, 0, -4)
+    depth_map_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p1[0]) + str(p1[1]) + str(p1[2])
+    ground_patch_coordinates = rotate_quadrilaterals(ground_vertices, p1[2] * ANGLE_RESOLUTION)
+    ground_depth_map = generate_combined_map(ground_patch_coordinates, 'ground', RESOLUTION)
+    with open('../data/test/ground_depth_maps/' + depth_map_id, 'w') as depth_map_file:  
+        pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), depth_map_file)
+    wall_patch_coordinates = rotate_quadrilaterals(others_vertices, p1[2] * ANGLE_RESOLUTION)
+    wall_depth_map = generate_combined_map(wall_patch_coordinates, 'wall', RESOLUTION, wall_min_height=1.1, wall_max_height=1.7)
+    with open('../data/test/wall_depth_maps/' + depth_map_id, 'w') as depth_map_file:
+        pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), depth_map_file)
 
 
 
