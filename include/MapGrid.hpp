@@ -38,13 +38,14 @@ class MapCell3D : MapCell2D
         MapCell2D(_x, _y, _ix, _iy),
         theta_(_theta),
         itheta_(_itheta),
-        parent_indices_({-99,-99,-99}),
-        g_(999.0),
+        g_(std::numeric_limits<float>::max()),
         h_(0.0),
-        terrain_type_(TerrainType::SOLID)
+        is_root_(false),
+        terrain_type_(TerrainType::SOLID),
+        explore_state_(ExploreState::OPEN)
         {};
 
-        std::array<int,3> parent_indices_;
+        std::shared_ptr<MapCell3D> parent_;
 
         float g_;
         float h_;
@@ -61,12 +62,16 @@ class MapCell3D : MapCell2D
 
         bool near_obstacle_;
 
+        bool is_root_;
+        ExploreState explore_state_;
+
         TerrainType terrain_type_;
 
         std::array<float,4> hand_contact_env_feature_;
 
         inline const float getF() const {return (g_ + h_);}
         inline bool operator<(const MapCell3D& other) const {return (this->getF() < other.getF());}
+        inline bool operator>(const MapCell3D& other) const {return (this->getF() > other.getF());}
 
         // struct pointer_less
         // {
@@ -77,17 +82,19 @@ class MapCell3D : MapCell2D
         //     }
         // };
 
-        int getTravelDirection(MapCell3D goal_cell);
+        // int getTravelDirection(MapCell3D goal_cell);
 
         inline GridIndices3D getIndices() {return {ix_, iy_, itheta_};}
         inline GridPositions3D getPositions() {return {x_, y_, theta_};}
 };
 
+typedef std::shared_ptr<MapCell2D> MapCell2DPtr;
+typedef std::shared_ptr<MapCell3D> MapCell3DPtr;
 
 class MapGrid
 {
     public:
-        MapGrid(float _min_x, float _max_x, float _min_y, float _max_y, float _xy_resolution, float _theta_resolution);
+        MapGrid(float _min_x, float _max_x, float _min_y, float _max_y, float _xy_resolution, float _theta_resolution, std::shared_ptr<DrawingHandler> _drawing_handler);
 
         GridIndices2D positionsToIndicesXY(GridPositions2D xy_position);
         int positionsToIndicesTheta(float theta_position);
@@ -105,9 +112,21 @@ class MapGrid
         inline float getXYResolution(){return xy_resolution_;}
         inline bool insideGrid(GridPositions3D positions){return (positions[0] >= min_x_ && positions[0] < max_x_ && positions[1] >= min_y_ && positions[1] < max_y_ && positions[2] >= min_theta_ && positions[2] < max_theta_);}
         inline bool insideGrid(GridIndices3D indices){return (indices[0] >= 0 && indices[0] < dim_x_ && indices[1] >= 0 && indices[1] < dim_y_ && indices[2] >= 0 && indices[2] < dim_theta_);}
+        inline MapCell2DPtr get2DCell(GridIndices2D indices) {return cell_2D_list_[indices[0]][indices[1]];}
+        inline MapCell2DPtr get2DCell(GridPositions2D positions) {return get2DCell(positionsToIndicesXY(positions));}
+        inline MapCell3DPtr get3DCell(GridIndices3D indices) {return cell_3D_list_[indices[0]][indices[1]][indices[2]];}
+        inline MapCell3DPtr get3DCell(GridPositions3D positions) {return get3DCell(positionsToIndices(positions));}
 
         void obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vector< std::shared_ptr<TrimeshSurface> > structures);
-        void generateDijkstrHeuristics(MapCell3D goal_cell);
+        void generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model, std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask=std::unordered_set<GridIndices3D, hash<GridIndices3D> >());
+        std::vector<MapCell3DPtr> generateTorsoGuidingPath(MapCell3DPtr& initial_cell, MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > transition_model);
+        std::unordered_set<GridIndices3D, hash<GridIndices3D> > getRegionMask(std::vector<MapCell3DPtr> torso_path, float neighbor_distance_range, float neighbor_orientation_range);
+        std::unordered_set<GridIndices3D, hash<GridIndices3D> > getRegionMask(std::vector<GridIndices3D> grid_indices_vec, float neighbor_distance_range, float neighbor_orientation_range);
+
+        float euclideanDistBetweenCells(MapCell3DPtr& cell1, MapCell3DPtr& cell2);
+        float euclideanHeuristic(MapCell3DPtr& current_cell, MapCell3DPtr& goal_cell);
+
+        void resetCellCostsAndParent();
 
         const float xy_resolution_;
         const float theta_resolution_;
@@ -129,8 +148,8 @@ class MapGrid
 
         int max_step_size;
 
-        std::vector< std::vector<MapCell2D> > cell_2D_list_;
-        std::vector< std::vector< std::vector<MapCell3D> > > cell_3D_list_;
+        std::vector< std::vector<MapCell2DPtr> > cell_2D_list_;
+        std::vector< std::vector< std::vector<MapCell3DPtr> > > cell_3D_list_;
 
         // self.feet_cp_grid = None
 
@@ -138,6 +157,12 @@ class MapGrid
         std::map< std::array<int,3>, std::array<float,4> > hand_env_transition_feature_dict_;
         // self.env_transition_feature_dict = {}
         // self.env_transition_prediction_dict = {}
+
+        // // OpenRAVE object
+        // OpenRAVE::EnvironmentBasePtr env_;
+
+        // the drawing handler
+        std::shared_ptr<DrawingHandler> drawing_handler_;
 
 };
 

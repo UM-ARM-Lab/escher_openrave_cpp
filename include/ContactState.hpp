@@ -38,6 +38,7 @@ class ContactState
         float getRightHorizontalYaw();
         float getFeetMeanHorizontalYaw();
         TransformationMatrix getFeetMeanTransform();
+        RPYTF getVirtualBodyPose();
 
         void printStateInfo();
 

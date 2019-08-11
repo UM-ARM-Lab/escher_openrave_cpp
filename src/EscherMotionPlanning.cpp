@@ -178,35 +178,37 @@ void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
 void EscherMotionPlanning::parseMapGridDimCommand(std::istream& sinput)
 {
     float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
-    float map_grid_xy_resolution;
+    float map_grid_xy_resolution, map_grid_orientation_resolution;
 
     sinput >> map_grid_min_x;
     sinput >> map_grid_max_x;
     sinput >> map_grid_min_y;
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
+    sinput >> map_grid_orientation_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, map_grid_orientation_resolution, drawing_handler_);
 }
 
 void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 {
     float map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y;
-    float map_grid_xy_resolution;
+    float map_grid_xy_resolution, map_grid_orientation_resolution;
 
     sinput >> map_grid_min_x;
     sinput >> map_grid_max_x;
     sinput >> map_grid_min_y;
     sinput >> map_grid_max_y;
     sinput >> map_grid_xy_resolution;
+    sinput >> map_grid_orientation_resolution;
 
-    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, TORSO_GRID_ANGULAR_RESOLUTION);
+    map_grid_ = std::make_shared<MapGrid>(map_grid_min_x, map_grid_max_x, map_grid_min_y, map_grid_max_y, map_grid_xy_resolution, map_grid_orientation_resolution, drawing_handler_);
 
     for(int i = 0; i < map_grid_->dim_x_; i++)
     {
         for(int j = 0; j < map_grid_->dim_y_; j++)
         {
-            sinput >> map_grid_->cell_2D_list_[i][j].height_;
+            sinput >> map_grid_->cell_2D_list_[i][j]->height_;
 
             int foot_ground_projection_surface_id;
             int safe_projection;
@@ -215,12 +217,12 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
 
             if(foot_ground_projection_surface_id == -99)
             {
-                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ =
+                map_grid_->cell_2D_list_[i][j]->foot_ground_projection_ =
                 std::make_pair(safe_projection != 0, nullptr);
             }
             else
             {
-                map_grid_->cell_2D_list_[i][j].foot_ground_projection_ =
+                map_grid_->cell_2D_list_[i][j]->foot_ground_projection_ =
                 std::make_pair(safe_projection != 0, structures_dict_[foot_ground_projection_surface_id]);
             }
 
@@ -230,18 +232,23 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
             for(int n = 0; n < cell_ground_surfaces_num; n++)
             {
                 sinput >> cell_ground_surface_id;
-                map_grid_->cell_2D_list_[i][j].all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
+                map_grid_->cell_2D_list_[i][j]->all_ground_structures_.push_back(structures_dict_[cell_ground_surface_id]);
             }
 
             for(int k = 0; k < map_grid_->dim_theta_; k++)
             {
                 std::array<int,3> parent_indices;
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[0];
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[1];
-                sinput >> map_grid_->cell_3D_list_[i][j][k].parent_indices_[2];
+                sinput >> parent_indices[0];
+                sinput >> parent_indices[1];
+                sinput >> parent_indices[2];
 
-                sinput >> map_grid_->cell_3D_list_[i][j][k].g_;
-                sinput >> map_grid_->cell_3D_list_[i][j][k].h_;
+                map_grid_->cell_3D_list_[i][j][k]->parent_ = map_grid_->cell_3D_list_[parent_indices[0]][parent_indices[1]][parent_indices[2]];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[0];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[1];
+                // sinput >> map_grid_->cell_3D_list_[i][j][k]->parent_indices_[2];
+
+                sinput >> map_grid_->cell_3D_list_[i][j][k]->g_;
+                sinput >> map_grid_->cell_3D_list_[i][j][k]->h_;
 
                 int left_hand_checking_surfaces_num, right_hand_checking_surfaces_num;
                 int surface_id;
@@ -250,14 +257,14 @@ void EscherMotionPlanning::parseMapGridCommand(std::istream& sinput)
                 for(int n = 0; n < left_hand_checking_surfaces_num; n++)
                 {
                     sinput >> surface_id;
-                    map_grid_->cell_3D_list_[i][j][k].left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
+                    map_grid_->cell_3D_list_[i][j][k]->left_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
                 }
 
                 sinput >> right_hand_checking_surfaces_num;
                 for(int n = 0; n < right_hand_checking_surfaces_num; n++)
                 {
                     sinput >> surface_id;
-                    map_grid_->cell_3D_list_[i][j][k].right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
+                    map_grid_->cell_3D_list_[i][j][k]->right_hand_checking_surfaces_.push_back(structures_dict_[surface_id]);
                 }
             }
         }
@@ -1497,10 +1504,10 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
             int lfiy = iy + lfn_it->at(1);
 
             if(map_grid_->insideGrid(GridIndices3D({lfix,lfiy,itheta})) &&
-               map_grid_->cell_2D_list_[lfix][lfiy].height_ > -0.5 &&
-               map_grid_->cell_2D_list_[lfix][lfiy].height_ < 0.5)
+               map_grid_->cell_2D_list_[lfix][lfiy]->height_ > -0.5 &&
+               map_grid_->cell_2D_list_[lfix][lfiy]->height_ < 0.5)
             {
-                left_mean_height = left_mean_height + map_grid_->cell_2D_list_[lfix][lfiy].height_;
+                left_mean_height = left_mean_height + map_grid_->cell_2D_list_[lfix][lfiy]->height_;
                 left_counted_cell_num = left_counted_cell_num + 1;
             }
         }
@@ -1520,10 +1527,10 @@ std::map< std::array<int,3>, std::array<std::array<float,4>,3> > EscherMotionPla
             int rfiy = iy + rfn_it->at(1);
 
             if(map_grid_->insideGrid(GridIndices3D({rfix,rfiy,itheta})) &&
-               map_grid_->cell_2D_list_[rfix][rfiy].height_ > -0.5 &&
-               map_grid_->cell_2D_list_[rfix][rfiy].height_ < 0.5)
+               map_grid_->cell_2D_list_[rfix][rfiy]->height_ > -0.5 &&
+               map_grid_->cell_2D_list_[rfix][rfiy]->height_ < 0.5)
             {
-                right_mean_height = right_mean_height + map_grid_->cell_2D_list_[rfix][rfiy].height_;
+                right_mean_height = right_mean_height + map_grid_->cell_2D_list_[rfix][rfiy]->height_;
                 right_counted_cell_num = right_counted_cell_num + 1;
             }
         }
@@ -2113,6 +2120,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         else if(strcmp(param.c_str(), "robot_properties") == 0)
         {
             parseRobotPropertiesCommand(sinput);
+            drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
         }
 
         else if(strcmp(param.c_str(), "initial_state") == 0)
@@ -2333,47 +2341,79 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
 
-    drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
-
     RAVELOG_INFO("Command Parsing Done. \n");
 
     map_grid_->obstacleAndGapMapping(penv_, structures_);
-    // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
+    RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
+    // manually generate the 8-connected transition model
+    std::map< int,std::vector<GridIndices3D> > transition_model;
+    std::vector<GridIndices3D> transition;
+    for(int ix = -1; ix <= 1; ix++)
+    {
+        for(int iy = -1; iy <= 1; iy++)
+        {
+            // for(int itheta = -1; itheta <= 1; itheta++)
+            // {
+                if(ix != 0 || iy != 0)
+                {
+                    transition.push_back({ix,iy,0});
+                }
+            // }
+        }
+    }
+    for(int itheta = 0; itheta < map_grid_->dim_theta_; itheta++)
+    {
+        transition_model.insert(std::make_pair(itheta, transition));
+    }
+
+    RPYTF initial_virtual_body_pose = initial_state->getVirtualBodyPose();
+
+    GridIndices3D initial_cell_indices = map_grid_->positionsToIndices({initial_virtual_body_pose.x_, initial_virtual_body_pose.y_, initial_virtual_body_pose.yaw_});
     GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
-    // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
-    map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
-    general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+    MapCell3DPtr initial_cell = map_grid_->get3DCell(initial_cell_indices);
+    MapCell3DPtr goal_cell = map_grid_->get3DCell(goal_cell_indices);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
-                                               structures_, structures_dict_, map_grid_,
-                                               general_ik_interface_, 1, thread_num, drawing_handler_,
-                                               planning_id, use_dynamics_planning, disturbance_samples_,
-                                               PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
-                                               check_one_step_capturability, check_contact_transition_feasibility);
-
-    RAVELOG_INFO("Start ANA* Planning \n");
-
-    contact_space_planner.storeSLEnvironment();
-
-    // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
-
-    // RPYTF initial_torso_pose(0, 0, 1.2, 0, 0, 0);
-    // RPYTF goal_torso_pose(1.3, 0, -3.1, 0, 0, 0);
-    // // RPYTF goal_torso_pose(2.6, 0, 1.2, 0, 0, 0);
-    // auto initial_torso_pose_state = std::make_shared<TorsoPoseState>(initial_torso_pose);
-
-    // RPYTF far_away_pose(99.0, 99.0, 99.0, 0, 0, 0);
-    // probot_->SetTransform(far_away_pose.GetRaveTransform());
-
-    // std::vector< std::shared_ptr<TorsoPoseState> > torso_path = torso_path_planner.AStarPlanning(initial_torso_pose_state, goal_torso_pose, time_limit);
+    std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
+    map_grid_->generateDijkstraHeuristics(goal_cell, transition_model, region_mask);
 
     // getchar();
 
-    std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
-                                                                                                            branching_method, time_limit, epsilon, output_first_solution,
-                                                                                                            goal_as_exact_poses, use_learned_dynamics_model, enforce_stop_in_the_end);
+    // // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
+    // // map_grid_->generateDijkstraHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
+
+    // general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+
+    // ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
+    //                                            structures_, structures_dict_, map_grid_,
+    //                                            general_ik_interface_, 1, thread_num, drawing_handler_,
+    //                                            planning_id, use_dynamics_planning, disturbance_samples_,
+    //                                            PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
+    //                                            check_one_step_capturability, check_contact_transition_feasibility);
+
+    // RAVELOG_INFO("Start ANA* Planning \n");
+
+    // contact_space_planner.storeSLEnvironment();
+
+    // // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
+
+    // // RPYTF initial_torso_pose(0, 0, 1.2, 0, 0, 0);
+    // // RPYTF goal_torso_pose(1.3, 0, -3.1, 0, 0, 0);
+    // // // RPYTF goal_torso_pose(2.6, 0, 1.2, 0, 0, 0);
+    // // auto initial_torso_pose_state = std::make_shared<TorsoPoseState>(initial_torso_pose);
+
+    // // RPYTF far_away_pose(99.0, 99.0, 99.0, 0, 0, 0);
+    // // probot_->SetTransform(far_away_pose.GetRaveTransform());
+
+    // // std::vector< std::shared_ptr<TorsoPoseState> > torso_path = torso_path_planner.AStarPlanning(initial_torso_pose_state, goal_torso_pose, time_limit);
+
+    // // getchar();
+
+    // std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
+    //                                                                                                         branching_method, time_limit, epsilon, output_first_solution,
+    //                                                                                                         goal_as_exact_poses, use_learned_dynamics_model, enforce_stop_in_the_end);
 
 }
 

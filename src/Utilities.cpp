@@ -72,7 +72,7 @@ TransformationMatrix inverseTransformationMatrix(TransformationMatrix T)
 	return T_inverse;
 }
 
-RotationMatrix RPYToSO3(const RPYTF& e) // TODO: need to change to the more robust version
+RotationMatrix RPYToSO3(const RPYTF& e)
 {
 	float roll_in_rad = e.roll_ * DEG2RAD;
 	float pitch_in_rad = e.pitch_ * DEG2RAD;

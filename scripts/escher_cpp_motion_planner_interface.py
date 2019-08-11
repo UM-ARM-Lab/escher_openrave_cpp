@@ -35,7 +35,7 @@ def main(meta_path_generation_method='all_planning',
          traversability_select_criterion='mean',
          traversability_threshold = 0.3,
          environment_path='environment',
-         surface_source='mix_test_environment_2',
+         surface_source='torso_path_planning_test_env_0',
          log_file_name='exp_result.txt',
          start_env_id=0,
          end_env_id=9999,
@@ -54,7 +54,7 @@ def main(meta_path_generation_method='all_planning',
     env_handler = environment_handler()
     env = env_handler.env
     structures = env_handler.structures
-    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.135)
+    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 15)
 
     ### Construct the hand transition model
     hand_transition_model = []
@@ -156,7 +156,8 @@ def main(meta_path_generation_method='all_planning',
                                         disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
                                         0, 1.0/disturbance_sample_num])
 
-        generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+        # generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
+        escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
         # for collect data
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
@@ -218,7 +219,7 @@ if __name__ == "__main__":
     path_segmentation_generation_type = 'motion_mode_and_traversability_segmentation'
     traversability_threshold = 0.3
     traversability_select_criterion = 'mean'
-    surface_source = 'mix_test_environment_2'
+    surface_source = 'torso_path_planning_test_env_0'
     environment_path = 'environment'
     log_file_name = 'exp_result.txt'
     start_env_id = 0
