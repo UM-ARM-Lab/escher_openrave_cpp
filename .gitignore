@@ -5,3 +5,4 @@ example-app/
 *.pth.tar
 *_log.txt
 *.pt
+bash_script_*

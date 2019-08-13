@@ -67,6 +67,14 @@ def main():
         from model_B_3 import Model
     elif args.model == 'B_4':
         from model_B_4 import Model
+    elif args.model == 'B_5':
+        from model_B_5 import Model
+    elif args.model == 'B_6':
+        from model_B_6 import Model
+    elif args.model == 'B_7':
+        from model_B_7 import Model
+    elif args.model == 'B_8':
+        from model_B_8 import Model
     else:
         print('invalid model')
         exit(1)
