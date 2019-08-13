@@ -160,12 +160,13 @@ def generate_patch_depth_map(entire_depth_map, patch_index_map, patch_index, map
                 for theta_temp in range(int(math.ceil(theta_min1 * RADIUS / resolution)), int(math.ceil(theta_max1 * RADIUS / resolution))) + range(int(math.ceil(theta_min2 * RADIUS / resolution)), int(math.ceil(theta_max2 * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
-                        idx_1 = int(wall_max_height / resolution) - z_temp
-                        idx_2 = theta_temp
-                        if entire_depth_map[idx_1][idx_2] > rho:
-                            entire_depth_map[idx_1][idx_2] = rho
-                            patch_index_map[idx_1][idx_2] = patch_index
+                    if rho < RADIUS:
+                        if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
+                            idx_1 = int(wall_max_height / resolution) - z_temp
+                            idx_2 = theta_temp
+                            if entire_depth_map[idx_1][idx_2] > rho:
+                                entire_depth_map[idx_1][idx_2] = rho
+                                patch_index_map[idx_1][idx_2] = patch_index
 
         else:
             theta_min, theta_max = np.min(angle(vertices_array[:, 0], vertices_array[:, 1])), np.max(angle(vertices_array[:, 0], vertices_array[:, 1]))
@@ -178,12 +179,13 @@ def generate_patch_depth_map(entire_depth_map, patch_index_map, patch_index, map
                 for theta_temp in range(int(math.ceil(theta_min * RADIUS / resolution)), int(math.ceil(theta_max * RADIUS / resolution))):
                     theta = np.pi - (theta_temp * resolution / RADIUS)
                     rho = (vertices[0][0] * normal[0] + vertices[0][1] * normal[1] + vertices[0][2] * normal[2] - z * normal[2]) / (np.cos(theta) * normal[0] + np.sin(theta) * normal[1])
-                    if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
-                        idx_1 = int(wall_max_height / resolution) - z_temp
-                        idx_2 = theta_temp
-                        if entire_depth_map[idx_1][idx_2] > rho:
-                            entire_depth_map[idx_1][idx_2] = rho
-                            patch_index_map[idx_1][idx_2] = patch_index
+                    if rho < RADIUS:
+                        if point_inside_polygon(np.array([np.cos(theta) * rho, np.sin(theta) * rho, z]), vertices_array, normal):
+                            idx_1 = int(wall_max_height / resolution) - z_temp
+                            idx_2 = theta_temp
+                            if entire_depth_map[idx_1][idx_2] > rho:
+                                entire_depth_map[idx_1][idx_2] = rho
+                                patch_index_map[idx_1][idx_2] = patch_index
 
     else:
         print('wrong type')

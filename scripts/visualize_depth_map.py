@@ -13,7 +13,7 @@ def main():
     #         plt.savefig(file + '_ground')
             # plt.show()
 
-    with open('../data/test/ground_depth_and_boundary_maps/9_180_00-3', 'r') as depth_map:
+    with open('../data/test/wall_depth_maps/9_180_00-3', 'r') as depth_map:
         data = pickle.load(depth_map)
         # plt.figure(index)
         plt.imshow(data[0], cmap='gray')

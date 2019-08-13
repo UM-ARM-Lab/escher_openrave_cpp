@@ -7,8 +7,8 @@ example_id (string), p2, environment wall type (0: no wall, 1: one wall only, 2:
 import pickle, IPython, os, math, shutil, getopt, sys, random
 import numpy as np
 
-from generate_depth_map import rotate_quadrilaterals, entire_depth_map
-# from generate_boundary_and_depth_map import generate_combined_map, rotate_quadrilaterals
+# from generate_depth_map import rotate_quadrilaterals, entire_depth_map
+from generate_boundary_and_depth_map import generate_combined_map, rotate_quadrilaterals
 
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 15.0
@@ -63,9 +63,9 @@ def main():
         for p1 in p1_list:
             depth_map_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p1[0]) + str(p1[1]) + str(p1[2])
             ground_patch_coordinates = rotate_quadrilaterals(ground_vertices, p1[2] * ANGLE_RESOLUTION)
-            ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', DEPTH_MAP_RESOLUTION)
-            # ground_depth_map = generate_combined_map(ground_patch_coordinates, 'ground', DEPTH_MAP_RESOLUTION)
-            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_maps/' + depth_map_id, 'w') as depth_map_file:
+            # ground_depth_map = entire_depth_map(ground_patch_coordinates, 'ground', DEPTH_MAP_RESOLUTION)
+            ground_depth_map = generate_combined_map(ground_patch_coordinates, 'ground', DEPTH_MAP_RESOLUTION)
+            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + depth_map_id, 'w') as depth_map_file:
                 pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), depth_map_file)
 
             altitude = calculate_altitude(np.array([ground_depth_map[27,27], ground_depth_map[27,33], ground_depth_map[27,39],
@@ -73,9 +73,9 @@ def main():
                                                     ground_depth_map[39,27], ground_depth_map[39,33], ground_depth_map[39,39]]))
             altitude = np.round(altitude, 1)
             wall_patch_coordinates = rotate_quadrilaterals(others_vertices, p1[2] * ANGLE_RESOLUTION)
-            wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', DEPTH_MAP_RESOLUTION, wall_min_height=altitude+WALL_MIN_HEIGHT, wall_max_height=altitude+WALL_MAX_HEIGHT)
-            # wall_depth_map = generate_combined_map(wall_patch_coordinates, 'wall', DEPTH_MAP_RESOLUTION, wall_min_height=altitude+WALL_MIN_HEIGHT, wall_max_height=altitude+WALL_MAX_HEIGHT)
-            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_maps/' + depth_map_id, 'w') as depth_map_file:
+            # wall_depth_map = entire_depth_map(wall_patch_coordinates, 'wall', DEPTH_MAP_RESOLUTION, wall_min_height=altitude+WALL_MIN_HEIGHT, wall_max_height=altitude+WALL_MAX_HEIGHT)
+            wall_depth_map = generate_combined_map(wall_patch_coordinates, 'wall', DEPTH_MAP_RESOLUTION, wall_min_height=altitude+WALL_MIN_HEIGHT, wall_max_height=altitude+WALL_MAX_HEIGHT)
+            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + depth_map_id, 'w') as depth_map_file:
                 pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), depth_map_file)
 
     #         p2_list = sorted(data[p1].keys(), key=lambda element: (element[0], element[1], element[2]))

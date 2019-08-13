@@ -59,6 +59,14 @@ def main():
 
     if args.model == 'B_0':
         from model_B_0 import Model
+    elif args.model == 'B_1':
+        from model_B_1 import Model
+    elif args.model == 'B_2':
+        from model_B_2 import Model
+    elif args.model == 'B_3':
+        from model_B_3 import Model
+    elif args.model == 'B_4':
+        from model_B_4 import Model
     else:
         print('invalid model')
         exit(1)

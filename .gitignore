@@ -1,4 +1,7 @@
 data/
 backup_data/
+example-app/
 *.pyc
 *.pth.tar
+*_log.txt
+*.pt
