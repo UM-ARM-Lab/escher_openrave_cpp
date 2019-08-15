@@ -68,8 +68,8 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
         //                                                                                "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models_no_angular_momentum/");
         neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/contact_transition_objective_regression_nn_models/",
                                                                                        "../data/dynopt_result/feasibility_classification_nn_models/",
-                                                                                       "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models/",
-                                                                                       "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models/");
+                                                                                       "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models_new_round/",
+                                                                                       "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models_new_round/");
     }
 
     RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
@@ -683,7 +683,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 bool enable_file_output = false;
 
                 std::string config_path = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/";
-                std::string experiment_name = "one_wall_flat_ground_1";
+                std::string experiment_name = "one_wall_rubble_new_round_2";
                 std::string kindynopt_config_locomotion_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_hermes_full.yaml";
                 // std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_capture_motion_hermes_full.yaml";
                 std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_hermes_full.yaml";

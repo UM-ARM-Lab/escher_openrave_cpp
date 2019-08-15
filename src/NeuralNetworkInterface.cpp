@@ -116,13 +116,13 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
     }
 
     // set up the zero step capturability classifier
-    for(int zero_step_capture_code_int = 0; zero_step_capture_code_int < 6; zero_step_capture_code_int++)
+    for(int zero_step_capture_code_int = 0; zero_step_capture_code_int < 1; zero_step_capture_code_int++)
     {
         ZeroStepCaptureCode zero_step_capture_code = static_cast<ZeroStepCaptureCode>(zero_step_capture_code_int);
 
         // load the classification neural network
         // std::string calssification_model_parameter_string = "_0.0001_224_0.0"; // small disturbance
-        std::string calssification_model_parameter_string = "_0.0001_192_0.1";
+        std::string calssification_model_parameter_string = "_5e-05_256_0.1";
         std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
         // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json"));
 
@@ -134,7 +134,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
     }
 
     // set up the one step capturability classifier
-    for(int one_step_capture_code_int = 0; one_step_capture_code_int < 10; one_step_capture_code_int++)
+    for(int one_step_capture_code_int = 0; one_step_capture_code_int < 3; one_step_capture_code_int++)
     {
         OneStepCaptureCode one_step_capture_code = static_cast<OneStepCaptureCode>(one_step_capture_code_int);
 

@@ -130,7 +130,7 @@ def main(meta_path_generation_method='all_planning',
          traversability_select_criterion='mean',
          traversability_threshold = 0.3,
          environment_path='environment',
-         surface_source='mix_test_environment_2',
+         surface_source='capture_test_env_4',
          log_file_name='exp_result.txt',
          start_env_id=0,
          end_env_id=9999,
@@ -210,7 +210,8 @@ def main(meta_path_generation_method='all_planning',
         # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
-        f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        f = open(escher_planning_data_path + 'step_transition_model_mid_range_symmetric.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
@@ -311,8 +312,13 @@ def main(meta_path_generation_method='all_planning',
         # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
 
         # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.15])
-        disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.8])
-        disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.2])
+        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.8])
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.2])
+
+        disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+        disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+        disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
+        disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
 
         # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
 
@@ -383,7 +389,7 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=10.0,
+                                                time_limit=200.0,
                                                 planning_heuristics='euclidean',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,

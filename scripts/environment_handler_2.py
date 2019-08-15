@@ -10,6 +10,8 @@ from stl import mesh
 from structures_2 import *
 from color_library import *
 
+from matplotlib import cm
+
 class environment_handler:
     def __init__(self,env=None,structures=None,enable_viewer=True):
         if(env is None):
@@ -74,6 +76,30 @@ class environment_handler:
             self.draw_handles.append(self.env.drawlinestrip(points=boundaries_point, linewidth=5.0, colors=np.array((r,g,b))))
 
         self.draw_handles.append(self.env.drawtrimesh(surface.kinbody.GetLinks()[0].GetCollisionData().vertices, surface.kinbody.GetLinks()[0].GetCollisionData().indices, colors=np.array([r,g,b,transparency])))
+
+    def DrawGridLevelSet(self,grid,transparancy=1.0,draw_grid=True,color_map_type='viridis'):
+
+        color_map = cm.get_cmap(color_map_type, 100)
+        grid_array = np.array(grid)
+        min_value = np.min(grid_array[:,:,2])
+        max_value = np.max(grid_array[:,:,2])
+        min_max_diff = max_value - min_value
+
+        for ix in range(len(grid)-1):
+            for iy in range(len(grid[0])-1):
+                trimesh_vertices = np.array([grid[ix][iy], grid[ix+1][iy], grid[ix+1][iy+1], grid[ix][iy+1]])
+                trimesh_indices = np.array([[0, 1, 2], [0, 2, 3]])
+                mean_value = (grid[ix][iy][2] + grid[ix+1][iy][2] + grid[ix+1][iy+1][2] + grid[ix][iy+1][2]) / 4.0
+                color = color_map((mean_value-min_value) / min_max_diff)
+                self.draw_handles.append(self.env.drawtrimesh(trimesh_vertices, trimesh_indices, colors=np.array(list(color[0:3])+[transparancy])))
+
+                if draw_grid:
+                    for i in range(np.size(trimesh_vertices,0)):
+                        boundaries_point = np.zeros((2,3),dtype=float)
+                        boundaries_point[0,:] = trimesh_vertices[i]
+                        boundaries_point[1,:] = trimesh_vertices[(i+1) % np.size(trimesh_vertices,0)]
+                        self.draw_handles.append(self.env.drawlinestrip(points=boundaries_point, linewidth=0.5, colors=np.zeros(3)))
+
 
     def DrawOrientation(self, transform, size=0.2):
 
@@ -1031,9 +1057,9 @@ class environment_handler:
             # corridor_width = 1.2
             corridor_width = 1.8
 
-            random.seed(532) # 9(14,20,25), 3
+            # random.seed(532) # 9(14,20,25), 3
             # random.seed(2478) # 10(15,21,26), 4
-            # random.seed(8) # 11(16,22,27), 5
+            random.seed(8) # 11(16,22,27), 5
             # random.seed(78945) # 12(17,23,28), 6
             # random.seed(29854745) # 13(18,24,29), 7
 
