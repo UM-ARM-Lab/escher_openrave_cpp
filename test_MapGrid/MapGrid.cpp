@@ -659,7 +659,7 @@ void MapGrid::saveStructures(std::vector< std::shared_ptr<TrimeshSurface> > _str
     structures_ = _structures;
 }
 
-std::vector<float> MapGrid::get_boundary(std::vector<std::vector<Translation3D> > structure_vertices) {
+std::vector MapGrid::get_boundary(std::vector<std::vector<Translation3D> > structure_vertices) {
     float env_min_x = std::numeric_limits<float>::min();
     float env_max_x = std::numeric_limits<float>::max();
     float env_min_y = std::numeric_limits<float>::min();
@@ -667,10 +667,10 @@ std::vector<float> MapGrid::get_boundary(std::vector<std::vector<Translation3D> 
 
     for (auto structure_it = structure_vertices.begin(); structure_it != structure_vertices.end(); structure_it++) {
         for (auto vertex_it = (*structure_it).begin(); vertex_it != (*structure_it).end(); vertex_it++) {
-            env_min_x = min((*vertex_it)[0], env_min_x);
-            env_max_x = max((*vertex_it)[0], env_max_x);
-            env_min_y = min((*vertex_it)[1], env_min_y);
-            env_max_y = max((*vertex_it)[1], env_max_y);
+            env_min_x = min(vertex[0], env_min_x);
+            env_max_x = max(vertex[0], env_max_x);
+            env_min_y = min(vertex[1], env_min_y);
+            env_max_y = max(vertex[1], env_max_y);
         }
     }
 

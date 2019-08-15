@@ -16,6 +16,9 @@ IF( NOT Eigen_INCLUDE_DIRS )
     find_package(Eigen REQUIRED)
 ENDIF()
 
+SET( Torch_INCLUDE_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/include" )
+SET( Torch_LIBRARY_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/lib" )
+
 # if(OPENMP_FOUND)
 #   message(STATUS "OPENMP FOUND")
 #   set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})
@@ -32,11 +35,13 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
     ${OpenRAVE_INCLUDE_DIRS}
+    ${Torch_INCLUDE_DIRS}
 )
 link_directories(
     ${Boost_LIBRARY_DIRS}
     ${catkin_LIBRARY_DIRS}
     ${OpenRAVE_LIBRARY_DIRS}
+    ${Torch_LIBRARY_DIRS}
 )
 
 openrave_plugin("${PROJECT_NAME}_plugin"

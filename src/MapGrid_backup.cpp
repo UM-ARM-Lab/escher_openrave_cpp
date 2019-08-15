@@ -1,8 +1,4 @@
 #include "Utilities.hpp"
-#include "MapGrid.hpp"
-#include <math.h>
-#include <cmath>
-#include <set>
 // #include "PointGrid.hpp"
 
 // int MapCell3D::getTravelDirection(MapCell3D goal_cell)
@@ -32,9 +28,6 @@
 //     }
 // }
 
-
-
-
 MapGrid::MapGrid(float _min_x, float _max_x, float _min_y, float _max_y, float _xy_resolution, float _theta_resolution, std::shared_ptr<DrawingHandler> _drawing_handler):
 xy_resolution_(_xy_resolution),
 theta_resolution_(_theta_resolution),
@@ -42,8 +35,8 @@ min_x_(_min_x),
 max_x_(_max_x),
 min_y_(_min_y),
 max_y_(_max_y),
-min_theta_(-180),
-max_theta_(180 - _theta_resolution),
+min_theta_(TORSO_GRID_MIN_THETA),
+max_theta_(360 + TORSO_GRID_MIN_THETA - _theta_resolution),
 dim_x_(int(round((_max_x-_min_x)/_xy_resolution))),
 dim_y_(int(round((_max_y-_min_y)/_xy_resolution))),
 dim_theta_(360/_theta_resolution),
@@ -652,192 +645,4 @@ float MapGrid::euclideanDistBetweenCells(MapCell3DPtr& cell1, MapCell3DPtr& cell
 float MapGrid::euclideanHeuristic(MapCell3DPtr& current_cell, MapCell3DPtr& goal_cell)
 {
     return euclideanDistBetweenCells(current_cell, goal_cell);
-}
-
-// new staff after this line
-void MapGrid::saveStructures(std::vector< std::shared_ptr<TrimeshSurface> > _structures) {
-    structures_ = _structures;
-}
-
-std::vector<float> MapGrid::get_boundary(std::vector<std::vector<Translation3D> > structure_vertices) {
-    float env_min_x = std::numeric_limits<float>::min();
-    float env_max_x = std::numeric_limits<float>::max();
-    float env_min_y = std::numeric_limits<float>::min();
-    float env_max_y = std::numeric_limits<float>::max();
-
-    for (auto structure_it = structure_vertices.begin(); structure_it != structure_vertices.end(); structure_it++) {
-        for (auto vertex_it = (*structure_it).begin(); vertex_it != (*structure_it).end(); vertex_it++) {
-            env_min_x = min((*vertex_it)[0], env_min_x);
-            env_max_x = max((*vertex_it)[0], env_max_x);
-            env_min_y = min((*vertex_it)[1], env_min_y);
-            env_max_y = max((*vertex_it)[1], env_max_y);
-        }
-    }
-
-    float min_x = floor(env_min_x / MAP_RESOLUTION) * MAP_RESOLUTION - MAP_RESOLUTION / 2.0;
-    float max_x = ceil(env_max_x / MAP_RESOLUTION) * MAP_RESOLUTION + MAP_RESOLUTION / 2.0;
-    float min_y = floor(env_min_y / MAP_RESOLUTION) * MAP_RESOLUTION - MAP_RESOLUTION / 2.0;
-    float max_y = ceil(env_max_y / MAP_RESOLUTION) * MAP_RESOLUTION + MAP_RESOLUTION / 2.0;
-    
-    std::vector<float> xy_boundary;
-    float temp[] = {min_x, max_x, min_y, max_y};
-    xy_boundary.assign(temp, temp + 4);
-    return xy_boundary;
-}
-
-torch::Tensor MapGrid::getGroundDepthBoundaryMap(GridIndices3D indices) {
-    // // case 1: the specific ground depth map has been generated before
-    // auto x_it = ground_depth_and_boundary_map_map_.find(indices[0]);
-    // if (x_it != ground_depth_and_boundary_map_map_.end()) {
-    //     auto y_it = x_it->second.find(indices[1]);
-    //     if (y_it != x_it->second.end()) {
-    //         auto theta_it = y_it->second.find(indices[2]);
-    //         if (theta_it != y_it->second.end()) {
-    //             return theta_it->second;
-    //         }
-    //     }
-    // }
-
-    // // case 2: the specific ground depth map has not been generated but the entire one has been generated before
-    // auto orientation_it = entire_ground_depth_and_boundary_map_map_.find(indices[2]);
-    // if (orientation_it != entire_ground_depth_and_boundary_map_map_.end()) {
-    //     GridPositions3D position = indicesToPositions(indices);
-    //     // need to check here
-    //     RotationMatrix rotation_matrix = RPYToSO3(RPYTF(0, 0, 0, 0, 0, -position[2]));
-    //     GridPositions3D rotated_position = rotation_matrix * {position[0], position[1], 0};
-    //     int rotated_x_index = (rotated_position[0] - boundary_map_[indices[2]][0]) / MAP_RESOLUTION;
-    //     int rotated_y_index = (rotated_position[1] - boundary_map_[indices[2]][2]) / MAP_RESOLUTION;
-    //     // check outside the entire depth map ???
-    //     ground_depth_and_boundary_map_map_[indices[0]][indices[1]][indices[2]] = entire_ground_depth_and_boundary_map_map_[indices[2]].slice(0, rotated_y_index, rotated_x_index + 2 * GROUND_MAP_EDGE + 1).slice(1, rotated_x_index, rotated_x_index + 2 * GROUND_MAP_EDGE + 1);
-    //     return ground_depth_and_boundary_map_map_[indices[0]][indices[1]][indices[2]];
-    // }
-
-    // // case 3: even the entire ground depth map has not been generated before
-    // // first quadrant seems more intuitive ...
-    // int first_quadrant_theta_index = indices[2] % (90 / ANGLE_RESOLUTION) + 180 / ANGLE_RESOLUTION;
-    // RotationMatrix rotation_matrix = RPYToSO3(RPYTF(0, 0, 0, 0, 0, first_quadrant_theta_index * ANGLE_RESOLUTION));
-    // std::vector<std::vector<Translation3D> > structure_vertices;
-    // for (auto structure_it = structures_.begin(); structure_it != structures_.end(); structure_it++) {
-    //     std::vector<Translation3D> temp_vector;
-    //     if (structure_it->getType() == TrimeshType::GROUND) {
-    //         for (auto vertex_it = (*structure_it).begin(); vertex_it != (*structure_it).end(); vertex_it++) {
-    //             temp_vector.push_back(rotation_matrix * (*vertex_it));
-    //         }
-    //         structure_vertices.push_back(temp_vector);
-    //     }
-    // }
-    // boundary_map_[first_quadrant_theta_index] = get_boundary(structure_vertices);
-    // std::vector<float> boundaries = boundary_map_[first_quadrant_theta_index];
-    // int dx = round((boundaries[1] - boundaries[0]) / MAP_RESOLUTION) + 1;
-    // int dy = round((boundaries[3] - boundaries[2]) / MAP_RESOLUTION) + 1;
-    // GridPositions3D start_point = rotation_matrix * {boundaries[0], boundaries[3], 0};
-    // float x_interval = cos(first_quadrant_theta_index * ANGLE_RESOLUTION * M_PI / 180.0); // M_PI is defined in cmath
-    // float y_interval = sin(first_quadrant_theta_index * ANGLE_RESOLUTION * M_PI / 180.0);
-    // torch::Tensor ground_depth_map = torch::ones({dy + 2 * GROUND_MAP_EDGE, dx + 2 * GROUND_MAP_EDGE}) * GROUND_DEFAULT_DEPTH;
-    // // accessors are temporary views of a Tensor
-    // // assert ground_depth_map is 2-dimensional and holds floats.
-    // auto ground_depth_map_a = ground_depth_map.accessor<float, 2>();
-    // std::vector<std::vector<int>> structure_id_map(dy + 2 * GROUND_MAP_EDGE, std::vector<int>(dx + 2 * GROUND_MAP_EDGE, std::numeric_limits<int>::min()));
-    // Translation3D projection_ray(0, 0, -1);
-    // // note: pay attention to the x, y order here.
-    // for (int iy = 0; iy < dy; iy++) {
-    //     float start_x = start_point[0] + iy * y_interval;
-    //     float start_y = start_point[1] - iy * x_interval;
-    //     for (int ix = 0; ix < dx; ix++) {
-    //         Translation3D projection_start_point(start_x + ix * x_interval, start_y + ix * y_interval, 99.0);
-    //         float height = GROUND_DEFAULT_DEPTH;
-    //         for (auto structure: structures_) {
-    //             if (structure->getType() == TrimeshType::GROUND) {
-    //                 if (euclideanDistance2D({start_x + ix * x_interval, start_y + ix * y_interval}, {struture->getCenter()[0], structure->getCenter()[1]}) <= structure->getCircumRadius()) {
-    //                     Translation3D projected_point = structure->projectionGlobalFrame(projection_start_point, projection_ray);
-    //                     if (structure->insidePolygon(projected_point)) {
-    //                         height = projected_point[2] > height ? projected_point[2] : height;
-    //                         structure_id_map[iy + GROUND_MAP_EDGE][ix + GROUND_MAP_EDGE] = structure->getId();
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         ground_depth_map_a[iy + GROUND_MAP_EDGE][ix + GROUND_MAP_EDGE] = height;
-    //     }
-    // }
-    // std::set<std::pair<int, int>> level_zero_positions;
-
-    // torch::Tensor ground_boundary_map = torch::ones({dy + 2 * GROUND_MAP_EDGE, dx + 2 * GROUND_MAP_EDGE}, torch::dtype(torch::KInt32));
-    // auto ground_boundary_map_a = ground_boundary_map.accessor<int, 2>();
-    // for (int idy = GROUND_MAP_EDGE; idy < GROUND_MAP_EDGE + dy; idy++) {
-    //     for (int idx = GROUND_MAP_EDGE; idx < GROUND_MAP_EDGE + dx; idx++) {
-    //         ground_boundary_map_a[idy][idx] = 0;
-    //     }
-    // }
-    // for (int idy = GROUND_MAP_EDGE; idy < GROUND_MAP_EDGE + dy; idy++) {
-    //     for (int idx = GROUND_MAP_EDGE; idx < GROUND_MAP_EDGE + dx; idx++) {
-    //         if (structure_id_map[idy][idx] != structure_id_map[idy - 1][idx]
-    //             || structure_id_map[idy][idx] != structure_id_map[idy + 1][idx]
-    //             || structure_id_map[idy][idx] != structure_id_map[idy][idx - 1]
-    //             || structure_id_map[idy][idx] != structure_id_map[idy][idx + 1]) {
-    //             ground_boundary_map_a[idy][idx] = 1;
-    //             level_zero_positions.insert(idx, idy);
-    //         }
-    //     }
-    // }
-
-    // std::set<std::pair<int, int>> level_one_positions;
-    // for (auto position_it = level_zero_positions.begin(); position_it != level_zero_positions.end(); position_it++) {
-    //     if (structure_id_map[(*position_it)[1] - 1][(*position_it)[0]] == 0) {
-    //         structure_id_map[(*position_it)[1] - 1][(*position_it)[0]] = 1;
-    //         level_one_positions.insert((*position_it)[0], (*position_it)[1] - 1);
-    //     }
-    //     if (structure_id_map[(*position_it)[1] + 1][(*position_it)[0]] == 0) {
-    //         structure_id_map[(*position_it)[1] + 1][(*position_it)[0]] = 1;
-    //         level_one_positions.insert((*position_it)[0], (*position_it)[1] + 1);
-    //     }
-    //     if (structure_id_map[(*position_it)[1]][(*position_it)[0] - 1] == 0) {
-    //         structure_id_map[(*position_it)[1]][(*position_it)[0] - 1] = 1;
-    //         level_one_positions.insert((*position_it)[0] - 1, (*position_it)[1]);
-    //     }
-    //     if (structure_id_map[(*position_it)[1]][(*position_it)[0] + 1] == 0) {
-    //         structure_id_map[(*position_it)[1]][(*position_it)[0] + 1] = 1;
-    //         level_one_positions.insert((*position_it)[0] + 1, (*position_it)[1]);
-    //     }
-    // }
-
-    // for (auto position_it = level_one_positions.begin(); position_it != level_one_positions.end(); position_it++) {
-    //     if (structure_id_map[(*position_it)[1] - 1][(*position_it)[0]] == 0) {
-    //         structure_id_map[(*position_it)[1] - 1][(*position_it)[0]] = 1;
-    //     }
-    //     if (structure_id_map[(*position_it)[1] + 1][(*position_it)[0]] == 0) {
-    //         structure_id_map[(*position_it)[1] + 1][(*position_it)[0]] = 1;
-    //     }
-    //     if (structure_id_map[(*position_it)[1]][(*position_it)[0] - 1] == 0) {
-    //         structure_id_map[(*position_it)[1]][(*position_it)[0] - 1] = 1;
-    //     }
-    //     if (structure_id_map[(*position_it)[1]][(*position_it)[0] + 1] == 0) {
-    //         structure_id_map[(*position_it)[1]][(*position_it)[0] + 1] = 1;
-    //     }
-    // }
-
-    // entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index] = torch::clamp_max(torch::clamp_min(torch::clip(ground_depth_map + ground_boundary_map * -2), -1), 1);
-    
-    // std::vector<float> first_quadrant_boundaries = boundary_map_[first_quadrant_theta_index];
-    // // need to think more
-    // // second quadrant
-    // entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index + 90 / ANGLE_RESOLUTION] = torch::rot90(entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index], {1});
-    // float temp_second[] = {first_quadrant_boundaries[2], first_quadrant_boundaries[3], first_quadrant_boundaries[0], first_quadrant_boundaries[1]};
-    // boundary_map_[first_quadrant_theta_index + 90 / ANGLE_RESOLUTION].assign(temp_second, temp_second + 4);
-
-    // // third quadrant
-    // entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index - 180 / ANGLE_RESOLUTION] = torch::rot90(entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index + 90 / ANGLE_RESOLUTION], {1});
-    // float temp_third[] = {first_quadrant_boundaries[1], first_quadrant_boundaries[0], first_quadrant_boundaries[3], first_quadrant_boundaries[2]};
-    // boundary_map_[first_quadrant_theta_index - 180 / ANGLE_RESOLUTION].assign(temp_third, temp_third + 4);
-
-    // // fourth quadrant
-    // entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index - 90 / ANGLE_RESOLUTION] = torch::rot90(entire_ground_depth_and_boundary_map_map_[first_quadrant_theta_index - 180 / ANGLE_RESOLUTION], {1});
-    // float temp_fourth[] = {first_quadrant_boundaries[3], first_quadrant_boundaries[2], first_quadrant_boundaries[1], first_quadrant_boundaries[0]};
-    // boundary_map_[first_quadrant_theta_index - 90 / ANGLE_RESOLUTION].assign(temp_fourth, temp_fourth + 4);
-
-    return torch::ones({65, 65});
-}
-
-torch::Tensor MapGrid::getWallDepthBoundaryMap(GridIndices3D indices) {
-    return torch::ones({25, 252});
 }

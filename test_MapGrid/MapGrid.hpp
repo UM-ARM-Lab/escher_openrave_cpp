@@ -13,6 +13,14 @@
 #include <map>
 
 
+int ANGLE_RESOLUTION = 15;
+float GRID_RESOLUTION = 0.15;
+float MAP_RESOLUTION = 0.025;
+float GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE = 1.6;
+int GROUND_MAP_EDGE = round(GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE / 2 / MAP_RESOLUTION);
+int GROUND_DEFAULT_DEPTH = -1.0;
+
+
 class MapCell2D
 {
     public:
@@ -172,13 +180,6 @@ class MapGrid
         std::shared_ptr<DrawingHandler> drawing_handler_;
 
         // new stuff after this line
-        int ANGLE_RESOLUTION = 15;
-        float GRID_RESOLUTION = 0.15;
-        float MAP_RESOLUTION = 0.025;
-        float GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE = 1.6;
-        int GROUND_MAP_EDGE = round(GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE / 2 / MAP_RESOLUTION);
-        int GROUND_DEFAULT_DEPTH = -1.0;
-
         std::vector< std::shared_ptr<TrimeshSurface> > structures_;
         // possible keys are [0, 1, 2, ..., 21, 22, 23] if the angle resolution is 15.
         // x_min, x_max, y_min, y_max
@@ -192,11 +193,11 @@ class MapGrid
 
         void saveStructures(std::vector< std::shared_ptr<TrimeshSurface> > _structures);
 
-        torch::Tensor getGroundDepthBoundaryMap(GridIndices3D indices);
-        torch::Tensor getWallDepthBoundaryMap(GridIndices3D indices);
+        torch::Tensor &getGroundDepthBoundaryMap(GridIndices3D indices);
+        torch::Tensor &getWallDepthBoundaryMap(GridIndices3D indices);
 
         // return a vector of {x_min, x_max, y_min, y_max}
-        std::vector<float> get_boundary(std::vector<std::vector<Translation3D> > structure_vertices);   
+        std::vector get_boundary(std::vector<std::vector<Translation3D> > structure_vertices);   
 
 };
 

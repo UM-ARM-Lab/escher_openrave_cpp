@@ -24,7 +24,7 @@ import load_hermes_full
 
 # from config_parameter import *
 from transformation_conversion import *
-from optim_config_generator import *
+# from optim_config_generator import *
 from environment_handler_2 import environment_handler
 from escher_openrave_cpp_wrapper import escher_openrave_cpp_wrapper
 from map_grid import map_grid_dim

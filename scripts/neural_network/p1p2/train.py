@@ -57,7 +57,10 @@ def main():
         print('invalid depth map type')
         exit(1)
 
-    if args.model == 'B_0':
+    if args.model == 'A_0':
+        from model_A_0 import Model
+
+    elif args.model == 'B_0':
         from model_B_0 import Model
     elif args.model == 'B_1':
         from model_B_1 import Model
@@ -75,6 +78,14 @@ def main():
         from model_B_7 import Model
     elif args.model == 'B_8':
         from model_B_8 import Model
+    elif args.model == 'B_9':
+        from model_B_9 import Model
+    elif args.model == 'B_10':
+        from model_B_10 import Model
+    elif args.model == 'B_11':
+        from model_B_11 import Model
+    elif args.model == 'B_12':
+        from model_B_12 import Model
     else:
         print('invalid model')
         exit(1)
