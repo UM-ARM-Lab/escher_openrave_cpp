@@ -470,6 +470,68 @@ bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<Cont
     return zero_step_capturable;
 }
 
+std::vector<bool> NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > zero_step_capture_state_vec, NeuralNetworkModelType model_type)
+{
+    std::vector<bool> zero_step_capturability_vec(zero_step_capture_state_vec.size());
+    std::unordered_map<ZeroStepCaptureCode, std::vector<int>, EnumClassHash> capture_code_zero_step_capture_state_indices_map;
+    std::vector<Eigen::VectorXd> feature_vector_vec(zero_step_capture_state_vec.size());
+
+    if(zero_step_capture_state_vec.size() != 0)
+    {
+        int data_id = 0;
+        for(auto zero_step_capture_state : zero_step_capture_state_vec)
+        {
+            // get reference frame
+            std::shared_ptr<ContactState> standard_input_state = zero_step_capture_state->getStandardInputState(DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
+
+            // decide the motion code & the poses
+            auto motion_code_poses_pair = standard_input_state->getZeroStepCapturabilityCodeAndPoses();
+            ZeroStepCaptureCode zero_step_capture_code = motion_code_poses_pair.first;
+            std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+
+            if(capture_code_zero_step_capture_state_indices_map.find(zero_step_capture_code) == capture_code_zero_step_capture_state_indices_map.end())
+            {
+                capture_code_zero_step_capture_state_indices_map[zero_step_capture_code] = {data_id};
+            }
+            else
+            {
+                capture_code_zero_step_capture_state_indices_map[zero_step_capture_code].push_back(data_id);
+            }
+
+            feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, standard_input_state->com_, standard_input_state->lmom_);
+
+            data_id++;
+        }
+
+        for(auto & capture_code_zero_step_capture_state_index_pair : capture_code_zero_step_capture_state_indices_map)
+        {
+            ZeroStepCaptureCode zero_step_capture_code = capture_code_zero_step_capture_state_index_pair.first;
+            int input_dim = feature_vector_vec[capture_code_zero_step_capture_state_index_pair.second[0]].size();
+            int data_num = capture_code_zero_step_capture_state_index_pair.second.size();
+
+            Eigen::MatrixXd feature_matrix(input_dim, data_num);
+
+            int query_data_id = 0;
+            for(auto & data_id : capture_code_zero_step_capture_state_index_pair.second)
+            {
+                feature_matrix.col(query_data_id) = feature_vector_vec[data_id];
+                query_data_id++;
+            }
+
+            std::vector<float> zero_step_capturability_predictions = zero_step_capturability_calssification_models_map_.find(zero_step_capture_code)->second.predict(feature_matrix, model_type);
+
+            query_data_id = 0;
+            for(auto & data_id : capture_code_zero_step_capture_state_index_pair.second)
+            {
+                zero_step_capturability_vec[data_id] = zero_step_capturability_predictions[query_data_id] >= 0.5;
+                query_data_id++;
+            }
+        }
+    }
+
+    return zero_step_capturability_vec;
+}
+
 bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state, NeuralNetworkModelType model_type)
 {
     std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
@@ -504,7 +566,7 @@ bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<Conta
 std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > one_step_capture_state_vec, NeuralNetworkModelType model_type)
 {
     std::vector<bool> one_step_capturability_vec(one_step_capture_state_vec.size());
-    std::unordered_map<OneStepCaptureCode, std::vector<int>, EnumClassHash> capture_code_capture_pose_indices_map;
+    std::unordered_map<OneStepCaptureCode, std::vector<int>, EnumClassHash> capture_code_one_step_capture_state_indices_map;
     std::vector<Eigen::VectorXd> feature_vector_vec(one_step_capture_state_vec.size());
 
     if(one_step_capture_state_vec.size() != 0)
@@ -513,7 +575,7 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
         for(auto one_step_capture_state : one_step_capture_state_vec)
         {
             // get reference frame
-            std::shared_ptr<ContactState> standard_input_state = one_step_capture_state_vec[data_id]->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+            std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
             std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
 
             // decide the motion code & the poses
@@ -521,13 +583,13 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
             OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
             std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
 
-            if(capture_code_capture_pose_indices_map.find(one_step_capture_code) == capture_code_capture_pose_indices_map.end())
+            if(capture_code_one_step_capture_state_indices_map.find(one_step_capture_code) == capture_code_one_step_capture_state_indices_map.end())
             {
-                capture_code_capture_pose_indices_map[one_step_capture_code] = {data_id};
+                capture_code_one_step_capture_state_indices_map[one_step_capture_code] = {data_id};
             }
             else
             {
-                capture_code_capture_pose_indices_map[one_step_capture_code].push_back(data_id);
+                capture_code_one_step_capture_state_indices_map[one_step_capture_code].push_back(data_id);
             }
 
             feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->lmom_);
@@ -535,16 +597,16 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
             data_id++;
         }
 
-        for(auto & capture_code_capture_pose_indices_pair : capture_code_capture_pose_indices_map)
+        for(auto & capture_code_one_step_capture_state_index_pair : capture_code_one_step_capture_state_indices_map)
         {
-            OneStepCaptureCode one_step_capture_code = capture_code_capture_pose_indices_pair.first;
-            int input_dim = feature_vector_vec[capture_code_capture_pose_indices_pair.second[0]].size();
-            int data_num = capture_code_capture_pose_indices_pair.second.size();
+            OneStepCaptureCode one_step_capture_code = capture_code_one_step_capture_state_index_pair.first;
+            int input_dim = feature_vector_vec[capture_code_one_step_capture_state_index_pair.second[0]].size();
+            int data_num = capture_code_one_step_capture_state_index_pair.second.size();
 
             Eigen::MatrixXd feature_matrix(input_dim, data_num);
 
             int query_data_id = 0;
-            for(auto & data_id : capture_code_capture_pose_indices_pair.second)
+            for(auto & data_id : capture_code_one_step_capture_state_index_pair.second)
             {
                 feature_matrix.col(query_data_id) = feature_vector_vec[data_id];
                 query_data_id++;
@@ -553,7 +615,7 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
             std::vector<float> one_step_capturability_predictions = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_matrix, model_type);
 
             query_data_id = 0;
-            for(auto & data_id : capture_code_capture_pose_indices_pair.second)
+            for(auto & data_id : capture_code_one_step_capture_state_index_pair.second)
             {
                 one_step_capturability_vec[data_id] = one_step_capturability_predictions[query_data_id] >= 0.5;
                 query_data_id++;

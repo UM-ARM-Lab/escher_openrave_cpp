@@ -2129,7 +2129,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
 
     // Find the forces rejected by each category of the moving manipulator
-    std::vector< std::map<int,int> > disturbance_rejection_contact_num_by_manip(ContactManipulator::MANIP_NUM);
+    std::vector< std::unordered_map<int,int> > disturbance_rejection_contact_num_by_manip(ContactManipulator::MANIP_NUM);
     std::vector<float> disturbance_costs(ContactManipulator::MANIP_NUM, 0.0);
     std::vector< std::vector<CapturePose> > capture_poses_by_manip(int(ContactManipulator::MANIP_NUM)); // the vector of capture poses by moving manipulator
     // std::unordered_map< std::array<bool, ContactManipulator::MANIP_NUM>, std::vector<CapturePose> > capture_poses_by_transition_contact_status; // the vector of capture poses by transition contact status
@@ -2198,13 +2198,19 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         //     }
         // }
 
-        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::map<int,int> > checked_zero_capture_state;
+        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_map<int,int> > checked_zero_capture_state_disturbance_rejection_contact_num;
         for(auto & move_manip : branching_manips)
         {
             // std::cout << "Branch manip: " << move_manip << std::endl;
 
+            auto time_start_new_manip = std::chrono::high_resolution_clock::now();
+
             // get the initial state for this move_manip
-            std::map<int,int> disturbance_rejection_contact_num_map;
+            std::unordered_map<int,int> disturbance_rejection_contact_num_map;
+            std::vector< std::shared_ptr<ContactState> > zero_step_capture_state_vec(disturbance_samples_.size());
+            std::unordered_map<int,std::vector< std::shared_ptr<ContactState> > > disturbance_one_step_capture_state_vec_map;
+            std::vector<bool> zero_step_dynamically_feasible_vec(disturbance_samples_.size());
+            std::unordered_map<int,std::vector<bool> > disturbance_one_step_dynamically_feasible_map;
 
             // construct the state for the floating moving end-effector
             std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = current_state->stances_vector_[0]->ee_contact_status_;
@@ -2218,32 +2224,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     if(branching_state->manip_in_contact(capture_contact_manip) && // only consider branches making a new contact
                        !ee_contact_status[capture_contact_manip]) // only consider manip that are free to make contacts
                     {
-                        // if(capture_contact_manip == ContactManipulator::L_ARM || capture_contact_manip == ContactManipulator::R_ARM)
-                        // {
-                        //     float min_xy_dist_hand_foot = 9999.0;
-
-                        //     for(auto & leg_manip : LEG_MANIPULATORS)
-                        //     {
-                        //         if(ee_contact_status[leg_manip])
-                        //         {
-                        //             float xy_dist_hand_foot = (branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip].getXY()-current_state->stances_vector_[0]->ee_contact_poses_[leg_manip].getXY()).norm();
-                        //             if(xy_dist_hand_foot < min_xy_dist_hand_foot)
-                        //             {
-                        //                 min_xy_dist_hand_foot = xy_dist_hand_foot;
-                        //             }
-                        //         }
-                        //     }
-
-                        //     if(min_xy_dist_hand_foot > 0.7)
-                        //     {
-                        //         continue;
-                        //     }
-                        // }
-                        // else if(capture_contact_manip == ContactManipulator::L_LEG || capture_contact_manip == ContactManipulator::R_LEG)
-                        // {
-                        //     continue;
-                        // }
-
                         capture_poses_by_manip[int(move_manip)].push_back( CapturePose(capture_contact_manip,
                                                                                        branching_state->stances_vector_[0]->ee_contact_poses_[capture_contact_manip]));
                     }
@@ -2251,9 +2231,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             }
 
             // the zero capture state has already been checked.
-            if(checked_zero_capture_state.find(ee_contact_status) != checked_zero_capture_state.end())
+            if(checked_zero_capture_state_disturbance_rejection_contact_num.find(ee_contact_status) != checked_zero_capture_state_disturbance_rejection_contact_num.end())
             {
-                disturbance_rejection_contact_num_by_manip[move_manip] = checked_zero_capture_state.find(ee_contact_status)->second;
+                disturbance_rejection_contact_num_by_manip[move_manip] = checked_zero_capture_state_disturbance_rejection_contact_num.find(ee_contact_status)->second;
                 continue;
             }
 
@@ -2282,8 +2262,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             // old disturbance check
             for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
             {
-                bool disturbance_rejected = false;
-                int disturbance_rejection_contact_num = 0;
                 auto disturbance = disturbance_samples_[disturb_id];
                 Vector3D post_impact_com_dot = current_state->com_dot_ + disturbance.first.head(3) / robot_properties_->mass_;
                 Vector3D post_impact_lmom = current_state->lmom_ + disturbance.first.head(3);
@@ -2303,15 +2281,14 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                 if(check_zero_step_capturability_)
                 {
-                    bool zero_step_dynamically_feasible;
-
                     if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
                     {
                         if(use_learned_dynamics_model_)
                         {
-                            zero_step_dynamically_feasible = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_contact_state, NeuralNetworkModelType::FRUGALLY_DEEP);
-                            if(printing_capturability_info)
-                                std::cout << "Zero Step Capture Check: " << zero_step_dynamically_feasible << std::endl;
+                            zero_step_capture_state_vec[disturb_id] = zero_step_capture_contact_state;
+                            // zero_step_dynamically_feasible_vec[disturb_id] = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_contact_state, NeuralNetworkModelType::FRUGALLY_DEEP);
+                            // if(printing_capturability_info)
+                            //     std::cout << "Zero Step Capture Check: " << zero_step_dynamically_feasible_vec[disturb_id] << std::endl;
                         }
                         else
                         {
@@ -2322,9 +2299,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                             zero_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(zero_step_capture_contact_state_sequence);
 
                             float zero_step_dummy_dynamics_cost = 0.0;
-                            zero_step_dynamically_feasible = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
+                            zero_step_dynamically_feasible_vec[disturb_id] = zero_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(zero_step_dummy_dynamics_cost);
 
-                            // zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible, planning_id_);
+                            // zero_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(zero_step_capture_contact_state, zero_step_dummy_dynamics_cost, zero_step_dynamically_feasible_vec[disturb_id], planning_id_);
                         }
                     }
                     else if(planning_application_ == PlanningApplication::COLLECT_DATA)
@@ -2368,15 +2345,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                             zero_step_capture_file_index_[motion_code]++;
                         }
 
-                        zero_step_dynamically_feasible = false; // for collecting data
-                    }
-
-                    if(zero_step_dynamically_feasible)
-                    {
-                        // std::cout << "Disturbance " << disturb_id << " rejected by zero step." << std::endl;
-                        disturbance_rejected = true;
-                        disturbance_rejection_contact_num++;
-                        // continue;
+                        zero_step_dynamically_feasible_vec[disturb_id] = false; // for collecting data
                     }
                 }
 
@@ -2385,9 +2354,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 {
                     int capture_pose_num = capture_poses_by_manip[int(move_manip)].size();
                     std::vector<bool> one_step_dynamically_feasible_vec(capture_pose_num);
+                    std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_vec(capture_pose_num);
 
                     std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
-                    std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_vec(capture_pose_num);
                     int capture_pose_id = 0;
 
                     auto time_before_generate_capture_poses = std::chrono::high_resolution_clock::now();
@@ -2422,10 +2391,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     {
                         if(use_learned_dynamics_model_)
                         {
-                            // tf multiple query
-                            one_step_dynamically_feasible_vec = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state_vec, NeuralNetworkModelType::TENSORFLOW);
+                            disturbance_one_step_capture_state_vec_map[disturb_id] = one_step_capture_contact_state_vec;
 
-                            auto time_after_tensorflow_multiple_query = std::chrono::high_resolution_clock::now();
+                            // // tf multiple query
+                            // one_step_dynamically_feasible_vec = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state_vec, NeuralNetworkModelType::TENSORFLOW);
+
+                            // auto time_after_tensorflow_multiple_query = std::chrono::high_resolution_clock::now();
 
                             // // tf single query
                             // capture_pose_id = 0;
@@ -2458,18 +2429,18 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
                             // auto time_after_fdeep_single_query = std::chrono::high_resolution_clock::now();
 
-                            // std::cout << "capture pose generation time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_generate_capture_poses - time_before_generate_capture_poses).count() << std::endl;
-                            std::cout << "tensorflow multiple query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_tensorflow_multiple_query - time_after_generate_capture_poses).count() << std::endl;
-                            // std::cout << "tensorflow single query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_tensorflow_single_query - time_after_tensorflow_multiple_query).count() << std::endl;
-                            // std::cout << "fdeep multiple query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_fdeep_multiple_query - time_after_tensorflow_single_query).count() << std::endl;
-                            // std::cout << "fdeep single query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_fdeep_single_query - time_after_fdeep_multiple_query).count() << std::endl;
-                            std::cout << "Capture Pose Num: " << capture_pose_num << std::endl;
-                            std::cout << "------------------------------------" << std::endl;
+                            // // std::cout << "capture pose generation time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_generate_capture_poses - time_before_generate_capture_poses).count() << std::endl;
+                            // std::cout << "tensorflow multiple query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_tensorflow_multiple_query - time_after_generate_capture_poses).count() << std::endl;
+                            // // std::cout << "tensorflow single query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_tensorflow_single_query - time_after_tensorflow_multiple_query).count() << std::endl;
+                            // // std::cout << "fdeep multiple query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_fdeep_multiple_query - time_after_tensorflow_single_query).count() << std::endl;
+                            // // std::cout << "fdeep single query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_fdeep_single_query - time_after_fdeep_multiple_query).count() << std::endl;
+                            // std::cout << "Capture Pose Num: " << capture_pose_num << std::endl;
+                            // std::cout << "------------------------------------" << std::endl;
 
-                            if(unsigned_unit_unif(rng_) < 0.1)
-                            {
-                                getchar();
-                            }
+                            // if(unsigned_unit_unif(rng_) < 0.1)
+                            // {
+                            //     getchar();
+                            // }
 
                         }
                         else
@@ -2543,125 +2514,72 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         }
                     }
 
-                    // for(auto & capture_pose : capture_poses_by_manip[int(move_manip)])
-                    // {
-                    //     ContactManipulator capture_contact_manip = capture_pose.contact_manip_;
+                    disturbance_one_step_dynamically_feasible_map[disturb_id] = one_step_dynamically_feasible_vec;
+                }
 
-                    //     // if(branching_state->prev_move_manip_ != move_manip)
-                    //     // {
-                    //     //     RAVELOG_ERROR("Moving manipulator info mismatch.\n");
-                    //     //     getchar();
-                    //     // }
+                // std::cout << "====================" << std::endl;
+                // getchar();
+            }
 
-                    //     std::shared_ptr<ContactState> prev_contact_state = std::make_shared<ContactState>(*zero_step_capture_contact_state);
+            // getchar();
 
-                    //     // construct the state for the floating moving end-effector
-                    //     std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_contact_state->stances_vector_[0]->ee_contact_status_;
-                    //     ee_contact_status[capture_contact_manip] = true;
-                    //     std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_contact_state->stances_vector_[0]->ee_contact_poses_;
-                    //     ee_contact_poses[capture_contact_manip] = capture_pose.capture_pose_;
+            auto time_before_query_network = std::chrono::high_resolution_clock::now();
 
-                    //     std::shared_ptr<Stance> one_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                    //                                                                                ee_contact_poses[2], ee_contact_poses[3],
-                    //                                                                                ee_contact_status);
+            // query the neural networks to get the result
+            if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
+            {
+                if(use_learned_dynamics_model_)
+                {
+                    if(check_zero_step_capturability_)
+                    {
+                        zero_step_dynamically_feasible_vec = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_state_vec, NeuralNetworkModelType::TENSORFLOW);
+                    }
 
-                    //     std::shared_ptr<ContactState> one_step_capture_contact_state = std::make_shared<ContactState>(one_step_capture_stance, prev_contact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
-                    //     std::vector< std::shared_ptr<ContactState> > one_step_capture_contact_state_sequence = {prev_contact_state, one_step_capture_contact_state};
+                    if(check_one_step_capturability_)
+                    {
+                        // combine all the one_step_capture_state into one vector
+                        std::vector< std::shared_ptr<ContactState> > one_step_capture_state_vec;
+                        for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+                        {
+                            one_step_capture_state_vec.insert(one_step_capture_state_vec.end(), disturbance_one_step_capture_state_vec_map[disturb_id].begin(), disturbance_one_step_capture_state_vec_map[disturb_id].end());
+                        }
 
-                    //     // std::cout << "##########" << std::endl;
-                    //     // std::cout << capture_contact_manip << std::endl;
-                    //     // std::cout << one_step_capture_contact_state->prev_move_manip_ << std::endl;
-                    //     // std::cout << "^^^^^^^^^" << std::endl;
+                        std::vector<bool> query_one_step_capture_state = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_state_vec, NeuralNetworkModelType::TENSORFLOW);
 
-                    //     bool one_step_dynamically_feasible;
+                        int disturb_start_one_step_capture_index = 0;
+                        for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+                        {
+                            int disturb_one_step_capture_num = disturbance_one_step_capture_state_vec_map[disturb_id].size();
+                            disturbance_one_step_dynamically_feasible_map[disturb_id] = std::vector<bool>(query_one_step_capture_state.begin()+disturb_one_step_capture_num,
+                                                                                                          query_one_step_capture_state.begin()+disturb_one_step_capture_num+disturb_one_step_capture_num);
+                            disturb_start_one_step_capture_index += disturb_one_step_capture_num;
+                        }
+                    }
+                }
+            }
 
-                    //     if(planning_application_ == PlanningApplication::PLAN_IN_ENV)
-                    //     {
-                    //         if(use_learned_dynamics_model_)
-                    //         {
-                    //             // std::cout << "initial com: " << initial_com.transpose() << std::endl;
-                    //             // std::cout << "initial lmom: " << post_impact_lmom.transpose() << std::endl;
-                    //             // std::cout << "initial amom: " << post_impact_amom.transpose() << std::endl;
+            auto time_after_query_network = std::chrono::high_resolution_clock::now();
 
-                    //             one_step_dynamically_feasible = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_contact_state, NeuralNetworkModelType::FRUGALLY_DEEP);
-                    //             // std::cout << "One Step Capture Check, Capture Manip: " << capture_contact_manip << ", " << one_step_dynamically_feasible << std::endl;
+            // collect the information
+            for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+            {
+                int disturbance_rejection_contact_num = 0;
+                if(check_zero_step_capturability_)
+                {
+                    if(zero_step_dynamically_feasible_vec[disturb_id])
+                    {
+                        disturbance_rejection_contact_num++;
+                    }
+                }
 
-                    //             // std::cout << "Prediction: " << one_step_dynamically_feasible << std::endl;
-                    //         }
-                    //         else
-                    //         {
-                    //             one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
-
-                    //             float one_step_dummy_dynamics_cost = 0.0;
-                    //             one_step_dynamically_feasible = one_step_capture_dynamics_optimizer_interface_vector_[0]->dynamicsOptimization(one_step_dummy_dynamics_cost);
-
-                    //             one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationResult(one_step_capture_contact_state, one_step_dummy_dynamics_cost, one_step_dynamically_feasible, planning_id_);
-
-                    //             // drawing_handler_->ClearHandler();
-                    //             // drawing_handler_->DrawContactPath(one_step_capture_contact_state);
-                    //             // // getchar();
-                    //         }
-                    //     }
-                    //     else if(planning_application_ == PlanningApplication::COLLECT_DATA)
-                    //     {
-                    //         if(unsigned_unit_unif(rng_) < 0.95)
-                    //         {
-                    //             continue;
-                    //         }
-
-                    //         // get the motion code and path
-                    //         one_step_capture_dynamics_optimizer_interface_vector_[0]->updateContactSequence(one_step_capture_contact_state_sequence);
-                    //         std::shared_ptr<ContactState> standard_one_step_capture_contact_state = one_step_capture_contact_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
-                    //         auto motion_code_poses_pair = standard_one_step_capture_contact_state->getOneStepCapturabilityCodeAndPoses();
-                    //         OneStepCaptureCode motion_code = motion_code_poses_pair.first;
-
-                    //         if(specified_motion_code == -1 || specified_motion_code == int(motion_code))
-                    //         {
-
-                    //             if(one_step_capture_file_index_[motion_code] > 104000)
-                    //             {
-                    //                 break;
-                    //             }
-
-                    //             std::string motion_code_str = std::to_string(int(motion_code));
-                    //             std::string file_number_str = std::to_string(one_step_capture_file_index_[motion_code]);
-
-                    //             // store the feature vector file
-                    //             std::string training_sample_path = training_sample_config_folder_ + "one_step_capture_" + motion_code_str + "/";
-
-                    //             std::cout << "Export one step capture data: motion code = " << motion_code_str << ", file number = " << file_number_str << std::endl;
-
-                    //             // store the config file
-                    //             exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                    //                                                         one_step_capture_contact_state_sequence,
-                    //                                                         "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                    //                                                         training_sample_path + "cfg_kdopt_one_step_capture_" + motion_code_str + "_" + file_number_str + ".yaml",
-                    //                                                         training_sample_path + "Objects_" + motion_code_str + "_" + file_number_str + ".cf");
-
-                    //             one_step_capture_dynamics_optimizer_interface_vector_[0]->storeDynamicsOptimizationFeature(one_step_capture_contact_state,
-                    //                                                                                                         training_sample_path,
-                    //                                                                                                         one_step_capture_file_index_[motion_code]);
-
-                    //             one_step_capture_file_index_[motion_code]++;
-                    //         }
-
-                    //         one_step_dynamically_feasible = false; // for collecting data
-                    //     }
-                    // }
-
-                    for(auto one_step_dynamically_feasible : one_step_dynamically_feasible_vec)
+                if(check_one_step_capturability_)
+                {
+                    for(auto one_step_dynamically_feasible : disturbance_one_step_dynamically_feasible_map[disturb_id])
                     {
                         if(one_step_dynamically_feasible)
                         {
-                            // if(printing_capturability_info)
-                            //     std::cout << "One Step Capture Check: " << one_step_dynamically_feasible << ", Capture Contact Manip: " << capture_contact_manip << std::endl;
-
-                            // std::cout << "Disturbance " << disturb_id << " rejected by one step using " << capture_contact_manip << std::endl;
-                            disturbance_rejected = true;
                             disturbance_rejection_contact_num++;
-
                             capture_poses_prediction_by_manip[int(move_manip)].push_back(1);
-                            // break;
                         }
                         else
                         {
@@ -2669,23 +2587,18 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         }
                     }
                 }
-
-                // std::cout << "====================" << std::endl;
-                // getchar();
-
                 disturbance_rejection_contact_num_map.insert(std::make_pair(disturb_id, disturbance_rejection_contact_num));
-
-                if(!disturbance_rejected)
-                {
-                    if(printing_capturability_info)
-                        std::cout << "One Step Capture Check: " << 0 << std::endl;
-                }
             }
 
-            // getchar();
-
-            checked_zero_capture_state.insert(std::make_pair(ee_contact_status, disturbance_rejection_contact_num_map));
+            checked_zero_capture_state_disturbance_rejection_contact_num.insert(std::make_pair(ee_contact_status, disturbance_rejection_contact_num_map));
             disturbance_rejection_contact_num_by_manip[move_manip] = disturbance_rejection_contact_num_map;
+
+            auto time_finish_a_manip = std::chrono::high_resolution_clock::now();
+
+            // std::cout << "pre computation time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_before_query_network - time_start_new_manip).count() << std::endl;
+            // std::cout << "network query time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_query_network - time_before_query_network).count() << std::endl;
+            // std::cout << "post computation time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_finish_a_manip - time_after_query_network).count() << std::endl;
+            // getchar();
         }
 
         // std::cout << "Disturbance samples: " << disturbance_samples_.size() << std::endl;

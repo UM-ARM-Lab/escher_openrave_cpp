@@ -65,6 +65,7 @@ class NeuralNetworkInterface
         std::tuple<bool, float, Translation3D, Vector3D> predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state, NeuralNetworkModelType model_type);
         bool predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost, NeuralNetworkModelType model_type);
         bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state, NeuralNetworkModelType model_type);
+        std::vector<bool> predictZeroStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > zero_step_capture_state_vec, NeuralNetworkModelType model_type);
         bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state, NeuralNetworkModelType model_type);
         std::vector<bool> predictOneStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > one_step_capture_state_vec, NeuralNetworkModelType model_type);
 
