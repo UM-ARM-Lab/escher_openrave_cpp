@@ -2129,7 +2129,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
 
     // Find the forces rejected by each category of the moving manipulator
-    std::vector< std::unordered_set<int> > failing_disturbances_by_manip(ContactManipulator::MANIP_NUM);
     std::vector< std::map<int,int> > disturbance_rejection_contact_num_by_manip(ContactManipulator::MANIP_NUM);
     std::vector<float> disturbance_costs(ContactManipulator::MANIP_NUM, 0.0);
     std::vector< std::vector<CapturePose> > capture_poses_by_manip(int(ContactManipulator::MANIP_NUM)); // the vector of capture poses by moving manipulator
@@ -2199,14 +2198,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         //     }
         // }
 
-        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::unordered_set<int> > checked_zero_capture_state;
-        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::map<int,int> > checked_zero_capture_state_2;
+        std::map< std::array<bool, ContactManipulator::MANIP_NUM>, std::map<int,int> > checked_zero_capture_state;
         for(auto & move_manip : branching_manips)
         {
             // std::cout << "Branch manip: " << move_manip << std::endl;
 
             // get the initial state for this move_manip
-            std::unordered_set<int> failing_disturbances;
             std::map<int,int> disturbance_rejection_contact_num_map;
 
             // construct the state for the floating moving end-effector
@@ -2256,8 +2253,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             // the zero capture state has already been checked.
             if(checked_zero_capture_state.find(ee_contact_status) != checked_zero_capture_state.end())
             {
-                failing_disturbances_by_manip[move_manip] = checked_zero_capture_state.find(ee_contact_status)->second;
-                disturbance_rejection_contact_num_by_manip[move_manip] = checked_zero_capture_state_2.find(ee_contact_status)->second;
+                disturbance_rejection_contact_num_by_manip[move_manip] = checked_zero_capture_state.find(ee_contact_status)->second;
                 continue;
             }
 
@@ -2677,23 +2673,18 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 // std::cout << "====================" << std::endl;
                 // getchar();
 
-                disturbance_rejection_contact_num_map.insert(std::make_pair(disturb_id,disturbance_rejection_contact_num));
+                disturbance_rejection_contact_num_map.insert(std::make_pair(disturb_id, disturbance_rejection_contact_num));
 
                 if(!disturbance_rejected)
                 {
-                    failing_disturbances.insert(disturb_id);
                     if(printing_capturability_info)
                         std::cout << "One Step Capture Check: " << 0 << std::endl;
                 }
             }
 
-            if(printing_capturability_info)
-                std::cout << "Rejected Disturbance / Total Disturbance: " << disturbance_samples_.size() - failing_disturbances.size() << "/" << disturbance_samples_.size() << std::endl;
             // getchar();
 
-            checked_zero_capture_state.insert(std::make_pair(ee_contact_status, failing_disturbances));
-            checked_zero_capture_state_2.insert(std::make_pair(ee_contact_status, disturbance_rejection_contact_num_map));
-            failing_disturbances_by_manip[move_manip] = failing_disturbances;
+            checked_zero_capture_state.insert(std::make_pair(ee_contact_status, disturbance_rejection_contact_num_map));
             disturbance_rejection_contact_num_by_manip[move_manip] = disturbance_rejection_contact_num_map;
         }
 
@@ -2702,11 +2693,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         for(auto & manip_id : branching_manips)
         {
             // std::cout << "Manip ID: " << manip_id << std::endl;
-
-            // for(auto & disturb_id : failing_disturbances_by_manip[manip_id])
-            // {
-            //     disturbance_costs[int(manip_id)] += disturbance_samples_[disturb_id].second;
-            // }
 
             // for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
             // {
@@ -2730,14 +2716,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             disturbance_costs[int(manip_id)] = std::min(-log(disturbance_rejection_success_rate), float(100.0));
 
             // std::cout << disturbance_costs[int(manip_id)] << std::endl;
-
-            // if(failing_disturbances_by_manip[int(manip_id)].size() != disturbance_samples_.size())
-            // {
-            //     current_state->printStateInfo();
-            //     std::cout << "manip id: " << int(manip_id) << std::endl;
-            //     std::cout << "rejected disturbance num: " << disturbance_samples_.size() - failing_disturbances_by_manip[int(manip_id)].size() << std::endl;
-            //     std::cout << "disturbance cost: " << disturbance_costs[int(manip_id)] << std::endl;
-            // }
         }
 
         // getchar();
