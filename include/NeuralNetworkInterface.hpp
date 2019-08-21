@@ -6,12 +6,15 @@
 class ClassificationModel
 {
     public:
-        ClassificationModel(Eigen::VectorXd _input_mean, Eigen::VectorXd _input_std, std::shared_ptr<fdeep::model> _model):
+        ClassificationModel(Eigen::VectorXd _input_mean, Eigen::VectorXd _input_std, std::shared_ptr<fdeep::model> _fdeep_model=nullptr, std::shared_ptr<tensorflow::Session> _tf_model=nullptr):
         input_mean_(_input_mean),
         input_std_(_input_std),
         input_dim_(_input_mean.size()),
-        model_(_model) {};
-        float predict(Eigen::VectorXd input);
+        fdeep_model_(_fdeep_model),
+        tf_model_(_tf_model) {};
+
+        float predict(Eigen::VectorXd input, NeuralNetworkModelType model_type);
+        std::vector<float> predict(Eigen::MatrixXd input, NeuralNetworkModelType model_type);
 
     private:
         const int input_dim_;
@@ -19,21 +22,23 @@ class ClassificationModel
         Eigen::VectorXd input_mean_;
         Eigen::VectorXd input_std_;
 
-        std::shared_ptr<fdeep::model> model_;
+        std::shared_ptr<fdeep::model> fdeep_model_;
+        std::shared_ptr<tensorflow::Session> tf_model_;
 };
 
 class RegressionModel
 {
     public:
-        RegressionModel(Eigen::VectorXd _input_mean, Eigen::VectorXd _input_std, Eigen::VectorXd _output_mean, Eigen::VectorXd _output_std, std::shared_ptr<fdeep::model> _model):
+        RegressionModel(Eigen::VectorXd _input_mean, Eigen::VectorXd _input_std, Eigen::VectorXd _output_mean, Eigen::VectorXd _output_std, std::shared_ptr<fdeep::model> _fdeep_model=nullptr, std::shared_ptr<tensorflow::Session> _tf_model=nullptr):
         input_mean_(_input_mean),
         input_std_(_input_std),
         output_mean_(_output_mean),
         output_std_(_output_std),
         input_dim_(_input_mean.size()),
         output_dim_(_output_mean.size()),
-        model_(_model) {};
-        Eigen::VectorXd predict(Eigen::VectorXd input);
+        fdeep_model_(_fdeep_model),
+        tf_model_(_tf_model) {};
+        Eigen::VectorXd predict(Eigen::VectorXd input, NeuralNetworkModelType model_type);
 
     private:
         const int input_dim_;
@@ -44,7 +49,8 @@ class RegressionModel
         Eigen::VectorXd output_mean_;
         Eigen::VectorXd output_std_;
 
-        std::shared_ptr<fdeep::model> model_;
+        std::shared_ptr<fdeep::model> fdeep_model_;
+        std::shared_ptr<tensorflow::Session> tf_model_;
 };
 
 class NeuralNetworkInterface
@@ -56,10 +62,11 @@ class NeuralNetworkInterface
                                std::string one_step_capturability_classification_model_file_path);
 
         // bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
-        std::tuple<bool, float, Translation3D, Vector3D> predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state);
-        bool predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost);
-        bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state);
-        bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state);
+        std::tuple<bool, float, Translation3D, Vector3D> predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state, NeuralNetworkModelType model_type);
+        bool predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost, NeuralNetworkModelType model_type);
+        bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state, NeuralNetworkModelType model_type);
+        bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state, NeuralNetworkModelType model_type);
+        std::vector<bool> predictOneStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > one_step_capture_state_vec, NeuralNetworkModelType model_type);
 
         Eigen::VectorXd getOneStepCaptureFeatureVector(std::shared_ptr<ContactState> one_step_capture_state);
 
@@ -71,6 +78,8 @@ class NeuralNetworkInterface
 
         std::pair<Eigen::VectorXd, Eigen::VectorXd> readMeanStd(std::string file_path);
         Eigen::VectorXd constructFeatureVector(std::vector<RPYTF>& contact_manip_pose_vec, Translation3D& com, Vector3D& com_dot);
+
+        tensorflow::Status LoadTensorflowGraph(const std::string graph_file_name, std::shared_ptr<tensorflow::Session>* session);
 
 
 };

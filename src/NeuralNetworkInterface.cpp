@@ -1,12 +1,36 @@
 
 #include "Utilities.hpp"
 
-float ClassificationModel::predict(Eigen::VectorXd input)
+float ClassificationModel::predict(Eigen::VectorXd input, NeuralNetworkModelType model_type)
 {
     Eigen::VectorXd normalized_input = (input - input_mean_).cwiseQuotient(input_std_);
+    float result;
 
-    fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
-    fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+    if(model_type == NeuralNetworkModelType::FRUGALLY_DEEP)
+    {
+        fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
+        fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+        auto fdeep_result = fdeep_model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
+        result = fdeep_result[0].get(0,0,0,0,0);
+    }
+    else if(model_type == NeuralNetworkModelType::TENSORFLOW)
+    {
+        // Actually run the image through the model.
+        std::vector<tensorflow::Tensor> tf_result;
+        tensorflow::Tensor normalized_input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, normalized_input.size()}));
+        auto normalized_input_eigen_tensor = normalized_input_tensor.matrix<float>();
+        for(int i = 0; i < normalized_input.size(); i++)
+        {
+            normalized_input_eigen_tensor(0,i) = normalized_input[i];
+        }
+        tensorflow::Status run_status = tf_model_->Run({{"input_1", normalized_input_tensor}}, {"dense_3/Sigmoid"}, {}, &tf_result);
+        if (!run_status.ok()) {
+            LOG(ERROR) << "Running model failed: " << run_status;
+            getchar();
+        }
+
+        result = tf_result[0].matrix<float>()(0,0);
+    }
 
     // std::cout << "classification model prediction." << std::endl;
     // std::cout << "std vector: " << std::endl;
@@ -18,9 +42,7 @@ float ClassificationModel::predict(Eigen::VectorXd input)
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
 
-    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
-
-    if(isnan(result[0].get(0,0,0,0,0)))
+    if(isnan(result))
     {
         std::cout << "std vector: " << std::endl;
         std::cout << input_std_.transpose() << std::endl;
@@ -33,17 +55,119 @@ float ClassificationModel::predict(Eigen::VectorXd input)
         getchar();
     }
 
-    // std::cout << result[0].get(0,0,0,0,0) << std::endl;
+    // std::cout << result << std::endl;
 
-    return result[0].get(0,0,0,0,0);
+    return result;
 }
 
-Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
+std::vector<float> ClassificationModel::predict(Eigen::MatrixXd input, NeuralNetworkModelType model_type)
+{
+    size_t data_num = input.cols();
+    Eigen::MatrixXd normalized_input = (input - input_mean_.replicate(1,data_num)).cwiseQuotient(input_std_.replicate(1,data_num));
+    std::vector<float> result(data_num);
+
+    if(model_type == NeuralNetworkModelType::FRUGALLY_DEEP)
+    {
+        std::vector<fdeep::tensor5s> tensor_vector;
+        tensor_vector.reserve(data_num);
+
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            fdeep::float_vec normalized_input_vec(normalized_input.col(data_id).data(), normalized_input.col(data_id).data() + normalized_input.col(data_id).size());
+            fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+            tensor_vector.push_back({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
+        }
+
+        // auto fdeep_result = fdeep_model_->predict(tensor_vector);
+        auto fdeep_result = fdeep_model_->predict_multi(tensor_vector, false);
+
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            result[data_id] = fdeep_result[data_id][0].get(0,0,0,0,0);
+        }
+    }
+    else if(model_type == NeuralNetworkModelType::TENSORFLOW)
+    {
+        // Actually run the image through the model.
+        std::vector<tensorflow::Tensor> tf_result;
+        tensorflow::Tensor normalized_input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({normalized_input.cols(), normalized_input.rows()}));
+        auto normalized_input_eigen_tensor = normalized_input_tensor.matrix<float>();
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            for(int i = 0; i < normalized_input.rows(); i++)
+            {
+                normalized_input_eigen_tensor(data_id,i) = normalized_input(i,data_id);
+            }
+        }
+
+        tensorflow::Status run_status = tf_model_->Run({{"input_1", normalized_input_tensor}}, {"dense_3/Sigmoid"}, {}, &tf_result);
+        if (!run_status.ok()) {
+            LOG(ERROR) << "Running model failed: " << run_status;
+            getchar();
+        }
+
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            result[data_id] = tf_result[0].matrix<float>()(0,data_id);
+        }
+    }
+
+    // std::cout << "classification model prediction." << std::endl;
+    // std::cout << "std vector: " << std::endl;
+    // std::cout << input_std_.transpose() << std::endl;
+    // std::cout << "mean vector: " << std::endl;
+    // std::cout << input_mean_.transpose() << std::endl;
+    // std::cout << "input vector: " << std::endl;
+    // std::cout << input.transpose() << std::endl;
+    // std::cout << "input dim: " << std::endl;
+    // std::cout << input_dim_ << std::endl;
+
+
+    for(int data_id = 0; data_id < data_num; data_id++)
+    {
+        if(isnan(result[data_id]))
+        {
+            std::cout << "std vector: " << std::endl;
+            std::cout << input_std_.transpose() << std::endl;
+            std::cout << "mean vector: " << std::endl;
+            std::cout << input_mean_.transpose() << std::endl;
+            std::cout << "input vector: " << std::endl;
+            std::cout << input.transpose() << std::endl;
+            std::cout << "normalized input: " << normalized_input.transpose() << std::endl;
+            std::cout << "The prediction result is nan. Error!" << std::endl;
+            getchar();
+        }
+    }
+
+    return result;
+}
+
+Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input, NeuralNetworkModelType model_type)
 {
     Eigen::VectorXd normalized_input = (input - input_mean_).cwiseQuotient(input_std_);
+    Eigen::VectorXd normalized_result(output_dim_);
 
-    fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
-    fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+    if(model_type == NeuralNetworkModelType::FRUGALLY_DEEP)
+    {
+        fdeep::float_vec normalized_input_vec(normalized_input.data(), normalized_input.data() + normalized_input.size());
+        fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+
+        // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
+        auto fdeep_result = fdeep_model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
+        // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
+        // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
+
+        // fdeep::float_vec output_vec = *fdeep_result[0].as_vector();
+
+        for(int i = 0; i < output_dim_; i++)
+        {
+            normalized_result[i] = fdeep_result[0].get(0,0,0,0,i);
+        }
+    }
+    else if(model_type == NeuralNetworkModelType::TENSORFLOW)
+    {
+
+    }
 
     // std::cout << "regression model prediction." << std::endl;
     // std::cout << "std vector: " << std::endl;
@@ -55,24 +179,9 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input)
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
 
-    // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
-    auto result = model_->predict({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
-    // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
-    // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
+    Eigen::VectorXd result = normalized_result.cwiseProduct(output_std_) + output_mean_;
 
-
-    // fdeep::float_vec output_vec = *result[0].as_vector();
-
-    Eigen::VectorXd normalized_output(output_dim_);
-
-    for(int i = 0; i < output_dim_; i++)
-    {
-        normalized_output[i] = result[0].get(0,0,0,0,i);
-    }
-
-    Eigen::VectorXd output = normalized_output.cwiseProduct(output_std_) + output_mean_;
-
-    return output;
+    return result;
 }
 
 inline void null_logger(const std::string& str)
@@ -101,7 +210,8 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            objective_regression_input_mean_std.second,
                                                                                                                            objective_regression_output_mean_std.first,
                                                                                                                            objective_regression_output_mean_std.second,
-                                                                                                                           dynamics_cost_regression_model)));
+                                                                                                                           dynamics_cost_regression_model,
+                                                                                                                           nullptr)));
 
 
         // // load the classification neural network
@@ -112,7 +222,8 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
 
         // contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
         //                                                                                                                          feasibility_classification_input_mean_std.second,
-        //                                                                                                                          feasibility_calssification_model)));
+        //                                                                                                                          feasibility_calssification_model,
+        //                                                                                                                          nullptr)));
     }
 
     // set up the zero step capturability classifier
@@ -123,14 +234,26 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         // load the classification neural network
         // std::string calssification_model_parameter_string = "_0.0001_224_0.0"; // small disturbance
         std::string calssification_model_parameter_string = "_5e-05_256_0.1";
-        std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json"));
+
+        // load frugally-deep model
+        std::shared_ptr<fdeep::model> zero_step_capturability_calssification_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> zero_step_capturability_calssification_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".json"));
+
+        // load tensorflow model
+        std::shared_ptr<tensorflow::Session> zero_step_capturability_calssification_tf_model;
+        tensorflow::Status load_graph_status = LoadTensorflowGraph(zero_step_capturability_classification_model_file_path + "zero_step_capture_nn_model_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".pb", &zero_step_capturability_calssification_tf_model);
+        if (!load_graph_status.ok())
+        {
+            LOG(ERROR) << load_graph_status;
+            getchar();
+        }
 
         auto zero_step_capture_classification_input_mean_std = readMeanStd(zero_step_capturability_classification_model_file_path + "zero_step_capture_input_mean_std_" + std::to_string(zero_step_capture_code_int) + calssification_model_parameter_string + ".txt");
 
         zero_step_capturability_calssification_models_map_.insert(std::make_pair(zero_step_capture_code, ClassificationModel(zero_step_capture_classification_input_mean_std.first,
                                                                                                                              zero_step_capture_classification_input_mean_std.second,
-                                                                                                                             zero_step_capturability_calssification_model)));
+                                                                                                                             zero_step_capturability_calssification_fdeep_model,
+                                                                                                                             zero_step_capturability_calssification_tf_model)));
     }
 
     // set up the one step capturability classifier
@@ -141,14 +264,26 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         // load the classification neural network
         // std::string calssification_model_parameter_string = "_0.0001_256_0.0"; // small disturbance
         std::string calssification_model_parameter_string = "_5e-05_256_0.1";
-        std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> one_step_capturability_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json"));
+
+        // load frugally-deep model
+        std::shared_ptr<fdeep::model> one_step_capturability_calssification_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> one_step_capturability_calssification_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".json"));
+
+        // load tensorflow model
+        std::shared_ptr<tensorflow::Session> one_step_capturability_calssification_tf_model;
+        tensorflow::Status load_graph_status = LoadTensorflowGraph(one_step_capturability_classification_model_file_path + "one_step_capture_nn_model_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".pb", &one_step_capturability_calssification_tf_model);
+        if (!load_graph_status.ok())
+        {
+            LOG(ERROR) << load_graph_status;
+            getchar();
+        }
 
         auto one_step_capture_classification_input_mean_std = readMeanStd(one_step_capturability_classification_model_file_path + "one_step_capture_input_mean_std_" + std::to_string(one_step_capture_code_int) + calssification_model_parameter_string + ".txt");
 
         one_step_capturability_calssification_models_map_.insert(std::make_pair(one_step_capture_code, ClassificationModel(one_step_capture_classification_input_mean_std.first,
                                                                                                                            one_step_capture_classification_input_mean_std.second,
-                                                                                                                           one_step_capturability_calssification_model)));
+                                                                                                                           one_step_capturability_calssification_fdeep_model,
+                                                                                                                           one_step_capturability_calssification_tf_model)));
     }
 }
 
@@ -156,6 +291,27 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
 // {
 //     return true;
 // }
+
+tensorflow::Status NeuralNetworkInterface::LoadTensorflowGraph(const std::string graph_file_name, std::shared_ptr<tensorflow::Session>* session)
+{
+    tensorflow::GraphDef graph_def;
+    tensorflow::Status load_graph_status = ReadBinaryProto(tensorflow::Env::Default(), graph_file_name, &graph_def);
+
+    if (!load_graph_status.ok())
+    {
+        return tensorflow::errors::NotFound("Failed to load compute graph at '", graph_file_name, "'");
+    }
+
+    session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
+    tensorflow::Status session_create_status = (*session)->Create(graph_def);
+
+    if (!session_create_status.ok())
+    {
+        return session_create_status;
+    }
+
+    return tensorflow::Status::OK();
+}
 
 std::pair<Eigen::VectorXd, Eigen::VectorXd> NeuralNetworkInterface::readMeanStd(std::string file_path)
 {
@@ -211,7 +367,7 @@ Eigen::VectorXd NeuralNetworkInterface::constructFeatureVector(std::vector<RPYTF
     return feature_vector;
 }
 
-std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state)
+std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state, NeuralNetworkModelType model_type)
 {
     TransformationMatrix feet_mean_transform = branching_state->parent_->getFeetMeanTransform();
 
@@ -237,7 +393,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // decide whether the transition is dynamically feasible
     bool dynamics_feasibility;
 
-    // float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+    // float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector, model_type);
     // dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
 
     // if(contact_transition_code == ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND || contact_transition_code == ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND)
@@ -249,7 +405,7 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
 
     if(dynamics_feasibility)
     {
-        Eigen::VectorXd prediction = contact_transition_dynamics_cost_regression_models_map_.find(contact_transition_code)->second.predict(feature_vector);
+        Eigen::VectorXd prediction = contact_transition_dynamics_cost_regression_models_map_.find(contact_transition_code)->second.predict(feature_vector, model_type);
 
         Translation3D predicted_com = prediction.block(0,0,3,1).cast<float>();
         Vector3D predicted_com_dot = prediction.block(3,0,3,1).cast<float>();
@@ -282,9 +438,9 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     }
 }
 
-bool NeuralNetworkInterface::predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost)
+bool NeuralNetworkInterface::predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost, NeuralNetworkModelType model_type)
 {
-    std::tuple<bool, float, Translation3D, Vector3D> dynamics_prediction = predictContactTransitionDynamicsCost(branching_state);
+    std::tuple<bool, float, Translation3D, Vector3D> dynamics_prediction = predictContactTransitionDynamicsCost(branching_state, model_type);
     bool dynamics_feasibility = std::get<0>(dynamics_prediction);
     dynamics_cost = std::get<1>(dynamics_prediction);
     dynamics_cost = std::max(dynamics_cost,float(0.0));
@@ -294,7 +450,7 @@ bool NeuralNetworkInterface::predictContactTransitionDynamics(std::shared_ptr<Co
     return dynamics_feasibility;
 }
 
-bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state)
+bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state, NeuralNetworkModelType model_type)
 {
     std::shared_ptr<ContactState> standard_input_state = zero_step_capture_state->getStandardInputState(DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
 
@@ -308,13 +464,13 @@ bool NeuralNetworkInterface::predictZeroStepCaptureDynamics(std::shared_ptr<Cont
     // std::cout << "Zero Step Capture Code: " << zero_step_capture_code << std::endl;
 
     // decide whether it is zero step capturable
-    float zero_step_capturability_prediction = zero_step_capturability_calssification_models_map_.find(zero_step_capture_code)->second.predict(feature_vector);
+    float zero_step_capturability_prediction = zero_step_capturability_calssification_models_map_.find(zero_step_capture_code)->second.predict(feature_vector, model_type);
     bool zero_step_capturable = (zero_step_capturability_prediction >= 0.5);
 
     return zero_step_capturable;
 }
 
-bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state)
+bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state, NeuralNetworkModelType model_type)
 {
     std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
     std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
@@ -330,7 +486,7 @@ bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<Conta
     // std::cout << feature_vector.transpose() << std::endl;
 
     // decide whether it is one step capturable
-    float one_step_capturability_prediction = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_vector);
+    float one_step_capturability_prediction = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_vector, model_type);
     bool one_step_capturable = (one_step_capturability_prediction >= 0.5);
 
     // if(one_step_capture_code == 8)
@@ -343,6 +499,70 @@ bool NeuralNetworkInterface::predictOneStepCaptureDynamics(std::shared_ptr<Conta
     // }
 
     return one_step_capturable;
+}
+
+std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > one_step_capture_state_vec, NeuralNetworkModelType model_type)
+{
+    std::vector<bool> one_step_capturability_vec(one_step_capture_state_vec.size());
+    std::unordered_map<OneStepCaptureCode, std::vector<int>, EnumClassHash> capture_code_capture_pose_indices_map;
+    std::vector<Eigen::VectorXd> feature_vector_vec(one_step_capture_state_vec.size());
+
+    if(one_step_capture_state_vec.size() != 0)
+    {
+        int data_id = 0;
+        for(auto one_step_capture_state : one_step_capture_state_vec)
+        {
+            // get reference frame
+            std::shared_ptr<ContactState> standard_input_state = one_step_capture_state_vec[data_id]->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+            std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+
+            // decide the motion code & the poses
+            auto motion_code_poses_pair = standard_input_state->getOneStepCapturabilityCodeAndPoses();
+            OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
+            std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+
+            if(capture_code_capture_pose_indices_map.find(one_step_capture_code) == capture_code_capture_pose_indices_map.end())
+            {
+                capture_code_capture_pose_indices_map[one_step_capture_code] = {data_id};
+            }
+            else
+            {
+                capture_code_capture_pose_indices_map[one_step_capture_code].push_back(data_id);
+            }
+
+            feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->lmom_);
+
+            data_id++;
+        }
+
+        for(auto & capture_code_capture_pose_indices_pair : capture_code_capture_pose_indices_map)
+        {
+            OneStepCaptureCode one_step_capture_code = capture_code_capture_pose_indices_pair.first;
+            int input_dim = feature_vector_vec[capture_code_capture_pose_indices_pair.second[0]].size();
+            int data_num = capture_code_capture_pose_indices_pair.second.size();
+
+            Eigen::MatrixXd feature_matrix(input_dim, data_num);
+
+            int query_data_id = 0;
+            for(auto & data_id : capture_code_capture_pose_indices_pair.second)
+            {
+                feature_matrix.col(query_data_id) = feature_vector_vec[data_id];
+                query_data_id++;
+            }
+
+            std::vector<float> one_step_capturability_predictions = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_matrix, model_type);
+
+            query_data_id = 0;
+            for(auto & data_id : capture_code_capture_pose_indices_pair.second)
+            {
+                one_step_capturability_vec[data_id] = one_step_capturability_predictions[query_data_id] >= 0.5;
+                query_data_id++;
+            }
+        }
+
+    }
+
+    return one_step_capturability_vec;
 }
 
 Eigen::VectorXd NeuralNetworkInterface::getOneStepCaptureFeatureVector(std::shared_ptr<ContactState> one_step_capture_state)

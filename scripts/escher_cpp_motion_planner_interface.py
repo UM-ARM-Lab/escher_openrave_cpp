@@ -320,6 +320,9 @@ def main(meta_path_generation_method='all_planning',
         disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
         disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
 
+        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+        # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+
         # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
 
         # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
@@ -376,6 +379,7 @@ def main(meta_path_generation_method='all_planning',
 
         escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
+
         # for planning test
         escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
                                                 escher=escher,
@@ -389,7 +393,7 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=200.0,
+                                                time_limit=30.0,
                                                 planning_heuristics='euclidean',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,

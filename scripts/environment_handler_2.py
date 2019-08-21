@@ -1021,8 +1021,8 @@ class environment_handler:
 
         elif(surface_source == 'capture_test_env_3'): # a room for the robot to go from one end to the other
 
-            corridor_length = 2.0
-            corridor_width = 0.6
+            corridor_length = 2.2
+            corridor_width = 0.7
 
             # initial platform
             self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
@@ -1032,12 +1032,12 @@ class environment_handler:
                                                         [0,0,0,0,0,0])
 
             # left wall
-            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
-                                                        (-0.2,-corridor_width/2.0),
-                                                        (corridor_length,-corridor_width/2.0),
-                                                        (corridor_length,corridor_width/2.0)],
-                                                        [0,corridor_width/2.0+0.1,1.3,90,0,0],
-                                                        surface_type='others')
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,corridor_width/2.0+0.1,1.3,90,0,0],
+            #                                             surface_type='others')
 
             # right wall
             # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
@@ -1047,7 +1047,7 @@ class environment_handler:
             #                                             [0,-corridor_width/2.0-0.1,1.3,-90,0,0],
             #                                             surface_type='others')
 
-            self.goal_x = corridor_length - 0.2
+            self.goal_x = corridor_length - 0.4
             self.goal_y = 0
 
         elif(surface_source == 'capture_test_env_4'): # a room for the robot to go from one end to the other
