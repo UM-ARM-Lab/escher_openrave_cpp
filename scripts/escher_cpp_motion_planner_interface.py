@@ -315,13 +315,13 @@ def main(meta_path_generation_method='all_planning',
         # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.8])
         # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.2])
 
-        disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
-        disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
-        disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
-        disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
+        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
 
-        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+        disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+        disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.5])
 
         # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
 
@@ -403,6 +403,7 @@ def main(meta_path_generation_method='all_planning',
                                                 enforce_stop_in_the_end=False,
                                                 check_zero_step_capturability=True,
                                                 check_one_step_capturability=True,
+                                                check_contact_transition_feasibility=True,
                                                 disturbance_samples=disturbance_samples,
                                                 thread_num=1,
                                                 # thread_num=multiprocessing.cpu_count(),

@@ -1,5 +1,5 @@
 #include "Utilities.hpp"
-// #include <omp.h>
+#include <omp.h>
 
 ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _robot_properties,
                                            std::vector< std::array<float,3> > _foot_transition_model,
@@ -1662,7 +1662,6 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
         else
         {
             // update the state cost and CoM
-
             dynamics_optimizer_interface_vector_[index]->step_transition_time_ = STEP_TRANSITION_TIME;
             dynamics_optimizer_interface_vector_[index]->support_phase_time_ = SUPPORT_PHASE_TIME;
             std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {current_state->parent_, current_state};
@@ -1700,9 +1699,6 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
                 // update com, com_dot, and parent edge dynamics sequence of the current_state
                 dynamics_optimizer_interface_vector_[index]->updateStateCoM(current_state);
                 dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
-
-                // std::cout << " " << dynamics_cost << std::endl;
-                // getchar();
             }
 
             dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(current_state, dynamics_cost, dynamically_feasible, planning_id_);
@@ -1765,12 +1761,12 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
         bool state_feasibility = kinematicsFeasibilityCheck(current_state, index);
         // bool state_feasibility = kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
         // bool state_feasibility = dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
-        current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
+
 
         dynamics_cost = 0;
         std::shared_ptr<ContactState> prev_state = current_state->parent_;
         ContactManipulator move_manip = current_state->prev_move_manip_;
-        Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
+        // Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
         if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
         {
             current_state->com_ = prev_state->com_;
@@ -2550,8 +2546,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                         for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
                         {
                             int disturb_one_step_capture_num = disturbance_one_step_capture_state_vec_map[disturb_id].size();
-                            disturbance_one_step_dynamically_feasible_map[disturb_id] = std::vector<bool>(query_one_step_capture_state.begin()+disturb_one_step_capture_num,
-                                                                                                          query_one_step_capture_state.begin()+disturb_one_step_capture_num+disturb_one_step_capture_num);
+                            disturbance_one_step_dynamically_feasible_map[disturb_id] = std::vector<bool>(query_one_step_capture_state.begin()+disturb_start_one_step_capture_index,
+                                                                                                          query_one_step_capture_state.begin()+disturb_start_one_step_capture_index+disturb_one_step_capture_num);
                             disturb_start_one_step_capture_index += disturb_one_step_capture_num;
                         }
                     }
@@ -2640,20 +2636,24 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float, float> > state_feasibility_check_result(branching_states.size());
     if(check_contact_transition_feasibility_)
     {
-        for(int i = 0; i < branching_states.size(); i++)
+        // #pragma omp parallel num_threads(thread_num_) shared (state_feasibility_check_result)
         {
-            std::shared_ptr<ContactState> branching_state = branching_states[i];
-            float dynamics_cost = 0.0;
-            float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
-            branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
-            branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
-            if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+            // #pragma omp for schedule(static)
+            for(int i = 0; i < branching_states.size(); i++)
             {
-                state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
-            }
-            else
-            {
-                state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost, disturbance_cost);
+                std::shared_ptr<ContactState> branching_state = branching_states[i];
+                float dynamics_cost = 0.0;
+                float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
+                branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
+                branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
+                if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
+                }
+                else
+                {
+                    state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost, disturbance_cost);
+                }
             }
         }
     }

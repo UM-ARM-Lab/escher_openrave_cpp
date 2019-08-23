@@ -22,11 +22,11 @@ IF( NOT Eigen_INCLUDE_DIRS )
     find_package(Eigen REQUIRED)
 ENDIF()
 
-# if(OPENMP_FOUND)
-#   message(STATUS "OPENMP FOUND")
-#   set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})
-#   set(OpenMP_LIBRARIES gomp)
-# endif()
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})
+  set(OpenMP_LIBRARIES gomp)
+endif()
 
 catkin_package()
 
