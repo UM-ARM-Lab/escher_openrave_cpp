@@ -82,7 +82,8 @@ class ContactSpacePlanning
         // const float dynamics_cost_weight_ = 0.0; // test
         const float dynamics_cost_weight_ = 0.0; // original
         // const float dynamics_cost_weight_ = 1.0; // simplified
-        const float disturbance_cost_weight_ = 10000.0;
+        // const float disturbance_cost_weight_ = 10000.0;
+        const float disturbance_cost_weight_ = 1000.0;
         // const float disturbance_cost_weight_ = 0.0;
 
         // random number generator & randomness parameter

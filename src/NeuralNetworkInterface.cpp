@@ -169,17 +169,25 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input, NeuralNetworkMod
 
     }
 
+    Eigen::VectorXd result = normalized_result.cwiseProduct(output_std_) + output_mean_;
+
     // std::cout << "regression model prediction." << std::endl;
-    // std::cout << "std vector: " << std::endl;
-    // std::cout << input_std_.transpose() << std::endl;
-    // std::cout << "mean vector: " << std::endl;
-    // std::cout << input_mean_.transpose() << std::endl;
     // std::cout << "input vector: " << std::endl;
     // std::cout << input.transpose() << std::endl;
+    // std::cout << "input std vector: " << std::endl;
+    // std::cout << input_std_.transpose() << std::endl;
+    // std::cout << "input mean vector: " << std::endl;
+    // std::cout << input_mean_.transpose() << std::endl;
     // std::cout << "input dim: " << std::endl;
     // std::cout << input_dim_ << std::endl;
-
-    Eigen::VectorXd result = normalized_result.cwiseProduct(output_std_) + output_mean_;
+    // std::cout << "output std vector: " << std::endl;
+    // std::cout << output_std_.transpose() << std::endl;
+    // std::cout << "output mean vector: " << std::endl;
+    // std::cout << output_mean_.transpose() << std::endl;
+    // std::cout << "output dim: " << std::endl;
+    // std::cout << output_dim_ << std::endl;
+    // std::cout << "result: " << std::endl;
+    // std::cout << result.transpose() << std::endl;
 
     return result;
 }
@@ -194,14 +202,25 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                std::string one_step_capturability_classification_model_file_path)
 {
     // set up the contact transition feasibility classifier and objective regressor
-    for(int contact_status_code_int = 0; contact_status_code_int < 10; contact_status_code_int++)
+    for(int contact_status_code_int = 0; contact_status_code_int < 1; contact_status_code_int++)
     {
         ContactTransitionCode contact_status_code = static_cast<ContactTransitionCode>(contact_status_code_int);
 
         // load the regression neural network
-        std::string regression_model_parameter_string = "_0.0005_256_0.0";
-        std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json", false, null_logger));
-        // std::shared_ptr<fdeep::model> dynamics_cost_regression_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json"));
+        std::string regression_model_parameter_string = "_0.0001_256_0.0";
+
+        // load frugally-deep model
+        std::shared_ptr<fdeep::model> dynamics_cost_regression_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json", false, null_logger));
+        // std::shared_ptr<fdeep::model> dynamics_cost_regression_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json"));
+
+        // // load tensorflow model
+        // std::shared_ptr<tensorflow::Session> dynamics_cost_regression_tf_model;
+        // tensorflow::Status load_graph_status = LoadTensorflowGraph(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".pb", &dynamics_cost_regression_tf_model);
+        // if (!load_graph_status.ok())
+        // {
+        //     LOG(ERROR) << load_graph_status;
+        //     getchar();
+        // }
 
         auto objective_regression_input_mean_std = readMeanStd(contact_transition_regression_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
         auto objective_regression_output_mean_std = readMeanStd(contact_transition_regression_model_file_path + "output_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
@@ -210,7 +229,7 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            objective_regression_input_mean_std.second,
                                                                                                                            objective_regression_output_mean_std.first,
                                                                                                                            objective_regression_output_mean_std.second,
-                                                                                                                           dynamics_cost_regression_model,
+                                                                                                                           dynamics_cost_regression_fdeep_model,
                                                                                                                            nullptr)));
 
 

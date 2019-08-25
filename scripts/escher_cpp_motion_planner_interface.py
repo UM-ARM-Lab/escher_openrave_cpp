@@ -253,6 +253,41 @@ def main(meta_path_generation_method='all_planning',
                 escher.env.Remove(struct.kinbody)
                 struct.kinbody = None
 
+        initial_left_leg = [0.025,0.1,0.0,0,0,0]
+        initial_right_leg = [0.025,-0.1,0.0,0,0,0]
+        initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
+        initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
+
+        disturbance_samples = []
+        robot_mass = 63.47
+
+        if surface_source == 'capture_test_env_3':
+            disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+            disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.5])
+        elif surface_source == 'capture_test_env_4':
+            disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+            disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+            disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
+            disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
+        elif surface_source == 'capture_test_env_5':
+            # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.7 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.8 * robot_mass, 0, 0, 0, 0, 0.25])
+
+            disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.3333])
+            disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.3334])
+            disturbance_samples.append([0, -0.7 * robot_mass, 0, 0, 0, 0, 0.3333])
+
+            # disturbance_samples.append([-0.5 * robot_mass, 0, 0, 0, 0, 0, 0.3333])
+            # disturbance_samples.append([-0.6 * robot_mass, 0, 0, 0, 0, 0, 0.3334])
+            # disturbance_samples.append([-0.7 * robot_mass, 0, 0, 0, 0, 0, 0.3333])
+
+            initial_left_leg = [0.0,-1.8,0.0,0,0,90]
+            initial_right_leg = [0.2,-1.8,0.0,0,0,90]
+            initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
+            initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
+
         env_handler.update_environment(escher, escher_planning_data_path + environment_path + '/env_' + str(env_id), surface_source)
 
         goal_x = env_handler.goal_x
@@ -280,73 +315,9 @@ def main(meta_path_generation_method='all_planning',
         rave.raveLogInfo('Start running C++ interface.')
         # Construct the initial node
 
-        initial_left_leg = [0.025,0.1,0.0,0,0,0]
-        initial_right_leg = [0.025,-0.1,0.0,0,0,0]
-        initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
-        initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
-
         initial_node = node(initial_left_leg, initial_right_leg, initial_left_arm, initial_right_arm)
 
         # IPython.embed()
-
-        disturbance_samples = []
-        robot_mass = 63.47
-
-        # disturbance_magnitude = 0.5 * robot_mass
-        # disturbance_sample_num = 8
-        # for i in range(disturbance_sample_num):
-        #     disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
-        #                                 disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
-        #                                 0, 0, 0, 0, 1.0/disturbance_sample_num])
-
-        # disturbance_magnitude = 0.5 * robot_mass
-        # disturbance_samples.append([0, disturbance_magnitude, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([0, -disturbance_magnitude, 0, 0, 0, 0, 0.5])
-
-        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
-
-        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.4 * robot_mass, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
-
-        # disturbance_samples.append([0, 0.2 * robot_mass, 0, 0, 0, 0, 0.15])
-        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.8])
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.2])
-
-        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.25])
-
-        disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.5])
-        disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.5])
-
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
-
-        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([0, 0.9 * robot_mass, 0, 0, 0, 0, 0.25])
-
-        # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 1.0])
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.5])
-
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 1.0])
-        # disturbance_samples.append([0, 0.8 * robot_mass, 0, 0, 0, 0, 0.5])
-
-        # disturbance_magnitude = 0.5 * robot_mass
-        # disturbance_samples.append([disturbance_magnitude, 0, 0, 0, 0, 0, 0.5])
-        # disturbance_samples.append([-disturbance_magnitude, 0, 0, 0, 0, 0, 0.5])
-
-        # disturbance_samples.append([0, 0.2*robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.4*robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.6*robot_mass, 0, 0, 0, 0, 0.25])
-        # disturbance_samples.append([0, 0.8*robot_mass, 0, 0, 0, 0, 0.25])
-
-        # disturbance_sample_num = 1
-        # for i in range(disturbance_sample_num):
-        #     disturbance_samples.append([0, 0, 0, 0, 0, 0, 1.0])
 
 
         # # for collect data
@@ -393,7 +364,7 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=30.0,
+                                                time_limit=300.0,
                                                 planning_heuristics='euclidean',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,
