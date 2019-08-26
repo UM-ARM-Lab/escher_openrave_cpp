@@ -1802,42 +1802,42 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
     // verify the state kinematic and dynamic feasibility
     if(use_dynamics_planning_)
     {
-        bool state_feasibility = kinematicsFeasibilityCheck(current_state, index);
-        // bool state_feasibility = kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
+        // bool state_feasibility = kinematicsFeasibilityCheck(current_state, index);
+        bool state_feasibility = kinematicsFeasibilityCheck(current_state, index) && dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
         // Translation3D predicted_com = current_state->com_;
         // bool state_feasibility = dynamicsFeasibilityCheck(current_state, dynamics_cost, index);
 
 
-        dynamics_cost = 0;
-        std::shared_ptr<ContactState> prev_state = current_state->parent_;
-        ContactManipulator move_manip = current_state->prev_move_manip_;
-        // Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
-        if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
-        {
-            current_state->com_ = prev_state->com_;
-            // if(!prev_state->manip_in_contact(move_manip) || !current_state->manip_in_contact(move_manip))
-            // {
-            //     current_state->com_ = prev_state->com_;
-            // }
-            // else
-            // {
-            //     current_state->com_ = prev_state->com_ + (current_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ() - prev_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ()) * 0.1;
-            // }
-        }
-        else if(move_manip == ContactManipulator::L_LEG)
-        {
-            // current_state->com_ = 0.6 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
-            //                       0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
-            current_state->com_ = 0.7 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
-                                  0.3 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
-        }
-        else if(move_manip == ContactManipulator::R_LEG)
-        {
-            // current_state->com_ = 0.6 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
-            //                       0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
-            current_state->com_ = 0.7 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
-                                  0.3 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
-        }
+        // dynamics_cost = 0;
+        // std::shared_ptr<ContactState> prev_state = current_state->parent_;
+        // ContactManipulator move_manip = current_state->prev_move_manip_;
+        // // Vector3D moving_direction = (current_state->mean_feet_position_ - prev_state->mean_feet_position_).normalized();
+        // if(move_manip == ContactManipulator::L_ARM || move_manip == ContactManipulator::R_ARM)
+        // {
+        //     current_state->com_ = prev_state->com_;
+        //     // if(!prev_state->manip_in_contact(move_manip) || !current_state->manip_in_contact(move_manip))
+        //     // {
+        //     //     current_state->com_ = prev_state->com_;
+        //     // }
+        //     // else
+        //     // {
+        //     //     current_state->com_ = prev_state->com_ + (current_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ() - prev_state->stances_vector_[0]->ee_contact_poses_[int(move_manip)].getXYZ()) * 0.1;
+        //     // }
+        // }
+        // else if(move_manip == ContactManipulator::L_LEG)
+        // {
+        //     // current_state->com_ = 0.6 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+        //     //                       0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        //     current_state->com_ = 0.7 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+        //                           0.3 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        // }
+        // else if(move_manip == ContactManipulator::R_LEG)
+        // {
+        //     // current_state->com_ = 0.6 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
+        //     //                       0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        //     current_state->com_ = 0.7 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
+        //                           0.3 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+        // }
         current_state->com_dot_ = (current_state->com_ - current_state->parent_->com_) / (STEP_TRANSITION_TIME+SUPPORT_PHASE_TIME);
         current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
 
@@ -1845,12 +1845,12 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
         // std::cout << "Prev Right Foot: " << current_state->parent_->stances_vector_[0]->right_foot_pose_.getXYZ().transpose() << std::endl;
         // std::cout << "Left Foot: " << current_state->stances_vector_[0]->left_foot_pose_.getXYZ().transpose() << std::endl;
         // std::cout << "Right Foot: " << current_state->stances_vector_[0]->right_foot_pose_.getXYZ().transpose() << std::endl;
-        // std::cout << "Future Left Foot: " << current_state->stances_vector_[1]->left_foot_pose_.getXYZ().transpose() << std::endl;
-        // std::cout << "Future Right Foot: " << current_state->stances_vector_[1]->right_foot_pose_.getXYZ().transpose() << std::endl;
+        // // std::cout << "Future Left Foot: " << current_state->stances_vector_[1]->left_foot_pose_.getXYZ().transpose() << std::endl;
+        // // std::cout << "Future Right Foot: " << current_state->stances_vector_[1]->right_foot_pose_.getXYZ().transpose() << std::endl;
         // std::cout << "Prev Move Manip: " << current_state->prev_move_manip_ << std::endl;
-        // // std::cout << "Predicted CoM: " << predicted_com.transpose() << std::endl;
+        // std::cout << "Predicted CoM: " << predicted_com.transpose() << std::endl;
         // std::cout << "Hand Assigned CoM: " << current_state->com_.transpose() << std::endl;
-        // // std::cout << "CoM Error: " << predicted_com.transpose() - current_state->com_.transpose() << std::endl;
+        // std::cout << "CoM Error: " << predicted_com.transpose() - current_state->com_.transpose() << std::endl;
         // std::cout << "------------------------" << std::endl;
 
         // getchar();

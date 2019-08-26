@@ -117,11 +117,6 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
         }
         else
         {
-            if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
-            {
-                this->timer_ += this->support_phase_time_;
-            }
-
             // 0_6_0_4 legacy code
             // this->timer_ += 0.6;
 
@@ -161,6 +156,10 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             }
 
             if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+            {
+                this->timer_ += this->support_phase_time_;
+            }
+            else if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
             {
                 this->timer_ += this->support_phase_time_;
             }
@@ -304,8 +303,8 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
             // the result is the same, but we keep them separated for highlighting the underlying motion sequence
             if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
             {
-                total_time += this->support_phase_time_;
                 total_time += this->step_transition_time_;
+                total_time += this->support_phase_time_;
             }
             else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
             {
@@ -333,6 +332,32 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
     // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
     optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step + 0.001));
+
+    // Vector3D com_translation;
+
+    // if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
+    // {
+    //     Translation3D final_com;
+    //     std::shared_ptr<ContactState> final_state = this->contact_state_sequence_[state_counter-1];
+    //     if(final_state->prev_move_manip_ == ContactManipulator::L_LEG)
+    //     {
+    //         final_com = 0.7 * final_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                       0.3 * final_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     }
+    //     else if(final_state->prev_move_manip_ == ContactManipulator::R_LEG)
+    //     {
+    //         final_com = 0.3 * final_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                       0.7 * final_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     }
+
+    //     com_translation = final_com - this->contact_state_sequence_[0]->com_;
+
+    //     // std::cout << "Final CoM: " << final_com.transpose() << std::endl;
+    // }
+    // else
+    // {
+    //     com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
+    // }
 
     Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
     optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
@@ -1151,7 +1176,7 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
         com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).centerOfMass());
         com_dot = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum()) / robot_mass;
 
-        if(time_id % 10 == 5)
+        if(time_id % 10 == 0)
         {
             drawing_handler->DrawLocation(com, Vector3D(1.0,1.0,0));
             std::cout << com.transpose() << std::endl;
