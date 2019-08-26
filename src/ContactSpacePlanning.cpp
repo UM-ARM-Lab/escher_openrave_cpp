@@ -251,7 +251,31 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     }
     contact_states_map_.clear();
 
-    // create all the initial states given the future step information
+    // // create all the initial states given the future step information
+    // std::vector<ContactManipulator> branching_manips = {ContactManipulator::L_LEG, ContactManipulator::R_LEG};
+    // std::vector< std::shared_ptr<ContactState> > tmp_initial_states_vector = getBranchingStates(initial_state, branching_manips, foot_transition_model_, hand_transition_model_);
+
+    // for(auto & tmp_initial_state : tmp_initial_states_vector)
+    // {
+    //     std::vector< std::shared_ptr<Stance> > initial_stance_vector = {initial_state->stances_vector_[0], tmp_initial_state->stances_vector_[0]};
+    //     Translation3D initial_com = initial_state->com_;
+    //     // if(tmp_initial_state->prev_move_manip_ == ContactManipulator::L_LEG)
+    //     // {
+    //     //     initial_com = 0.3 * initial_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //     //                   0.7 * initial_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     // }
+    //     // else if(tmp_initial_state->prev_move_manip_ == ContactManipulator::R_LEG)
+    //     // {
+    //     //     initial_com = 0.7 * initial_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //     //                   0.3 * initial_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     // }
+    //     std::vector<ContactManipulator> future_move_steps = {tmp_initial_state->prev_move_manip_};
+
+    //     std::shared_ptr<ContactState> include_future_step_initial_state = std::make_shared<ContactState>(initial_stance_vector, initial_com, initial_state->com_dot_, initial_state->lmom_, initial_state->amom_, future_move_steps, true);
+
+    //     open_heap_.push(include_future_step_initial_state);
+    //     contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*include_future_step_initial_state), include_future_step_initial_state));
+    // }
 
     open_heap_.push(initial_state);
     contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*initial_state), initial_state));
@@ -1478,16 +1502,17 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
     {
         bool found_contact_difference = false;
         std::shared_ptr<ContactState> prev_state = current_state->parent_;
+        int last_stance_index = current_state->stances_vector_.size()-1;
         for(auto & manip : ALL_MANIPULATORS)
         {
-            if(prev_state->stances_vector_[0]->ee_contact_status_[manip] != current_state->stances_vector_[0]->ee_contact_status_[manip]) // the contact is made or broken
+            if(prev_state->stances_vector_[last_stance_index]->ee_contact_status_[manip] != current_state->stances_vector_[last_stance_index]->ee_contact_status_[manip]) // the contact is made or broken
             {
                 found_contact_difference = true;
                 break;
             }
-            else if(current_state->stances_vector_[0]->ee_contact_status_[manip]) // both previous state and current state have this contact
+            else if(current_state->stances_vector_[last_stance_index]->ee_contact_status_[manip]) // both previous state and current state have this contact
             {
-                if(prev_state->stances_vector_[0]->ee_contact_poses_[manip] != current_state->stances_vector_[0]->ee_contact_poses_[manip])
+                if(prev_state->stances_vector_[last_stance_index]->ee_contact_poses_[manip] != current_state->stances_vector_[last_stance_index]->ee_contact_poses_[manip])
                 {
                     found_contact_difference = true;
                     break;
@@ -1497,6 +1522,7 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
 
         if(!found_contact_difference)
         {
+            // std::cout << "!!!!!!!!!!!!!!!!" << std::endl;
             return false;
         }
     }
@@ -1815,11 +1841,17 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
         current_state->com_dot_ = (current_state->com_ - current_state->parent_->com_) / (STEP_TRANSITION_TIME+SUPPORT_PHASE_TIME);
         current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
 
+        // std::cout << "Prev Left Foot: " << current_state->parent_->stances_vector_[0]->left_foot_pose_.getXYZ().transpose() << std::endl;
+        // std::cout << "Prev Right Foot: " << current_state->parent_->stances_vector_[0]->right_foot_pose_.getXYZ().transpose() << std::endl;
         // std::cout << "Left Foot: " << current_state->stances_vector_[0]->left_foot_pose_.getXYZ().transpose() << std::endl;
         // std::cout << "Right Foot: " << current_state->stances_vector_[0]->right_foot_pose_.getXYZ().transpose() << std::endl;
-        // std::cout << "Predicted CoM: " << predicted_com.transpose() << std::endl;
+        // std::cout << "Future Left Foot: " << current_state->stances_vector_[1]->left_foot_pose_.getXYZ().transpose() << std::endl;
+        // std::cout << "Future Right Foot: " << current_state->stances_vector_[1]->right_foot_pose_.getXYZ().transpose() << std::endl;
+        // std::cout << "Prev Move Manip: " << current_state->prev_move_manip_ << std::endl;
+        // // std::cout << "Predicted CoM: " << predicted_com.transpose() << std::endl;
         // std::cout << "Hand Assigned CoM: " << current_state->com_.transpose() << std::endl;
-        // std::cout << "CoM Error: " << predicted_com.transpose() - current_state->com_.transpose() << std::endl;
+        // // std::cout << "CoM Error: " << predicted_com.transpose() - current_state->com_.transpose() << std::endl;
+        // std::cout << "------------------------" << std::endl;
 
         // getchar();
 
@@ -1918,7 +1950,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingS
     const float mean_horizontal_yaw = current_state->getFeetMeanHorizontalYaw();
     const RotationMatrix robot_yaw_rotation = RPYToSO3(RPYTF(0, 0, 0, 0, 0, mean_horizontal_yaw));
 
-    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[0];
+    std::shared_ptr<Stance> current_stance = current_state->stances_vector_[current_state->stances_vector_.size()-1];
     RPYTF current_left_foot_pose = current_stance->left_foot_pose_;
     RPYTF current_right_foot_pose = current_stance->right_foot_pose_;
     RPYTF current_left_hand_pose = current_stance->left_hand_pose_;
@@ -2057,8 +2089,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingS
             for(auto & arm_orientation : hand_transition_model)
             {
                 std::array<bool,ContactManipulator::MANIP_NUM> new_ee_contact_status = current_ee_contact_status;
-                RPYTF new_left_hand_pose = current_state->stances_vector_[0]->left_hand_pose_;
-                RPYTF new_right_hand_pose = current_state->stances_vector_[0]->right_hand_pose_;
+                RPYTF new_left_hand_pose = current_left_hand_pose;
+                RPYTF new_right_hand_pose = current_right_hand_pose;
                 bool projection_is_successful = false;
 
                 if(arm_orientation[0] != -99.0) // making contact
