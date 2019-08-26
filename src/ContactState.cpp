@@ -46,13 +46,14 @@ bool Stance::operator!=(const Stance& other) const
 }
 
 // Constructor for the initial state
-ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3D _initial_com, Vector3D _initial_com_dot, Vector3D _initial_lmom, Vector3D _initial_amom, int _num_stance_in_state, bool _is_root):
-                           is_root_(_is_root),
+ContactState::ContactState(std::vector< std::shared_ptr<Stance> > _initial_stance_vector, Translation3D _initial_com, Vector3D _initial_com_dot, Vector3D _initial_lmom, Vector3D _initial_amom, std::vector<ContactManipulator> _future_move_manips, bool _is_root):
+                           num_stance_in_state_(_initial_stance_vector.size()),
                            com_(_initial_com),
                            com_dot_(_initial_com_dot),
                            lmom_(_initial_lmom),
                            amom_(_initial_amom),
-                           num_stance_in_state_(_num_stance_in_state),
+                           is_root_(_is_root),
+                           future_move_manips_(_future_move_manips),
                            explore_state_(ExploreState::OPEN),
                            g_(0.0),
                            h_(0.0),
@@ -60,7 +61,7 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
                            accumulated_dynamics_cost_(0.0)
 {
     this->stances_vector_.resize(num_stance_in_state_);
-    this->stances_vector_[0] = _initial_stance;
+    this->stances_vector_ = _initial_stance_vector;
 
     this->nominal_com_ = Translation3D(0,0,0);
     this->mean_feet_position_ = Translation3D(0,0,0);
@@ -108,18 +109,32 @@ ContactState::ContactState(std::shared_ptr<Stance> _initial_stance, Translation3
 }
 
 // Constructor for other states
-ContactState::ContactState(std::shared_ptr<Stance> new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float _robot_com_z):
+ContactState::ContactState(std::shared_ptr<Stance> _new_stance, std::shared_ptr<ContactState> _parent, ContactManipulator _move_manip, int _num_stance_in_state, const float _robot_com_z):
                            parent_(_parent),
-                           prev_move_manip_(_move_manip),
                            is_root_(false),
                            num_stance_in_state_(_num_stance_in_state)
 {
     // updates the stances_vector_
     this->stances_vector_.resize(num_stance_in_state_);
-    this->stances_vector_[0] = new_stance;
+    this->stances_vector_[num_stance_in_state_-1] = _new_stance;
     for(int i = 0; i < num_stance_in_state_-1; i++)
     {
         this->stances_vector_[i] = _parent->stances_vector_[i+1];
+    }
+
+    if(num_stance_in_state_ > 1)
+    {
+        prev_move_manip_ = parent_->future_move_manips_[0];
+        future_move_manips_.resize(parent_->future_move_manips_.size());
+        for(int i = 0; i < future_move_manips_.size()-1; i++)
+        {
+            future_move_manips_[i] = parent_->future_move_manips_[i+1];
+        }
+        future_move_manips_[future_move_manips_.size()-1] = _move_manip;
+    }
+    else
+    {
+        prev_move_manip_ = _move_manip;
     }
 
     this->com_ = Translation3D(0,0,0);
@@ -198,66 +213,66 @@ bool ContactState::operator!=(const ContactState& other) const
     return !(*this == other);
 }
 
-float ContactState::getLeftHorizontalYaw()
+float ContactState::getLeftHorizontalYaw(int stance_index)
 {
-    RotationMatrix l_foot_rotation = RPYToSO3(this->stances_vector_[0]->left_foot_pose_);
+    RotationMatrix l_foot_rotation = RPYToSO3(this->stances_vector_[stance_index]->left_foot_pose_);
     Vector3D cy = l_foot_rotation.col(1);
     Vector3D nx = cy.cross(Vector3D(0,0,1));
 
     return (round(std::atan2(nx[1], nx[0]) * RAD2DEG * 10.0) / 10.0);
 }
 
-float ContactState::getRightHorizontalYaw()
+float ContactState::getRightHorizontalYaw(int stance_index)
 {
-    RotationMatrix r_foot_rotation = RPYToSO3(this->stances_vector_[0]->right_foot_pose_);
+    RotationMatrix r_foot_rotation = RPYToSO3(this->stances_vector_[stance_index]->right_foot_pose_);
     Vector3D cy = r_foot_rotation.col(1);
     Vector3D nx = cy.cross(Vector3D(0,0,1));
 
     return (round(std::atan2(nx[1], nx[0]) * RAD2DEG * 10.0) / 10.0);
 }
 
-float ContactState::getFeetMeanHorizontalYaw()
+float ContactState::getFeetMeanHorizontalYaw(int stance_index)
 {
-    if(stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG] && stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    if(stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::L_LEG] && stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::R_LEG])
     {
         return getAngleMean(this->getLeftHorizontalYaw(), this->getRightHorizontalYaw());
     }
-    else if(stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG])
+    else if(stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::L_LEG])
     {
         return this->getLeftHorizontalYaw();
     }
-    else if(stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    else if(stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::R_LEG])
     {
         return this->getRightHorizontalYaw();
     }
 }
 
-TransformationMatrix ContactState::getFeetMeanTransform()
+TransformationMatrix ContactState::getFeetMeanTransform(int stance_index)
 {
     float feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw;
-    if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG] && this->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    if(this->stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::L_LEG] && this->stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::R_LEG])
     {
-        feet_mean_x = (this->stances_vector_[0]->left_foot_pose_.x_ + this->stances_vector_[0]->right_foot_pose_.x_) / 2.0;
-        feet_mean_y = (this->stances_vector_[0]->left_foot_pose_.y_ + this->stances_vector_[0]->right_foot_pose_.y_) / 2.0;
-        feet_mean_z = (this->stances_vector_[0]->left_foot_pose_.z_ + this->stances_vector_[0]->right_foot_pose_.z_) / 2.0;
+        feet_mean_x = (this->stances_vector_[stance_index]->left_foot_pose_.x_ + this->stances_vector_[stance_index]->right_foot_pose_.x_) / 2.0;
+        feet_mean_y = (this->stances_vector_[stance_index]->left_foot_pose_.y_ + this->stances_vector_[stance_index]->right_foot_pose_.y_) / 2.0;
+        feet_mean_z = (this->stances_vector_[stance_index]->left_foot_pose_.z_ + this->stances_vector_[stance_index]->right_foot_pose_.z_) / 2.0;
         feet_mean_roll = 0;
         feet_mean_pitch = 0;
         feet_mean_yaw = this->getFeetMeanHorizontalYaw();
     }
-    else if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_LEG])
+    else if(this->stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::L_LEG])
     {
-        feet_mean_x = this->stances_vector_[0]->left_foot_pose_.x_;
-        feet_mean_y = this->stances_vector_[0]->left_foot_pose_.y_;
-        feet_mean_z = this->stances_vector_[0]->left_foot_pose_.z_;
+        feet_mean_x = this->stances_vector_[stance_index]->left_foot_pose_.x_;
+        feet_mean_y = this->stances_vector_[stance_index]->left_foot_pose_.y_;
+        feet_mean_z = this->stances_vector_[stance_index]->left_foot_pose_.z_;
         feet_mean_roll = 0;
         feet_mean_pitch = 0;
         feet_mean_yaw = this->getLeftHorizontalYaw();
     }
-    else if(this->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_LEG])
+    else if(this->stances_vector_[stance_index]->ee_contact_status_[ContactManipulator::R_LEG])
     {
-        feet_mean_x = this->stances_vector_[0]->right_foot_pose_.x_;
-        feet_mean_y = this->stances_vector_[0]->right_foot_pose_.y_;
-        feet_mean_z = this->stances_vector_[0]->right_foot_pose_.z_;
+        feet_mean_x = this->stances_vector_[stance_index]->right_foot_pose_.x_;
+        feet_mean_y = this->stances_vector_[stance_index]->right_foot_pose_.y_;
+        feet_mean_z = this->stances_vector_[stance_index]->right_foot_pose_.z_;
         feet_mean_roll = 0;
         feet_mean_pitch = 0;
         feet_mean_yaw = this->getRightHorizontalYaw();
@@ -269,6 +284,15 @@ TransformationMatrix ContactState::getFeetMeanTransform()
     }
 
     return XYZRPYToSE3(RPYTF(feet_mean_x, feet_mean_y, feet_mean_z, feet_mean_roll, feet_mean_pitch, feet_mean_yaw));
+}
+
+std::shared_ptr<ContactState> ContactState::getNoFutureContactState()
+{
+    std::shared_ptr<ContactState> no_future_contact_state = std::make_shared<ContactState>(*this);
+    no_future_contact_state->stances_vector_.resize(1);
+    no_future_contact_state->num_stance_in_state_ = 1;
+    no_future_contact_state->future_move_manips_.clear();
+    return no_future_contact_state;
 }
 
 std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix& reference_frame)
@@ -285,32 +309,44 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
 
     std::vector<ContactManipulator> mirror_manip_vec = {ContactManipulator::R_LEG, ContactManipulator::L_LEG, ContactManipulator::R_ARM, ContactManipulator::L_ARM};
 
-    std::array<RPYTF,ContactManipulator::MANIP_NUM> mirror_ee_contact_pose;
-    std::array<bool,ContactManipulator::MANIP_NUM> mirror_ee_contact_status;
+    std::vector< std::shared_ptr<Stance> > mirror_stance_vector;
+    std::vector<ContactManipulator> mirror_future_move_manips;
+    mirror_stance_vector.reserve(stances_vector_.size());
 
-    // mirror the end-effector poses
-    for(auto & manip : ALL_MANIPULATORS)
+    for(auto & stance : stances_vector_)
     {
-        RPYTF mirrored_contact_pose_rpy;
+        std::array<RPYTF,ContactManipulator::MANIP_NUM> mirror_ee_contact_pose;
+        std::array<bool,ContactManipulator::MANIP_NUM> mirror_ee_contact_status;
 
-        if(stances_vector_[0]->ee_contact_status_[int(manip)])
+        // mirror the end-effector poses
+        for(auto & manip : ALL_MANIPULATORS)
         {
-            TransformationMatrix transformed_contact_pose = inv_reference_frame * XYZRPYToSE3(stances_vector_[0]->ee_contact_poses_[int(manip)]);
-            TransformationMatrix mirrored_contact_pose = transformed_contact_pose;
-            mirrored_contact_pose.block(0,0,3,3) = mirror_matrix * transformed_contact_pose.block(0,0,3,3) * mirror_matrix;
-            mirrored_contact_pose(1,3) = -transformed_contact_pose(1,3);
-            mirrored_contact_pose_rpy = SE3ToXYZRPY(reference_frame * mirrored_contact_pose);
-        }
-        else
-        {
-            mirrored_contact_pose_rpy = stances_vector_[0]->ee_contact_poses_[int(manip)];
+            RPYTF mirrored_contact_pose_rpy;
+
+            if(stance->ee_contact_status_[int(manip)])
+            {
+                TransformationMatrix transformed_contact_pose = inv_reference_frame * XYZRPYToSE3(stance->ee_contact_poses_[int(manip)]);
+                TransformationMatrix mirrored_contact_pose = transformed_contact_pose;
+                mirrored_contact_pose.block(0,0,3,3) = mirror_matrix * transformed_contact_pose.block(0,0,3,3) * mirror_matrix;
+                mirrored_contact_pose(1,3) = -transformed_contact_pose(1,3);
+                mirrored_contact_pose_rpy = SE3ToXYZRPY(reference_frame * mirrored_contact_pose);
+            }
+            else
+            {
+                mirrored_contact_pose_rpy = stance->ee_contact_poses_[int(manip)];
+            }
+
+            mirror_ee_contact_pose[int(mirror_manip_vec[int(manip)])] = mirrored_contact_pose_rpy;
+            mirror_ee_contact_status[int(mirror_manip_vec[int(manip)])] = stance->ee_contact_status_[int(manip)];
         }
 
-        mirror_ee_contact_pose[int(mirror_manip_vec[int(manip)])] = mirrored_contact_pose_rpy;
-        mirror_ee_contact_status[int(mirror_manip_vec[int(manip)])] = stances_vector_[0]->ee_contact_status_[int(manip)];
+        mirror_stance_vector.push_back(std::make_shared<Stance>(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3], mirror_ee_contact_status));
     }
 
-    std::shared_ptr<Stance> mirror_stance = std::make_shared<Stance>(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3], mirror_ee_contact_status);
+    for(int i = 0; i < future_move_manips_.size(); i++)
+    {
+        mirror_future_move_manips[i] = mirror_manip_vec[int(future_move_manips_[i])];
+    }
 
     // mirror the com and com dot
     Translation3D transformed_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
@@ -330,7 +366,7 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
     transformed_amom[2] = -transformed_amom[2];
     Vector3D mirror_amom = reference_frame_rotation * transformed_amom;
 
-    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance, mirror_com, mirror_com_dot, mirror_lmom, mirror_amom, 1, is_root_);
+    std::shared_ptr<ContactState> mirror_state = std::make_shared<ContactState>(mirror_stance_vector, mirror_com, mirror_com_dot, mirror_lmom, mirror_amom, mirror_future_move_manips, is_root_);
     if(!is_root_)
     {
         mirror_state->prev_move_manip_ = mirror_manip_vec[int(prev_move_manip_)];
@@ -346,26 +382,32 @@ std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatri
     RotationMatrix reference_frame_rotation = reference_frame.block(0,0,3,3);
     RotationMatrix inv_reference_frame_rotation = inv_reference_frame.block(0,0,3,3);
 
-    std::array<RPYTF,ContactManipulator::MANIP_NUM> centered_ee_contact_pose;
+    std::vector< std::shared_ptr<Stance> > centered_stance_vector;
+    centered_stance_vector.reserve(stances_vector_.size());
 
-    // mirror the end-effector poses
-    for(auto & manip : ALL_MANIPULATORS)
+    for(auto & stance : stances_vector_)
     {
-        if(stances_vector_[0]->ee_contact_status_[int(manip)])
-        {
-            centered_ee_contact_pose[int(manip)] = SE3ToXYZRPY(inv_reference_frame * XYZRPYToSE3(stances_vector_[0]->ee_contact_poses_[int(manip)]));
-        }
-        else
-        {
-            centered_ee_contact_pose[int(manip)] = stances_vector_[0]->ee_contact_poses_[int(manip)];
-        }
-    }
+        std::array<RPYTF,ContactManipulator::MANIP_NUM> centered_ee_contact_pose;
 
-    std::shared_ptr<Stance> centered_stance = std::make_shared<Stance>(centered_ee_contact_pose[0],
-                                                                       centered_ee_contact_pose[1],
-                                                                       centered_ee_contact_pose[2],
-                                                                       centered_ee_contact_pose[3],
-                                                                       stances_vector_[0]->ee_contact_status_);
+        // mirror the end-effector poses
+        for(auto & manip : ALL_MANIPULATORS)
+        {
+            if(stance->ee_contact_status_[int(manip)])
+            {
+                centered_ee_contact_pose[int(manip)] = SE3ToXYZRPY(inv_reference_frame * XYZRPYToSE3(stance->ee_contact_poses_[int(manip)]));
+            }
+            else
+            {
+                centered_ee_contact_pose[int(manip)] = stance->ee_contact_poses_[int(manip)];
+            }
+        }
+
+        centered_stance_vector.push_back( std::make_shared<Stance>(centered_ee_contact_pose[0],
+                                                                   centered_ee_contact_pose[1],
+                                                                   centered_ee_contact_pose[2],
+                                                                   centered_ee_contact_pose[3],
+                                                                   stance->ee_contact_status_));
+    }
 
     // mirror the com and com dot
     Translation3D centered_com = (inv_reference_frame * com_.homogeneous()).block(0,0,3,1);
@@ -373,7 +415,7 @@ std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatri
     Vector3D centered_lmom = inv_reference_frame_rotation * lmom_;
     Vector3D centered_amom = inv_reference_frame_rotation * amom_;
 
-    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance, centered_com, centered_com_dot, centered_lmom, centered_amom, 1, is_root_);
+    std::shared_ptr<ContactState> centered_state = std::make_shared<ContactState>(centered_stance_vector, centered_com, centered_com_dot, centered_lmom, centered_amom, future_move_manips_, is_root_);
     if(!is_root_)
     {
         centered_state->prev_move_manip_ = prev_move_manip_;

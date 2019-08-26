@@ -458,8 +458,9 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
         sinput >> amom(i);
     }
 
-    std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
-    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance, com, com_dot, lmom, amom, 1);
+    std::vector< std::shared_ptr<Stance> > stance_vector = {std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status)};
+    std::vector<ContactManipulator> empty_future_move_manips;
+    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance_vector, com, com_dot, lmom, amom, empty_future_move_manips, true);
 
     return state;
 }

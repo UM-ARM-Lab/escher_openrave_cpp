@@ -251,6 +251,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     }
     contact_states_map_.clear();
 
+    // create all the initial states given the future step information
+
     open_heap_.push(initial_state);
     contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*initial_state), initial_state));
 
@@ -767,7 +769,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     std::vector<CapturePose> capture_poses_vector;
                     int impact_state_id = int(sampled_impact_time/duration_per_state);
                     std::shared_ptr<ContactState> impact_state; // the state-to-be if the disturbance does not happen
-                    std::shared_ptr<Stance> post_impact_stance;
+                    std::vector< std::shared_ptr<Stance> > post_impact_stance_vector;
                     std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
                     std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses;
 
@@ -779,7 +781,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         std::cout << "Disturbance on support phase." << std::endl;
                         capture_poses_vector = all_solution_contact_paths[i][impact_state_id]->support_phase_capture_poses_vector_;
                         impact_state = all_solution_contact_paths[i][impact_state_id];
-                        post_impact_stance = impact_state->stances_vector_[0];
+                        post_impact_stance_vector = {impact_state->stances_vector_[0]};
 
                         std::cout << "Planned State CoM: (" << impact_state->com_[0] << ", "
                                                             << impact_state->com_[1] << ", "
@@ -802,9 +804,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         ee_contact_status[move_manip] = false;
                         ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
                         ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
-                        post_impact_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                      ee_contact_poses[2], ee_contact_poses[3],
-                                                                      ee_contact_status);
+                        post_impact_stance_vector = { std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                               ee_contact_poses[2], ee_contact_poses[3],
+                                                                               ee_contact_status) };
 
                         std::cout << "Planned State CoM: (" << impact_state->parent_->com_[0] << ", "
                                                             << impact_state->parent_->com_[1] << ", "
@@ -871,7 +873,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                                                        << post_impact_lmom[1] << ", "
                                                        << post_impact_lmom[2] << ")" << std::endl;
 
-                    std::shared_ptr<ContactState> post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+                    std::vector<ContactManipulator> empty_future_move_manips;
+                    std::shared_ptr<ContactState> post_impact_state = std::make_shared<ContactState>(post_impact_stance_vector, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, empty_future_move_manips, true);
 
                     std::cout << "Sampled Disturbance: " << sampled_disturbance_lmom_SL.transpose() << std::endl;
                     std::cout << "Initial CoM: " << transformPositionFromOpenraveToSL(post_impact_state->com_).transpose() << std::endl;
@@ -910,7 +913,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         RPYTF capture_pose = capture_info.capture_pose_;
                         ContactManipulator capture_contact_manip = capture_info.contact_manip_;
 
-                        post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+                        post_impact_state = std::make_shared<ContactState>(post_impact_stance_vector, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, empty_future_move_manips, true);
                         ee_contact_status = post_impact_state->stances_vector_[0]->ee_contact_status_;
                         ee_contact_status[capture_contact_manip] = true;
                         ee_contact_poses = post_impact_state->stances_vector_[0]->ee_contact_poses_;
@@ -1896,10 +1899,18 @@ void ContactSpacePlanning::branchingSearchTree(std::shared_ptr<ContactState> cur
 std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingStates(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator>& branching_manips, std::vector< std::array<float,3> > foot_transition_model, std::vector< std::array<float,2> > hand_transition_model)
 {
     std::vector< std::shared_ptr<ContactState> > branching_states;
+
     // remove the last branched manipulator from the branching manips list
     if(!current_state->is_root_)
     {
-        branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), current_state->prev_move_manip_), branching_manips.end());
+        if(current_state->future_move_manips_.empty())
+        {
+            branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), current_state->prev_move_manip_), branching_manips.end());
+        }
+        else
+        {
+            branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), current_state->future_move_manips_[current_state->future_move_manips_.size()-1]), branching_manips.end());
+        }
     }
 
     const float l_leg_horizontal_yaw = current_state->getLeftHorizontalYaw();
@@ -2015,9 +2026,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingS
                     // RAVELOG_INFO("construct state.\n");
                     // construct the new state
                     std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(new_left_foot_pose, new_right_foot_pose, current_left_hand_pose, current_right_hand_pose, current_ee_contact_status);
-                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
+                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, current_state->num_stance_in_state_, robot_properties_->robot_z_);
                     branching_states.push_back(new_contact_state);
-                    has_branch[int(move_manip)] = true;
+                    has_branch[int(new_contact_state->prev_move_manip_)] = true;
                     // branching_states_by_move_manip[move_manip].push_back(new_contact_state);
                 }
             }
@@ -2112,9 +2123,9 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingS
                 {
                     // construct the new state
                     std::shared_ptr<Stance> new_stance = std::make_shared<Stance>(current_left_foot_pose, current_right_foot_pose, new_left_hand_pose, new_right_hand_pose, new_ee_contact_status);
-                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, 1, robot_properties_->robot_z_);
+                    std::shared_ptr<ContactState> new_contact_state = std::make_shared<ContactState>(new_stance, current_state, move_manip, current_state->num_stance_in_state_, robot_properties_->robot_z_);
                     branching_states.push_back(new_contact_state);
-                    has_branch[int(move_manip)] = true;
+                    has_branch[int(new_contact_state->prev_move_manip_)] = true;
                     // branching_states_by_move_manip[move_manip].push_back(new_contact_state);
                 }
             }
@@ -2122,11 +2133,12 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::getBranchingS
     }
 
     // take out manips which do not have a single branch, and avoid the unnecessary calculation of its disturbance cost.
+    branching_manips.clear();
     for(auto & manip : ALL_MANIPULATORS)
     {
-        if(!has_branch[int(manip)])
+        if(has_branch[int(manip)])
         {
-            branching_manips.erase(std::remove(branching_manips.begin(), branching_manips.end(), manip), branching_manips.end());
+            branching_manips.push_back(manip);
         }
     }
 
@@ -2176,7 +2188,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     }
 
     branching_states = getBranchingStates(current_state, branching_manips, foot_transition_model, hand_transition_model);
-    disturbance_rejection_branching_states = getBranchingStates(current_state, dummy_branching_manips, disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model);
+    disturbance_rejection_branching_states = getBranchingStates(current_state->getNoFutureContactState(), dummy_branching_manips, disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model);
 
     std::vector<std::pair<Vector6D, float> > tmp_disturbance_samples = disturbance_samples_;
 
@@ -2302,9 +2314,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
             std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = current_state->stances_vector_[0]->ee_contact_poses_;
             ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
 
-            std::shared_ptr<Stance> zero_step_capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                        ee_contact_poses[2], ee_contact_poses[3],
-                                                                                        ee_contact_status);
+            std::vector< std::shared_ptr<Stance> > zero_step_capture_stance_vector = { std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+                                                                                                                ee_contact_poses[2], ee_contact_poses[3],
+                                                                                                                ee_contact_status) };
 
             Translation3D initial_com = current_state->com_;
 
@@ -2336,7 +2348,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 }
 
                 // zero step capturability
-                std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance, initial_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+                std::vector<ContactManipulator> empty_future_move_manips;
+                std::shared_ptr<ContactState> zero_step_capture_contact_state = std::make_shared<ContactState>(zero_step_capture_stance_vector, initial_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, empty_future_move_manips, true);
                 std::vector< std::shared_ptr<ContactState> > zero_step_capture_contact_state_sequence = {zero_step_capture_contact_state};
 
                 // std::cout << "Zero Step Capture Check:" << std::endl;
@@ -3717,12 +3730,13 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
             continue;
         }
 
+        std::vector<ContactManipulator> empty_future_move_manips;
         std::array<bool,ContactManipulator::MANIP_NUM> feet_only_contact_status = {true,true,false,false};
-        std::shared_ptr<Stance> feet_only_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose,
-                                                                            RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
-                                                                            RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
-                                                                            feet_only_contact_status);
-        std::shared_ptr<ContactState> feet_only_state = std::make_shared<ContactState>(feet_only_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+        std::vector< std::shared_ptr<Stance> > feet_only_stance_vector = { std::make_shared<Stance>(left_foot_pose, right_foot_pose,
+                                                                                                    RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
+                                                                                                    RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
+                                                                                                    feet_only_contact_status) };
+        std::shared_ptr<ContactState> feet_only_state = std::make_shared<ContactState>(feet_only_stance_vector, initial_com, initial_com_dot, initial_lmom, initial_amom, empty_future_move_manips, true);
 
         if(sample_feet_only_state)
         {
@@ -3753,10 +3767,10 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
             invalid_sampling_counter = 0;
 
             std::array<bool,ContactManipulator::MANIP_NUM> feet_and_one_hand_contact_status = {true,true,true,false};
-            std::shared_ptr<Stance> feet_and_one_hand_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose,
-                                                                                        RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
-                                                                                        feet_and_one_hand_contact_status);
-            std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+            std::vector< std::shared_ptr<Stance> > feet_and_one_hand_stance_vector = { std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose,
+                                                                                                                RPYTF(-99.0,-99.0,-99.0,-99.0,-99.0,-99.0),
+                                                                                                                feet_and_one_hand_contact_status) };
+            std::shared_ptr<ContactState> feet_and_one_hand_state = std::make_shared<ContactState>(feet_and_one_hand_stance_vector, initial_com, initial_com_dot, initial_lmom, initial_amom, empty_future_move_manips, true);
 
             if(sample_feet_and_one_hand_state)
             {
@@ -3781,9 +3795,9 @@ void ContactSpacePlanning::collectTrainingData(BranchingManipMode branching_mode
                 }
 
                 std::array<bool,ContactManipulator::MANIP_NUM> feet_and_two_hands_contact_status = {true,true,true,true};
-                std::shared_ptr<Stance> feet_and_two_hands_stance = std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
-                                                                                            feet_and_two_hands_contact_status);
-                std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance, initial_com, initial_com_dot, initial_lmom, initial_amom, 1);
+                std::vector< std::shared_ptr<Stance> > feet_and_two_hands_stance_vector = { std::make_shared<Stance>(left_foot_pose, right_foot_pose, left_hand_pose, right_hand_pose,
+                                                                                                                     feet_and_two_hands_contact_status) };
+                std::shared_ptr<ContactState> feet_and_two_hands_state = std::make_shared<ContactState>(feet_and_two_hands_stance_vector, initial_com, initial_com_dot, initial_lmom, initial_amom, empty_future_move_manips, true);
 
                 initial_states.push_back(feet_and_two_hands_state);
             }
