@@ -233,16 +233,16 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            nullptr)));
 
 
-        // // load the classification neural network
-        // std::string calssification_model_parameter_string = "_0.0001_256_0.1";
-        // std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+        // load the classification neural network
+        std::string calssification_model_parameter_string = "_0.0001_256_0.1";
+        std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
 
-        // auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".txt");
+        auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".txt");
 
-        // contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
-        //                                                                                                                          feasibility_classification_input_mean_std.second,
-        //                                                                                                                          feasibility_calssification_model,
-        //                                                                                                                          nullptr)));
+        contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
+                                                                                                                                 feasibility_classification_input_mean_std.second,
+                                                                                                                                 feasibility_calssification_model,
+                                                                                                                                 nullptr)));
     }
 
     // set up the zero step capturability classifier
@@ -412,15 +412,15 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
     // decide whether the transition is dynamically feasible
     bool dynamics_feasibility;
 
-    // float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector, model_type);
-    // dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
+    float dynamics_feasibility_prediction = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_vector, model_type);
+    dynamics_feasibility = (dynamics_feasibility_prediction >= 0.5);
 
     // if(contact_transition_code == ContactTransitionCode::FEET_AND_ONE_HAND_BREAK_HAND || contact_transition_code == ContactTransitionCode::FEET_AND_TWO_HANDS_BREAK_HAND)
     // {
     //     dynamics_feasibility = true;
     // }
 
-    dynamics_feasibility = true;
+    // dynamics_feasibility = true;
 
     if(dynamics_feasibility)
     {
@@ -630,6 +630,13 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
                 feature_matrix.col(query_data_id) = feature_vector_vec[data_id];
                 query_data_id++;
             }
+
+            // Eigen::MatrixXd duplicate_feature_matrix(input_dim, data_num*100);
+
+            // for(int i = 0; i < 100; i++)
+            // {
+            //     duplicate_feature_matrix.block(0,data_num*i,input_dim,data_num) = feature_matrix;
+            // }
 
             std::vector<float> one_step_capturability_predictions = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_matrix, model_type);
 

@@ -66,8 +66,8 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
         //                                                                                "../data/dynopt_result/feasibility_classification_nn_models/",
         //                                                                                "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models_no_angular_momentum/",
         //                                                                                "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models_no_angular_momentum/");
-        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/contact_transition_objective_regression_nn_models_new_round/",
-                                                                                       "../data/dynopt_result/contact_transition_feasibility_classification_nn_models_new_round/",
+        neural_network_interface_vector_[i] = std::make_shared<NeuralNetworkInterface>("../data/dynopt_result/contact_transition_objective_regression_nn_models_new_round_final_com_goal_2/",
+                                                                                       "../data/dynopt_result/contact_transition_feasibility_classification_nn_models_new_round_final_com_goal/",
                                                                                        "../data/dynopt_result/zero_step_capture_feasibility_classification_nn_models_new_round/",
                                                                                        "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models_new_round/");
     }
@@ -277,8 +277,16 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
     //     contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*include_future_step_initial_state), include_future_step_initial_state));
     // }
 
+    // initial_state->com_ = 0.7 * initial_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                      0.3 * initial_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
     open_heap_.push(initial_state);
     contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*initial_state), initial_state));
+
+    // std::shared_ptr<ContactState> second_initial_state = std::make_shared<ContactState>(*initial_state);
+    // second_initial_state->com_ = 0.3 * second_initial_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                             0.7 * second_initial_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    // open_heap_.push(second_initial_state);
+    // contact_states_map_.insert(std::make_pair(std::hash<ContactState>()(*second_initial_state), second_initial_state));
 
     auto time_before_ANA_start_planning = std::chrono::high_resolution_clock::now();
 
@@ -709,7 +717,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 bool enable_file_output = false;
 
                 std::string config_path = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/";
-                std::string experiment_name = "oil_platform_new_round_baseline_0";
+                std::string experiment_name = "oil_platform_new_round_final_com_goal_2_1";
                 std::string kindynopt_config_locomotion_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_hermes_full.yaml";
                 // std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_capture_motion_hermes_full.yaml";
                 std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_hermes_full.yaml";
@@ -752,13 +760,15 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                                                                     all_solution_contact_paths[i],
                                                                     kindynopt_config_locomotion_template_path,
                                                                     kindynopt_config_output_path + "cfg_kdopt_demo.yaml",
-                                                                    kindynopt_config_output_path + "Objects.cf");
+                                                                    kindynopt_config_output_path + "Objects.cf",
+                                                                    SUPPORT_PHASE_TIME);
 
                         exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
                                                                     all_solution_contact_paths[i],
                                                                     kindynopt_config_locomotion_template_path,
                                                                     kindynopt_config_output_path + "initial_motion_cfg_kdopt_demo.yaml",
-                                                                    kindynopt_config_output_path + "Objects.cf");
+                                                                    kindynopt_config_output_path + "Objects.cf",
+                                                                    SUPPORT_PHASE_TIME);
                     }
 
                     // sample the time to take impact
@@ -1745,7 +1755,7 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
                 dynamics_optimizer_interface_vector_[index]->recordEdgeDynamicsSequence(current_state);
             }
 
-            dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(current_state, dynamics_cost, dynamically_feasible, planning_id_);
+            // dynamics_optimizer_interface_vector_[index]->storeDynamicsOptimizationResult(current_state, dynamics_cost, dynamically_feasible, planning_id_);
 
             // dynamics_cost = std::numeric_limits<float>::max();
             // std::shared_ptr<ContactState> tmp_current_state = std::make_shared<ContactState>(*current_state);
@@ -1826,15 +1836,11 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
         // }
         // else if(move_manip == ContactManipulator::L_LEG)
         // {
-        //     // current_state->com_ = 0.6 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
-        //     //                       0.4 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
         //     current_state->com_ = 0.7 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
         //                           0.3 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
         // }
         // else if(move_manip == ContactManipulator::R_LEG)
         // {
-        //     // current_state->com_ = 0.6 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
-        //     //                       0.4 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
         //     current_state->com_ = 0.7 * current_state->stances_vector_[0]->right_foot_pose_.getXYZ() +
         //                           0.3 * current_state->stances_vector_[0]->left_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
         // }
@@ -3591,7 +3597,8 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
                                                                         std::vector< std::shared_ptr<ContactState> > contact_sequence,
                                                                         std::string optimization_config_template_path,
                                                                         std::string optimization_config_output_path,
-                                                                        std::string objects_config_output_path)
+                                                                        std::string objects_config_output_path,
+                                                                        float initial_time)
 {
     // // construct the initial state for the optimization
     // setupStateReachabilityIK(contact_sequence[0], general_ik_interface_);
@@ -3640,10 +3647,10 @@ void ContactSpacePlanning::exportContactSequenceOptimizationConfigFiles(std::sha
     }
 
     // generate the files
-    optimizer_interface->updateContactSequence(contact_sequence);
+    optimizer_interface->updateContactSequence(contact_sequence, initial_time);
     optimizer_interface->exportConfigFiles(optimization_config_template_path, optimization_config_output_path,
                                            objects_config_output_path, floating_initial_contact_poses,
-                                           robot_properties_);
+                                           robot_properties_, initial_time);
 
 }
 

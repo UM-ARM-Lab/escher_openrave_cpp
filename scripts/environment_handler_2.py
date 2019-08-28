@@ -52,7 +52,7 @@ class environment_handler:
         self.init_z = -9999.0
         self.goal_z = -9999.0
 
-    def DrawSurface(self,surface,transparency=1.0,style='greyscale'):
+    def DrawSurface(self,surface,transparency=1.0,style='greyscale',specify_color=None):
         if style == 'random_color':
             r = random.random(); g = random.random(); b = random.random()
 
@@ -67,6 +67,10 @@ class environment_handler:
         elif style == 'random_green_yellow_color':
             color = random.choice(color_library)
             r = color[0] / 255.0; g = color[1] / 255.0; b = color[2] / 255.0
+
+        elif style == 'specify_color':
+            color = random.choice(color_library)
+            r = specify_color[0] / 255.0; g = specify_color[1] / 255.0; b = specify_color[2] / 255.0
 
         for boundary in surface.boundaries:
             boundaries_point = np.zeros((2,3),dtype=float)
@@ -141,7 +145,7 @@ class environment_handler:
 
         # self.draw_handles.append(self.env.drawlinestrip(points = arrow_points,linewidth = 5.0,colors = np.array((0,0,0))))
 
-    def add_quadrilateral_surface(self,structures,projected_vertices,global_transform,surface_type='ground',surface_transparancy=1.0):
+    def add_quadrilateral_surface(self,structures,projected_vertices,global_transform,surface_type='ground',surface_transparancy=1.0,specify_color=None):
         # the projected surface must be in counter-clockwise order
 
         surface_vertices = [None] * 4
@@ -186,7 +190,10 @@ class environment_handler:
         self.env.AddKinBody(random_surface.kinbody)
 
         structures.append(random_surface)
-        self.DrawSurface(random_surface, transparency=surface_transparancy, style='random_green_yellow_color')
+        if specify_color is None:
+            self.DrawSurface(random_surface, transparency=surface_transparancy, style='random_green_yellow_color')
+        else:
+            self.DrawSurface(random_surface, transparency=surface_transparancy, style='specify_color', specify_color=specify_color)
         # self.DrawOrientation(global_transform)
 
     def construct_tilted_rectangle_wall(self, structures, origin_pose, wall_spacing, max_tilted_angle, wall_length, wall_height=1.5, slope=0):
@@ -1158,25 +1165,29 @@ class environment_handler:
                                                         (ground_min_x,ground_min_y),
                                                         (obstacle_min_x,ground_min_y),
                                                         (obstacle_min_x,ground_max_y)],
-                                                        [0,0,0,0,0,0])
+                                                        [0,0,0,0,0,0],
+                                                        specify_color=ginnezumi)
 
             self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0),
                                                         (-(ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
                                                         ((ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
                                                         ((ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0)],
-                                                        [(ground_min_x+ground_max_x)/2.0,(ground_min_y+obstacle_min_y)/2.0,0,0,0,0])
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_min_y+obstacle_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
 
             self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0),
                                                         (-(ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
                                                         ((ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
                                                         ((ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0)],
-                                                        [(ground_min_x+ground_max_x)/2.0,(ground_max_y+obstacle_max_y)/2.0,0,0,0,0])
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_max_y+obstacle_max_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
 
             self.add_quadrilateral_surface(structures, [(-(ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0),
                                                         (-(ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
                                                         ((ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
                                                         ((ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0)],
-                                                        [(obstacle_max_x+ground_max_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0])
+                                                        [(obstacle_max_x+ground_max_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
 
             # Obstacle
             body = rave.RaveCreateKinBody(self.env,'')

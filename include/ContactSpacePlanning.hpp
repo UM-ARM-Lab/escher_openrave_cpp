@@ -162,7 +162,8 @@ class ContactSpacePlanning
                                                           std::vector< std::shared_ptr<ContactState> > contact_sequence,
                                                           std::string optimization_config_template_path,
                                                           std::string optimization_config_output_path,
-                                                          std::string objects_config_output_path);
+                                                          std::string objects_config_output_path,
+                                                          float initial_time=0.0);
 };
 
 #endif
