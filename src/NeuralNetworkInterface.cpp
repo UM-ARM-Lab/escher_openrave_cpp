@@ -166,10 +166,123 @@ Eigen::VectorXd RegressionModel::predict(Eigen::VectorXd input, NeuralNetworkMod
     }
     else if(model_type == NeuralNetworkModelType::TENSORFLOW)
     {
+        // Actually run the image through the model.
+        std::vector<tensorflow::Tensor> tf_result;
+        tensorflow::Tensor normalized_input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, normalized_input.size()}));
+        auto normalized_input_eigen_tensor = normalized_input_tensor.matrix<float>();
+        for(int i = 0; i < normalized_input.size(); i++)
+        {
+            normalized_input_eigen_tensor(0,i) = normalized_input[i];
+        }
+        tensorflow::Status run_status = tf_model_->Run({{"input_1", normalized_input_tensor}}, {"concatenate/concat"}, {}, &tf_result);
+        if (!run_status.ok()) {
+            LOG(ERROR) << "Running model failed: " << run_status;
+            getchar();
+        }
 
+        for(int dim_id = 0; dim_id < output_dim_; dim_id++)
+        {
+            normalized_result[dim_id] = tf_result[0].matrix<float>()(0,dim_id);
+        }
+
+        // normalized_result = Eigen::Map<Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> >(tf_result[0].flat<double>().data(), tf_result[0].dim_size(0), tf_result[0].dim_size(1));
+
+        //      float,           /* scalar element type */
+        //      Eigen::Dynamic,  /* num_rows is a run-time value */
+        //      Eigen::Dynamic,  /* num_cols is a run-time value */
+        //      Eigen::RowMajor  /* tensorflow::Tensor is always row-major */>>(
+        //          t.flat<float>().data(),  /* ptr to data */
+        //          t.dim_size(0),           /* num_rows */
+        //          t.dim_size(1)            /* num_cols */);
+
+        // // normalized_result = tf_result[0].matrix<float>().block(0,0,output_dim_,1);
+        // normalized_result = tf_result[0].matrix<float>();
     }
 
     Eigen::VectorXd result = normalized_result.cwiseProduct(output_std_) + output_mean_;
+
+    // std::cout << "regression model prediction." << std::endl;
+    // std::cout << "input vector: " << std::endl;
+    // std::cout << input.transpose() << std::endl;
+    // std::cout << "input std vector: " << std::endl;
+    // std::cout << input_std_.transpose() << std::endl;
+    // std::cout << "input mean vector: " << std::endl;
+    // std::cout << input_mean_.transpose() << std::endl;
+    // std::cout << "input dim: " << std::endl;
+    // std::cout << input_dim_ << std::endl;
+    // std::cout << "output std vector: " << std::endl;
+    // std::cout << output_std_.transpose() << std::endl;
+    // std::cout << "output mean vector: " << std::endl;
+    // std::cout << output_mean_.transpose() << std::endl;
+    // std::cout << "output dim: " << std::endl;
+    // std::cout << output_dim_ << std::endl;
+    // std::cout << "result: " << std::endl;
+    // std::cout << result.transpose() << std::endl;
+
+    return result;
+}
+
+Eigen::MatrixXd RegressionModel::predict(Eigen::MatrixXd input, NeuralNetworkModelType model_type)
+{
+    size_t data_num = input.cols();
+    Eigen::MatrixXd normalized_input = (input - input_mean_.replicate(1,data_num)).cwiseQuotient(input_std_.replicate(1,data_num));
+    Eigen::MatrixXd normalized_result(output_dim_, data_num);
+
+    if(model_type == NeuralNetworkModelType::FRUGALLY_DEEP)
+    {
+        std::vector<fdeep::tensor5s> tensor_vector;
+        tensor_vector.reserve(data_num);
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            fdeep::float_vec normalized_input_vec(normalized_input.col(data_id).data(), normalized_input.col(data_id).data() + normalized_input.col(data_id).size());
+            fdeep::shared_float_vec normalized_input_vec_ref = fplus::make_shared_ref<fdeep::float_vec>(std::move(normalized_input_vec));
+            tensor_vector.push_back({fdeep::tensor5(fdeep::shape5(1, 1, 1, 1, input_dim_), normalized_input_vec_ref)});
+        }
+
+        // auto fdeep_result = fdeep_model_->predict(tensor_vector);
+        auto fdeep_result = fdeep_model_->predict_multi(tensor_vector, false);
+
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            for(int dim_id = 0; dim_id < output_dim_; dim_id++)
+            {
+                normalized_result(dim_id,data_id) = fdeep_result[data_id][0].get(0,0,0,0,dim_id);
+            }
+        }
+    }
+    else if(model_type == NeuralNetworkModelType::TENSORFLOW)
+    {
+        // Actually run the image through the model.
+        std::vector<tensorflow::Tensor> tf_result;
+        tensorflow::Tensor normalized_input_tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({normalized_input.cols(), normalized_input.rows()}));
+        auto normalized_input_eigen_tensor = normalized_input_tensor.matrix<float>();
+        for(int data_id = 0; data_id < data_num; data_id++)
+        {
+            for(int i = 0; i < normalized_input.rows(); i++)
+            {
+                normalized_input_eigen_tensor(data_id,i) = normalized_input(i,data_id);
+            }
+        }
+
+        tensorflow::Status run_status = tf_model_->Run({{"input_1", normalized_input_tensor}}, {"concatenate/concat"}, {}, &tf_result);
+        if (!run_status.ok()) {
+            LOG(ERROR) << "Running model failed: " << run_status;
+            getchar();
+        }
+
+        for(int dim_id = 0; dim_id < output_dim_; dim_id++)
+        {
+            for(int data_id = 0; data_id < data_num; data_id++)
+            {
+                normalized_result(dim_id,data_id) = tf_result[0].matrix<float>()(data_id,dim_id);
+            }
+        }
+
+        // normalized_result = Eigen::Map<Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> >(tf_result[0].flat<double>().data(), tf_result[0].dim_size(0), tf_result[0].dim_size(1));
+        // normalized_result = tf_result[0].matrix<double>();
+    }
+
+    Eigen::MatrixXd result = normalized_result.cwiseProduct(output_std_.replicate(1,data_num)) + output_mean_.replicate(1,data_num);
 
     // std::cout << "regression model prediction." << std::endl;
     // std::cout << "input vector: " << std::endl;
@@ -213,14 +326,14 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
         std::shared_ptr<fdeep::model> dynamics_cost_regression_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json", false, null_logger));
         // std::shared_ptr<fdeep::model> dynamics_cost_regression_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".json"));
 
-        // // load tensorflow model
-        // std::shared_ptr<tensorflow::Session> dynamics_cost_regression_tf_model;
-        // tensorflow::Status load_graph_status = LoadTensorflowGraph(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".pb", &dynamics_cost_regression_tf_model);
-        // if (!load_graph_status.ok())
-        // {
-        //     LOG(ERROR) << load_graph_status;
-        //     getchar();
-        // }
+        // load tensorflow model
+        std::shared_ptr<tensorflow::Session> dynamics_cost_regression_tf_model;
+        tensorflow::Status load_regression_graph_status = LoadTensorflowGraph(contact_transition_regression_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".pb", &dynamics_cost_regression_tf_model);
+        if (!load_regression_graph_status.ok())
+        {
+            LOG(ERROR) << load_regression_graph_status;
+            getchar();
+        }
 
         auto objective_regression_input_mean_std = readMeanStd(contact_transition_regression_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
         auto objective_regression_output_mean_std = readMeanStd(contact_transition_regression_model_file_path + "output_mean_std_" + std::to_string(contact_status_code_int) + regression_model_parameter_string + ".txt");
@@ -230,19 +343,32 @@ NeuralNetworkInterface::NeuralNetworkInterface(std::string contact_transition_re
                                                                                                                            objective_regression_output_mean_std.first,
                                                                                                                            objective_regression_output_mean_std.second,
                                                                                                                            dynamics_cost_regression_fdeep_model,
-                                                                                                                           nullptr)));
+                                                                                                                           dynamics_cost_regression_tf_model)));
 
 
         // load the classification neural network
         std::string calssification_model_parameter_string = "_0.0001_256_0.1";
-        std::shared_ptr<fdeep::model> feasibility_calssification_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+
+        // load frugally-deep model
+        std::shared_ptr<fdeep::model> feasibility_calssification_fdeep_model = std::make_shared<fdeep::model>(fdeep::load_model(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".json", false, null_logger));
+
+        // load tensorflow model
+        std::shared_ptr<tensorflow::Session> feasibility_calssification_tf_model;
+        tensorflow::Status load_classification_graph_status = LoadTensorflowGraph(contact_transition_classification_model_file_path + "nn_model_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".pb", &feasibility_calssification_tf_model);
+        if (!load_classification_graph_status.ok())
+        {
+            LOG(ERROR) << load_classification_graph_status;
+            getchar();
+        }
 
         auto feasibility_classification_input_mean_std = readMeanStd(contact_transition_classification_model_file_path + "input_mean_std_" + std::to_string(contact_status_code_int) + calssification_model_parameter_string + ".txt");
 
         contact_transition_feasibility_calssification_models_map_.insert(std::make_pair(contact_status_code, ClassificationModel(feasibility_classification_input_mean_std.first,
                                                                                                                                  feasibility_classification_input_mean_std.second,
-                                                                                                                                 feasibility_calssification_model,
-                                                                                                                                 nullptr)));
+                                                                                                                                 feasibility_calssification_fdeep_model,
+                                                                                                                                 feasibility_calssification_tf_model)));
+
+
     }
 
     // set up the zero step capturability classifier
@@ -386,6 +512,106 @@ Eigen::VectorXd NeuralNetworkInterface::constructFeatureVector(std::vector<RPYTF
     return feature_vector;
 }
 
+std::vector< std::tuple<bool, float, Translation3D, Vector3D> > NeuralNetworkInterface::predictContactTransitionDynamicsCost(std::vector< std::shared_ptr<ContactState> > branching_state_vec, NeuralNetworkModelType model_type)
+{
+    int states_num = branching_state_vec.size();
+
+    std::vector< std::tuple<bool, float, Translation3D, Vector3D> > contact_transition_dynamics_vec(states_num);
+    std::vector<bool> contact_transition_dynamics_feasibility_vec(states_num);
+    std::unordered_map<ContactTransitionCode, std::vector<int>, EnumClassHash> contact_transition_code_branching_state_indices_map;
+    std::vector<Eigen::VectorXd> feature_vector_vec(states_num);
+
+
+    if(states_num != 0)
+    {
+        // construct the feature vectors for each contact transition
+        int data_id = 0;
+        for(auto branching_state : branching_state_vec)
+        {
+            if(!branching_state->is_root_)
+            {
+                std::shared_ptr<ContactState> standard_input_state = branching_state->getStandardInputState(DynOptApplication::CONTACT_TRANSITION_DYNOPT);
+                std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+
+                // decide the contact transition code & the poses
+                auto transition_code_poses_pair = standard_input_state->getTransitionCodeAndPoses();
+                ContactTransitionCode contact_transition_code = transition_code_poses_pair.first;
+                std::vector<RPYTF> contact_manip_pose_vec = transition_code_poses_pair.second;
+
+                if(contact_transition_code_branching_state_indices_map.find(contact_transition_code) == contact_transition_code_branching_state_indices_map.end())
+                {
+                    contact_transition_code_branching_state_indices_map[contact_transition_code] = {data_id};
+                }
+                else
+                {
+                    contact_transition_code_branching_state_indices_map[contact_transition_code].push_back(data_id);
+                }
+
+                feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->com_dot_);
+            }
+
+            data_id++;
+        }
+
+
+        for(auto & contact_transition_code_branching_state_index_pair : contact_transition_code_branching_state_indices_map)
+        {
+            // construct the feasibility feature matrix to query the contact transition feasibility network
+            ContactTransitionCode contact_transition_code = contact_transition_code_branching_state_index_pair.first;
+            int input_dim = feature_vector_vec[contact_transition_code_branching_state_index_pair.second[0]].size();
+            int data_num = contact_transition_code_branching_state_index_pair.second.size();
+
+            Eigen::MatrixXd feature_matrix(input_dim, data_num);
+
+            int query_data_id = 0;
+            for(auto & data_id : contact_transition_code_branching_state_index_pair.second)
+            {
+                feature_matrix.col(query_data_id) = feature_vector_vec[data_id];
+                query_data_id++;
+            }
+
+            std::vector<float> contact_transition_dynamics_feasibility_predictions = contact_transition_feasibility_calssification_models_map_.find(contact_transition_code)->second.predict(feature_matrix, model_type);
+            Eigen::MatrixXd contact_transition_dynamics_objective_predictions = contact_transition_dynamics_cost_regression_models_map_.find(contact_transition_code)->second.predict(feature_matrix, model_type);
+
+            // construct the output vector
+            query_data_id = 0;
+            for(auto & data_id : contact_transition_code_branching_state_index_pair.second)
+            {
+                if(contact_transition_dynamics_feasibility_predictions[query_data_id] >= 0.5)
+                {
+                    Translation3D predicted_com = contact_transition_dynamics_objective_predictions.block(0,query_data_id,3,1).cast<float>();
+                    Vector3D predicted_com_dot = contact_transition_dynamics_objective_predictions.block(3,query_data_id,3,1).cast<float>();
+
+                    if(branching_state_vec[data_id]->prev_move_manip_ == ContactManipulator::R_LEG ||
+                       branching_state_vec[data_id]->prev_move_manip_ == ContactManipulator::R_ARM)
+                    {
+                        predicted_com[1] = -predicted_com[1];
+                        predicted_com_dot[1] = -predicted_com_dot[1];
+                    }
+
+                    TransformationMatrix feet_mean_transform = branching_state_vec[data_id]->parent_->getFeetMeanTransform();
+
+                    Translation3D final_com = (feet_mean_transform * predicted_com.homogeneous()).block(0,0,3,1);
+                    Vector3D final_com_dot = feet_mean_transform.block(0,0,3,3) * predicted_com_dot;
+                    float dynamics_cost = contact_transition_dynamics_objective_predictions(6,query_data_id);
+
+                    contact_transition_dynamics_vec[data_id] = make_tuple(true, dynamics_cost, final_com, final_com_dot);
+                }
+                else
+                {
+                    Translation3D dummy_com(0,0,0);
+                    Vector3D dummy_com_dot(0,0,0);
+                    float dummy_dynamics_cost = 0;
+                    contact_transition_dynamics_vec[data_id] = make_tuple(false, dummy_dynamics_cost, dummy_com, dummy_com_dot);
+                }
+                query_data_id++;
+            }
+        }
+    }
+
+    return contact_transition_dynamics_vec;
+}
+
 std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state, NeuralNetworkModelType model_type)
 {
     TransformationMatrix feet_mean_transform = branching_state->parent_->getFeetMeanTransform();
@@ -455,6 +681,34 @@ std::tuple<bool, float, Translation3D, Vector3D> NeuralNetworkInterface::predict
 
         return make_tuple(dynamics_feasibility, dummy_dynamics_cost, dummy_com, dummy_com_dot);
     }
+}
+
+std::vector<bool> NeuralNetworkInterface::predictContactTransitionDynamics(std::vector< std::shared_ptr<ContactState> > branching_state_vec, std::vector<float>& dynamics_cost_vec, NeuralNetworkModelType model_type)
+{
+    int state_num = branching_state_vec.size();
+    dynamics_cost_vec.resize(state_num);
+    std::vector<bool> dynamics_feasibility_vec(state_num);
+
+    std::vector< std::tuple<bool, float, Translation3D, Vector3D> > dynamics_prediction_vec = predictContactTransitionDynamicsCost(branching_state_vec, model_type);
+
+    for(int data_id; data_id < state_num; data_id++)
+    {
+        if(branching_state_vec[data_id]->is_root_)
+        {
+            dynamics_feasibility_vec[data_id] = true;
+            dynamics_cost_vec[data_id] = 0;
+        }
+        else
+        {
+            dynamics_feasibility_vec[data_id] = std::get<0>(dynamics_prediction_vec[data_id]);
+            dynamics_cost_vec[data_id] = std::get<1>(dynamics_prediction_vec[data_id]);
+            dynamics_cost_vec[data_id] = std::max(dynamics_cost_vec[data_id],float(0.0));
+            branching_state_vec[data_id]->com_ = std::get<2>(dynamics_prediction_vec[data_id]);
+            branching_state_vec[data_id]->com_dot_ = std::get<3>(dynamics_prediction_vec[data_id]);
+        }
+    }
+
+    return dynamics_feasibility_vec;
 }
 
 bool NeuralNetworkInterface::predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost, NeuralNetworkModelType model_type)

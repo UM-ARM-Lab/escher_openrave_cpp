@@ -38,7 +38,9 @@ class RegressionModel
         output_dim_(_output_mean.size()),
         fdeep_model_(_fdeep_model),
         tf_model_(_tf_model) {};
+
         Eigen::VectorXd predict(Eigen::VectorXd input, NeuralNetworkModelType model_type);
+        Eigen::MatrixXd predict(Eigen::MatrixXd input, NeuralNetworkModelType model_type);
 
     private:
         const int input_dim_;
@@ -63,7 +65,9 @@ class NeuralNetworkInterface
 
         // bool predictFeasibility(std::shared_ptr<ContactState> branching_state);
         std::tuple<bool, float, Translation3D, Vector3D> predictContactTransitionDynamicsCost(std::shared_ptr<ContactState> branching_state, NeuralNetworkModelType model_type);
+        std::vector< std::tuple<bool, float, Translation3D, Vector3D> > predictContactTransitionDynamicsCost(std::vector< std::shared_ptr<ContactState> > branching_state_vec, NeuralNetworkModelType model_type);
         bool predictContactTransitionDynamics(std::shared_ptr<ContactState> branching_state, float& dynamics_cost, NeuralNetworkModelType model_type);
+        std::vector<bool> predictContactTransitionDynamics(std::vector< std::shared_ptr<ContactState> > branching_state_vec, std::vector<float>& dynamics_cost_vec, NeuralNetworkModelType model_type);
         bool predictZeroStepCaptureDynamics(std::shared_ptr<ContactState> zero_step_capture_state, NeuralNetworkModelType model_type);
         std::vector<bool> predictZeroStepCaptureDynamics(std::vector< std::shared_ptr<ContactState> > zero_step_capture_state_vec, NeuralNetworkModelType model_type);
         bool predictOneStepCaptureDynamics(std::shared_ptr<ContactState> one_step_capture_state, NeuralNetworkModelType model_type);

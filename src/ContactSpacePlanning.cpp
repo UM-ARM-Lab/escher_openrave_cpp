@@ -1674,6 +1674,53 @@ bool ContactSpacePlanning::kinematicsFeasibilityCheck(std::shared_ptr<ContactSta
     return true;
 }
 
+std::vector<bool> ContactSpacePlanning::batchDynamicsFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > state_vec, std::vector<float>& dynamics_cost_vec)
+{
+    int state_num = state_vec.size();
+    std::vector<bool> dynamics_feasibility_vec(state_num);
+
+    // if(use_learned_dynamics_model_ && !(enforce_stop_in_the_end_ && isReachedGoal(current_state)))
+    if(use_learned_dynamics_model_)
+    {
+        dynamics_feasibility_vec = neural_network_interface_vector_[0]->predictContactTransitionDynamics(state_vec, dynamics_cost_vec, NeuralNetworkModelType::TENSORFLOW);
+
+        for(int data_id = 0; data_id < state_num; data_id++)
+        {
+            state_vec[data_id]->com_dot_ = (state_vec[data_id]->com_ - state_vec[data_id]->parent_->com_) / (STEP_TRANSITION_TIME+SUPPORT_PHASE_TIME);
+            state_vec[data_id]->lmom_ = robot_properties_->mass_ * state_vec[data_id]->com_dot_;
+        }
+    }
+    else
+    {
+        // #pragma omp parallel num_threads(thread_num_) shared (dynamics_feasibility_vec, dynamics_cost_vec)
+        {
+            // #pragma omp for schedule(static)
+            for(int data_id = 0; data_id < state_num; data_id++)
+            {
+                if(!state_vec[data_id]->is_root_)
+                {
+                    // update the state cost and CoM
+                    dynamics_optimizer_interface_vector_[data_id]->step_transition_time_ = STEP_TRANSITION_TIME;
+                    dynamics_optimizer_interface_vector_[data_id]->support_phase_time_ = SUPPORT_PHASE_TIME;
+                    std::vector< std::shared_ptr<ContactState> > contact_state_sequence = {state_vec[data_id]->parent_, state_vec[data_id]};
+                    dynamics_optimizer_interface_vector_[data_id]->updateContactSequence(contact_state_sequence);
+
+                    dynamics_feasibility_vec[data_id] = dynamics_optimizer_interface_vector_[data_id]->dynamicsOptimization(dynamics_cost_vec[data_id]);
+
+                    if(dynamics_feasibility_vec[data_id])
+                    {
+                        // update com, com_dot, and parent edge dynamics sequence of the current_state
+                        dynamics_optimizer_interface_vector_[data_id]->updateStateCoM(state_vec[data_id]);
+                        dynamics_optimizer_interface_vector_[data_id]->recordEdgeDynamicsSequence(state_vec[data_id]);
+                    }
+                }
+            }
+        }
+    }
+
+    return dynamics_feasibility_vec;
+}
+
 bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
 {
     if(!current_state->is_root_)
@@ -1700,7 +1747,7 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
             // }
 
             // auto time_before_dynamics_prediction = std::chrono::high_resolution_clock::now();
-            dynamically_feasible = neural_network_interface_vector_[0]->predictContactTransitionDynamics(current_state, dynamics_cost, NeuralNetworkModelType::FRUGALLY_DEEP);
+            dynamically_feasible = neural_network_interface_vector_[0]->predictContactTransitionDynamics(current_state, dynamics_cost, NeuralNetworkModelType::TENSORFLOW);
             current_state->lmom_ = robot_properties_->mass_ * current_state->com_dot_;
             // auto time_after_dynamics_prediction = std::chrono::high_resolution_clock::now();
             // std::cout << "prediction time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_dynamics_prediction - time_before_dynamics_prediction).count()/1000.0 << " ms" << std::endl;
@@ -1805,6 +1852,41 @@ bool ContactSpacePlanning::dynamicsFeasibilityCheck(std::shared_ptr<ContactState
     {
         return true;
     }
+}
+
+std::vector<bool> ContactSpacePlanning::batchStateFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > current_states_vector, std::vector<float>& dynamics_cost_vector)
+{
+    int state_num = current_states_vector.size();
+    std::vector<bool> state_feasibility_vector(state_num);
+    std::vector<int> kinematically_feasible_state_id_vector;
+
+    std::vector< std::shared_ptr<ContactState> > kinematically_feasible_states_vector;
+
+    for(int data_id = 0; data_id < state_num; data_id++)
+    {
+        state_feasibility_vector[data_id] = kinematicsFeasibilityCheck(current_states_vector[data_id], data_id);
+        if(state_feasibility_vector[data_id])
+        {
+            kinematically_feasible_state_id_vector.push_back(data_id);
+            kinematically_feasible_states_vector.push_back(current_states_vector[data_id]);
+        }
+    }
+
+    // verify the state kinematic and dynamic feasibility
+    if(use_dynamics_planning_)
+    {
+        std::vector<float> kinematically_feasible_states_dynamics_cost_vector(kinematically_feasible_states_vector.size());
+        std::vector<bool> dynamics_feasibility_vector = batchDynamicsFeasibilityCheck(kinematically_feasible_states_vector, kinematically_feasible_states_dynamics_cost_vector);
+        int query_data_id = 0;
+        for(auto & data_id : kinematically_feasible_state_id_vector)
+        {
+            dynamics_cost_vector[data_id] = kinematically_feasible_states_dynamics_cost_vector[query_data_id];
+            state_feasibility_vector[data_id] = dynamics_feasibility_vector[query_data_id];
+            query_data_id++;
+        }
+    }
+
+    return state_feasibility_vector;
 }
 
 bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index)
@@ -2755,26 +2837,52 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
     std::vector< std::tuple<bool, std::shared_ptr<ContactState>, float, float> > state_feasibility_check_result(branching_states.size());
     if(check_contact_transition_feasibility_)
     {
-        // #pragma omp parallel num_threads(thread_num_) shared (state_feasibility_check_result)
+        // batch query
+        std::vector<float> dynamics_cost_vec(branching_states.size(),0);
+        std::vector<bool> state_feasibility_vector(branching_states.size(),true);
+
+        if(use_dynamics_planning_)
         {
-            // #pragma omp for schedule(static)
-            for(int i = 0; i < branching_states.size(); i++)
+            state_feasibility_vector = batchStateFeasibilityCheck(branching_states, dynamics_cost_vec);
+        }
+        for(int i = 0; i < branching_states.size(); i++)
+        {
+            std::shared_ptr<ContactState> branching_state = branching_states[i];
+            float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
+            branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
+            branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
+
+            if(state_feasibility_vector[i]) // we use lazy checking when not using dynamics planning
             {
-                std::shared_ptr<ContactState> branching_state = branching_states[i];
-                float dynamics_cost = 0.0;
-                float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
-                branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
-                branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
-                if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
-                {
-                    state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
-                }
-                else
-                {
-                    state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost, disturbance_cost);
-                }
+                state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost_vec[i], disturbance_cost);
+            }
+            else
+            {
+                state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost_vec[i], disturbance_cost);
             }
         }
+
+        // // sequential query
+        // // #pragma omp parallel num_threads(thread_num_) shared (state_feasibility_check_result)
+        // {
+        //     // #pragma omp for schedule(static)
+        //     for(int i = 0; i < branching_states.size(); i++)
+        //     {
+        //         std::shared_ptr<ContactState> branching_state = branching_states[i];
+        //         float dynamics_cost = 0.0;
+        //         float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
+        //         branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
+        //         branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
+        //         if(!use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i)) // we use lazy checking when not using dynamics planning
+        //         {
+        //             state_feasibility_check_result[i] = std::make_tuple(true, branching_state, dynamics_cost, disturbance_cost);
+        //         }
+        //         else
+        //         {
+        //             state_feasibility_check_result[i] = std::make_tuple(false, branching_state, dynamics_cost, disturbance_cost);
+        //         }
+        //     }
+        // }
     }
     else
     {

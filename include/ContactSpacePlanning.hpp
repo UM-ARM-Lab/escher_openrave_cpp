@@ -131,6 +131,8 @@ class ContactSpacePlanning
         bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, int index);
         bool dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
         bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
+        std::vector<bool> batchDynamicsFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > state_vec, std::vector<float>& dynamics_cost_vector);
+        std::vector<bool> batchStateFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > current_states_vector, std::vector<float>& dynamics_cost_vector);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
