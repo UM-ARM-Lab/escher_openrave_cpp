@@ -204,6 +204,7 @@ def branching(current_node, foot_transition_model, hand_transition_model, struct
                     if child_node.node_feasibile(robot_obj):
                         child_node_list.append(child_node)
 
+
         # hand/arm movement
         elif manip == LEFT_ARM or manip == RIGHT_ARM:
 

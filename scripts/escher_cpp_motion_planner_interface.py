@@ -54,7 +54,7 @@ def main(meta_path_generation_method='all_planning',
     env_handler = environment_handler()
     env = env_handler.env
     structures = env_handler.structures
-    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 15)
+    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 15.0)
 
     ### Construct the hand transition model
     hand_transition_model = []
@@ -124,6 +124,8 @@ def main(meta_path_generation_method='all_planning',
 
         # set up the structures
         structures = env_handler.structures
+        # print(len(structures))
+        # IPython.embed()
         structures_dict = {}
         for struct in structures:
             structures_dict[struct.id] = struct
@@ -219,7 +221,7 @@ if __name__ == "__main__":
     path_segmentation_generation_type = 'motion_mode_and_traversability_segmentation'
     traversability_threshold = 0.3
     traversability_select_criterion = 'mean'
-    surface_source = 'torso_path_planning_test_env_0'
+    surface_source = 'torso_path_planning_test_env_5'
     environment_path = 'environment'
     log_file_name = 'exp_result.txt'
     start_env_id = 0

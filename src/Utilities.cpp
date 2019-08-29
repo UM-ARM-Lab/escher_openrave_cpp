@@ -545,3 +545,19 @@ Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t)
 
     return transformed_position;
 }
+
+
+float pointToLineDistance(GridPositions2D point, Line2D line) {
+	return abs(line[0] * point[0] + line[1] * point[1] + line[2]) / sqrt(line[0] * line[0] + line[1] * line[1]); 
+}
+
+
+int discretize(float continuous_value, float resolution) {
+    if (abs(continuous_value) > resolution / 2.0) {
+        if (continuous_value > 0) {
+            return(ceil((continuous_value - resolution / 2.0) / resolution));
+        }
+        return(-ceil(abs(continuous_value + resolution / 2.0) / resolution));
+    }
+    return 0;
+}

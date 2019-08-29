@@ -124,6 +124,12 @@ class trimesh_surface(structure):
 
 		self.c = -self.nx * self.vertices[0][0] - self.ny * self.vertices[0][1] - self.nz * self.vertices[0][2]
 
+		transformed_center = np.dot(transform,np.vstack((self.get_center(),np.array([1]))))
+		self.xo = transformed_center[0,0]; self.yo = transformed_center[1,0]; self.zo = transformed_center[2,0]
+
+		self.transform = np.dot(transform, self.transform)
+		self.inverse_transform = inverse_SE3(self.transform)
+		
 
 	def calculate_approximate_boundary(self):
 

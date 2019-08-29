@@ -62,6 +62,8 @@ typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
 typedef std::array<int,3> GridIndices3D;
 typedef std::array<float,3> GridPositions3D;
+// Line2D: {a, b, c} s.t. ax + by + c = 0
+typedef std::array<float,3> Line2D;
 
 namespace std
 {
@@ -80,6 +82,24 @@ namespace std
             }
     };
 }
+
+namespace std
+{
+    template <>
+    class hash<GridIndices2D>{
+        public:
+            size_t operator()(const GridIndices2D& grid_indices) const
+            {
+                size_t hash_number = 0;
+
+                hash_number ^= hash<int>()(grid_indices[0]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<int>()(grid_indices[1]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+
+                return hash_number;
+            }
+    };
+}
+
 
 const float RAD2DEG = 180.0/M_PI;
 const float DEG2RAD = M_PI/180.0;
@@ -135,7 +155,8 @@ enum TrimeshType
 enum PlanningHeuristicsType
 {
     EUCLIDEAN,
-    DIJKSTRA
+    DIJKSTRA,
+    DIJKSTRA_WITH_DYNCOST
 };
 
 enum ExploreState
@@ -406,6 +427,11 @@ inline bool file_exist(const std::string& file_path) {ifstream f(file_path.c_str
 
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);
+
+float pointToLineDistance(GridPositions2D point, Line2D line);
+
+int discretize(float continuous_value, float resolution);
+
 
 #include "GIWC.hpp"
 #include "GeneralIKInterface.hpp"

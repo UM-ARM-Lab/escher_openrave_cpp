@@ -1,23 +1,28 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(escher_openrave_cpp)
 
+# set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/example-app/libtorch;${CMAKE_PREFIX_PATH}")
+
 set(CMAKE_CXX_FLAGS "-std=c++1y -O3 ${CMAKE_CXX_FLAGS}")
 # set(CMAKE_CXX_FLAGS "-std=c++1y -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 # set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -fopenmp ${CMAKE_CXX_FLAGS}")
 
 find_package(catkin REQUIRED COMPONENTS roslib urdf srdfdom openrave_catkin momentumopt momentumopt_athena visualization_tools_athena floating_base_tools_athena floating_base_tools_sl_athena generalik yaml_cpp)
 
+message(WARNING ${CMAKE_PREFIX_PATH})
+
 find_package(Boost REQUIRED COMPONENTS regex filesystem system)
 find_package(OpenRAVE REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(Torch REQUIRED)
 
 # SET( Eigen_INCLUDE_DIRS "/usr/local/include/eigen3" ) # compiled with version 3.3.5
 IF( NOT Eigen_INCLUDE_DIRS )
     find_package(Eigen REQUIRED)
 ENDIF()
 
-SET( Torch_INCLUDE_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/include" )
-SET( Torch_LIBRARY_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/lib" )
+# SET( TORCH_INCLUDE_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/include" )
+# SET( TORCH_LIBRARY_DIRS "/home/chenxgu/catkin_ws/src/escher_openrave_cpp/example-app/libtorch/lib" )
 
 # if(OPENMP_FOUND)
 #   message(STATUS "OPENMP FOUND")
@@ -31,17 +36,20 @@ catkin_python_setup()
 
 include_directories(
     include
+)
+include_directories(
+    SYSTEM
     ${Eigen_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
     ${OpenRAVE_INCLUDE_DIRS}
-    ${Torch_INCLUDE_DIRS}
+    ${TORCH_INCLUDE_DIRS}
 )
 link_directories(
     ${Boost_LIBRARY_DIRS}
     ${catkin_LIBRARY_DIRS}
     ${OpenRAVE_LIBRARY_DIRS}
-    ${Torch_LIBRARY_DIRS}
+    ${TORCH_LIBRARY_DIRS}
 )
 
 openrave_plugin("${PROJECT_NAME}_plugin"
@@ -72,5 +80,6 @@ target_link_libraries("${PROJECT_NAME}_plugin"
     gmp
     ${catkin_LIBRARIES}
     ${Boost_LIBRARIES}
-    ${OpenMP_LIBRARIES}
+    # ${OpenMP_LIBRARIES}
+    ${TORCH_LIBRARIES}
 )

@@ -97,7 +97,7 @@ def athena(env, active_dof_mode='whole_body', urdf_name=None):
     out_of_env_transform = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,-99.0],[0,0,0,1]])
     athena.body_collision_box = rave.RaveCreateKinBody(athena.env,'')
     athena.body_collision_box.SetName('body_collision_box')
-    athena.body_collision_box.InitFromBoxes(np.array([[0, 0, (0.5+athena.top_z)/2.0, 0.3, athena.shoulder_w/2.0, (athena.top_z-0.5)/2.0]]), True)
+    athena.body_collision_box.InitFromBoxes(np.array([[0, 0, (0.5+athena.top_z)/2.0, 0.3, athena.shoulder_w/2.0, (athena.top_z-0.5)/2.0]]), False)
     # athena.body_collision_box.InitFromBoxes(np.array([[0, 0, 0, 0.18, 0.29, 0.56]]), True)
     # athena.body_collision_box.GetLinks()[0].GetGeometries()[0].SetTransparency(0.2)
     athena.env.AddKinBody(athena.body_collision_box)

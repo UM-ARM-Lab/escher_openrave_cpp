@@ -30,9 +30,10 @@ from node import *
 from contact_projection import *
 from draw import DrawStance
 
-SAMPLE_SIZE_EACH_ENVIRONMENT = 100
+SAMPLE_SIZE_EACH_ENVIRONMENT = 200
 GRID_RESOLUTION = 0.15
-ANGLE_RESOLUTION = 15.0
+# ANGLE_RESOLUTION = 15.0
+ANGLE_RESOLUTION = 22.5
 
 def contact_degree_to_radian(long_list):
     """
@@ -45,7 +46,7 @@ def contact_degree_to_radian(long_list):
             new_list[6 * i + j] = long_list[6 * i + j] * np.pi / 180
     return new_list
 
-
+"""
 def position_to_cell_index(position,resolution):
     resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.15m in this case
     adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
@@ -59,7 +60,7 @@ def position_to_cell_index(position,resolution):
             cell_index[i] = 0
 
     return cell_index
-
+"""
 
 class contact_transition:
     def __init__(self,init_node,final_node,grid_resolution):
@@ -150,7 +151,7 @@ class contact_transition:
         if self.init_node.manip_in_contact('l_arm'):
             init_left_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.left_arm)))
             self.normalized_init_l_arm = init_left_arm
-        
+
         if self.init_node.manip_in_contact('r_arm'):
             init_right_arm = SE3_to_xyzrpy(np.dot(inv_mean_feet_transform, xyzrpy_to_SE3(self.init_node.right_arm)))
             self.normalized_init_r_arm = init_right_arm
@@ -200,10 +201,8 @@ class contact_transition:
 # def extract_env_feature():
 
 def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2,structures,grid_resolution,environment_index,transitions):
-    # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
-    # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
     init_node_list = []
-    for orientation in range(-75,91,15):
+    for orientation in np.arange(-180, 180, ANGLE_RESOLUTION):
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
@@ -307,7 +306,7 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model1, han
                 #     DrawStance(one_contact_transition.final_node, robot_obj, handles)
                 #     IPython.embed()
                 #     handles = []
-            
+
             temp_dict['feature_vector_contact_part'] = one_contact_transition.get_feature_vector_contact_part()
             temp_dict['contact_transition_type'] = one_contact_transition.get_contact_transition_type()
             temp_dict['normalized_init_l_leg'] = one_contact_transition.normalized_init_l_leg
@@ -384,12 +383,12 @@ def main(robot_name='athena'): # for test
         for yaw in hand_yaw:
             hand_transition_model2.append((pitch,yaw))
     hand_transition_model2.append((-99.0,-99.0))
-  
+
 
     ### Load the foot transition model
     try:
         print('Load foot transition model 1...', end='')
-        
+
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range_symmetric.txt','r')
         line = ' '
         foot_transition_model1 = []
@@ -407,7 +406,7 @@ def main(robot_name='athena'): # for test
 
     try:
         print('Load foot transition model 2...', end='')
-        
+
         f = open('../data/escher_motion_planning_data/step_transition_model_mid_range.txt','r')
         line = ' '
         foot_transition_model2 = []
@@ -437,39 +436,40 @@ def main(robot_name='athena'): # for test
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
     # sample environments and contact transitions
-    for i in range(200, 300):
+    for i in range(0, 200):
         print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
         # save the environment
         env = {}
         env['ground_vertices'] = []
-        env['ground_normals'] = []
+        # env['ground_normals'] = []
         env['others_vertices'] = []
-        env['others_normals'] = []
+        # env['others_normals'] = []
         for s in structures:
             if s.type == 'ground':
                 env['ground_vertices'].append(s.vertices)
-                env['ground_normals'].append(s.get_normal())
+                # env['ground_normals'].append(s.get_normal())
             elif s.type == 'others':
                 env['others_vertices'].append(s.vertices)
-                env['others_normals'].append(s.get_normal())
+                # env['others_normals'].append(s.get_normal())
             else:
                 print('invalid structure type')
                 exit(1)
-        with open('../data/medium_dataset_normal_wall/' + environment_file + '_' + str(i), 'w') as file:
+        with open('../data/dataset_225/' + environment_file + '_' + str(i), 'w') as file:
             pickle.dump(env, file)
 
         # save all transitions to this list
-        transitions = []                
+        transitions = []
+        # import time; time.sleep(3)
         sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i, transitions)
-        with open('../data/medium_dataset_normal_wall/' + transition_file + '_' + str(i), 'w') as file:
+        with open('../data/dataset_225/' + transition_file + '_' + str(i), 'w') as file:
             pickle.dump(transitions, file)
         print('environment {} index {} is finished'.format(environment_type, i))
         # IPython.embed()
-    
+
     # IPython.embed()
     rave.raveLogInfo('Sampling finished!!')
-    
+
 
 
 if __name__ == "__main__":

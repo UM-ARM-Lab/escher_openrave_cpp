@@ -2733,6 +2733,21 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
             return 9999.0;
         }
     }
+    else if(heuristics_type_ == PlanningHeuristicsType::DIJKSTRA_WITH_DYNCOST)
+    {
+        RPYTF current_virtual_body_pose = current_state->getVirtualBodyPose();
+        GridIndices3D cell_indices = map_grid_->positionsToIndices({current_virtual_body_pose.x_, current_virtual_body_pose.y_, current_virtual_body_pose.yaw_});
+        MapCell3DPtr cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
+
+        if(cell->terrain_type_ == TerrainType::SOLID)
+        {
+            return cell->g_;
+        }
+        else
+        {
+            return 9999.0;
+        }
+    }
     else
     {
         RAVELOG_ERROR("Unknown heuristics type.\n");

@@ -28,35 +28,25 @@ import load_athena
 # from config_parameter import *
 from transformation_conversion import *
 from environment_handler_2 import environment_handler
-from map_grid import map_grid_dim
+# from map_grid import map_grid_dim
 from node import *
 from contact_projection import *
 from draw import DrawStance
 
 GRID_RESOLUTION = 0.15
-ANGLE_RESOLUTION = 15.0
-
-# first key: x
-# second key: y
-# third key: theta
-# value: occurence
-nested_dict = {}
-
-# def contact_degree_to_radian(long_list):
-#     """
-#     Input:
-#     long_list should be a list
-#     """
-#     new_list = list(long_list)
-#     for i in range(len(long_list) // 6):
-#         for j in range(3, 6):
-#             new_list[6 * i + j] = long_list[6 * i + j] * np.pi / 180
-#     return new_list
+ANGLE_RESOLUTION = 22.5
 
 
 def position_to_cell_index(position,resolution):
     resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.05m in this case
-    adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
+    
+    while position[2] < -180 - ANGLE_RESOLUTION / 2.0 or position[2] >= 180 - ANGLE_RESOLUTION / 2.0:
+        if position[2] < -180 - ANGLE_RESOLUTION / 2.0:
+            position[2] = position[2] + 360
+        elif position[2] >= 180 - ANGLE_RESOLUTION / 2.0:
+            position[2] = position[2] - 360 
+    
+    adjusted_position = [position[0], position[1], position[2]] # first_terminal_angle is defined in transformation_conversion.py
     cell_index = [None] * len(position)
 
     for i, v in enumerate(adjusted_position):
@@ -94,10 +84,11 @@ class contact_transition:
 def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_transition_model1, foot_transition_model2,structures,grid_resolution, environment_index):
     # assume the robot is at (x,y) = (0,0), we sample 12 orientation (-75,-60,-45,-30,-15,0,15,30,45,60,75,90)
     # other orientations are just these 12 orientations plus 180*n, so we do not need to sample them.
-    handles = []
-    init_node_list = []
-    for orientation in [0]:
-    # for orientation in range(-75,91,15):
+    for orientation in np.arange(-180, 180, 22.5):
+        nested_dict = {}
+        handles = []
+        init_node_list = []
+        
         rave.raveLogInfo('Orientation: ' + repr(orientation) + ' degrees.')
         orientation_rad = orientation * DEG2RAD
         orientation_rotation_matrix = rpy_to_SO3([0, 0, orientation])
@@ -121,11 +112,11 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                 if hand_projection(robot_obj, RIGHT_ARM, arm_orientation, dummy_init_node, structures):
                     init_right_hand_pose_lists.append(copy.copy(dummy_init_node.right_arm))
 
-        rave.raveLogInfo(repr(len(init_left_hand_pose_lists)-1) + ' initial left hand contact poses.')
-        rave.raveLogInfo(repr(len(init_right_hand_pose_lists)-1) + ' initial right hand contact poses.')
+        # rave.raveLogInfo(repr(len(init_left_hand_pose_lists)-1) + ' initial left hand contact poses.')
+        # rave.raveLogInfo(repr(len(init_right_hand_pose_lists)-1) + ' initial right hand contact poses.')
 
         # for each combination of hand contacts, find all the foot combinations to make the torso pose to be (0,0,theta)
-        rave.raveLogInfo('Collect initial nodes...')
+        # rave.raveLogInfo('Collect initial nodes...')
         for init_left_hand_pose in init_left_hand_pose_lists:
             for init_right_hand_pose in init_right_hand_pose_lists:
                 dummy_init_node.left_arm = copy.copy(init_left_hand_pose)
@@ -168,40 +159,76 @@ def sample_contact_transitions(env_handler,robot_obj,hand_transition_model,foot_
                         # raw_input()
                         # handles = []
 
-    # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
-    # branch contacts for left arm and leg, and record the torso pose transition
-    rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
-    contact_transition_list = []
-    for init_node in init_node_list:
-        child_node_list = branching(init_node, foot_transition_model2, hand_transition_model, structures, robot_obj)
+        # here we get a set of initial nodes(contact combinations) that are with torso pose (0,0,theta)
+        # branch contacts for left arm and leg, and record the torso pose transition
+        # rave.raveLogInfo('Collected ' + repr(len(init_node_list)) + ' initial nodes.')
+        contact_transition_list = []
+        for init_node in init_node_list:
+            child_node_list = branching(init_node, foot_transition_model2, hand_transition_model, structures, robot_obj)
+            
+            for child_node in child_node_list:
+                # ??????????
+                one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
+                contact_transition_list.append(one_contact_transition)
 
-        for child_node in child_node_list:
-            # ??????????
-            one_contact_transition = contact_transition(init_node, child_node, grid_resolution)
-            contact_transition_list.append(one_contact_transition)
+                final_cell = one_contact_transition.final_virtual_body_cell 
 
-            assert(one_contact_transition.init_virtual_body_cell == [0, 0, 0])
-            final_cell = one_contact_transition.final_virtual_body_cell
-            if final_cell[0] not in nested_dict:
-                nested_dict[final_cell[0]] = {}
-            if final_cell[1] not in nested_dict[final_cell[0]]:
-                nested_dict[final_cell[0]][final_cell[1]] = {}
-            if final_cell[2] not in nested_dict[final_cell[0]][final_cell[1]]:
-                nested_dict[final_cell[0]][final_cell[1]][final_cell[2]] = 1
-            else:
-                nested_dict[final_cell[0]][final_cell[1]][final_cell[2]] += 1
+                if final_cell[0] not in nested_dict:
+                    nested_dict[final_cell[0]] = {}
+                if final_cell[1] not in nested_dict[final_cell[0]]:
+                    nested_dict[final_cell[0]][final_cell[1]] = {}
+                if final_cell[2] not in nested_dict[final_cell[0]][final_cell[1]]:
+                    nested_dict[final_cell[0]][final_cell[1]][final_cell[2]] = 1
+                else:
+                    nested_dict[final_cell[0]][final_cell[1]][final_cell[2]] += 1
 
-            # print(contact_transition_list[-1].init_virtual_body_cell)
-            # print(init_node.get_virtual_body_pose())
-            # print(contact_transition_list[-1].final_virtual_body_cell)
-            # print(child_node.get_virtual_body_pose())
-            # print('previous move manipulator: ' + str(child_node.prev_move_manip))
-            # DrawStance(init_node, robot_obj, handles)
-            # DrawStance(child_node, robot_obj, handles)
-            # raw_input()
-            # handles = []
+                # print(contact_transition_list[-1].init_virtual_body_cell)
+                # print(init_node.get_virtual_body_pose())
+                # print(contact_transition_list[-1].final_virtual_body_cell)
+                # print(child_node.get_virtual_body_pose())
+                # print('previous move manipulator: ' + str(child_node.prev_move_manip))
+                # DrawStance(init_node, robot_obj, handles)
+                # DrawStance(child_node, robot_obj, handles)
+                # raw_input()
+                # handles = []
+        # rave.raveLogInfo('Sampling finished!!')
+        # pprint.pprint(nested_dict)
 
-    rave.raveLogInfo('Collected ' + repr(len(contact_transition_list)) + ' contact transitions.')
+        # IPython.embed()
+
+        for ix in nested_dict.keys():
+            for iy in nested_dict[ix].keys():
+                for itheta in nested_dict[ix][iy]:
+                    # print(str(ix) + ' ' + str(iy) + ' ' + str(itheta))
+                    temp = int(itheta - round(orientation / ANGLE_RESOLUTION))
+                    if temp > 10:
+                        temp -= 16
+                    elif temp < -10:
+                        temp += 16
+                    print(str(ix) + ' ' + str(iy) + ' ' + str(temp))
+
+        # fig = plt.figure(orientation)
+        # ax = fig.add_subplot(111, projection='3d')
+
+        # _x = np.arange(min(nested_dict.keys()), max(nested_dict.keys()) + 1, 1)
+        # _y = np.arange(min(nested_dict[0].keys()), max(nested_dict[0].keys()) + 1, 1)
+        # _xx, _yy = np.meshgrid(_x, _y)
+        # x, y = _xx.ravel(), _yy.ravel()
+        
+        # top = np.zeros((x.shape[0],), dtype=int)
+        # for i in range(x.shape[0]):
+        #     if y[i] in nested_dict[x[i]]:
+        #         for j in nested_dict[x[i]][y[i]]:
+        #             top[i] += nested_dict[x[i]][y[i]][j]
+
+        # bottom = np.zeros_like(top)
+        # width = depth = 1
+        # ax.bar3d(x, y, bottom, width, depth, top)
+
+        # plt.show()
+
+
+        # rave.raveLogInfo('Collected ' + repr(len(contact_transition_list)) + ' contact transitions.')
     return contact_transition_list
 
 
@@ -287,35 +314,13 @@ def main(robot_name='athena'): # for test
 
     # sample environments and contact transitions
     for i in [0]:
-        structures = sample_env(env_handler, robot_obj, 'flat_ground_env')
+        structures = sample_env(env_handler, robot_obj, 'large_flat_ground_env')
                 
         sample_contact_transitions(env_handler, robot_obj, hand_transition_model, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i)
         # IPython.embed()
 
     # IPython.embed()
-    rave.raveLogInfo('Sampling finished!!')
-    pprint.pprint(nested_dict)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    _x = np.arange(min(nested_dict.keys()), max(nested_dict.keys()) + 1, 1)
-    _y = np.arange(min(nested_dict[0].keys()), max(nested_dict[0].keys()) + 1, 1)
-    _xx, _yy = np.meshgrid(_x, _y)
-    x, y = _xx.ravel(), _yy.ravel()
     
-    top = np.zeros((x.shape[0],), dtype=int)
-    for i in range(x.shape[0]):
-        if y[i] in nested_dict[x[i]]:
-            for j in nested_dict[x[i]][y[i]]:
-                top[i] += nested_dict[x[i]][y[i]][j]
-
-    bottom = np.zeros_like(top)
-    width = depth = 1
-    ax.bar3d(x, y, bottom, width, depth, top)
-
-    plt.show()
-
 
 if __name__ == "__main__":
     main()

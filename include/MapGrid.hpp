@@ -1,16 +1,16 @@
 #ifndef MAPGRID_HPP
 #define MAPGRID_HPP
 
-// #include "Utilities.hpp"
+#include "Utilities.hpp"
 
 // // OpenRAVE
 // #include <openrave/plugin.h>
 
-#include <torch/script.h>
-
-#include <math.h>
 #include <memory> // not sure what this is for
-#include <map>
+#include <math.h>
+
+#include <torch/torch.h>
+#include <torch/script.h>
 
 
 class MapCell2D
@@ -93,6 +93,7 @@ class MapCell3D : MapCell2D
 
         inline GridIndices3D getIndices() {return {ix_, iy_, itheta_};}
         inline GridPositions3D getPositions() {return {x_, y_, theta_};}
+
 };
 
 typedef std::shared_ptr<MapCell2D> MapCell2DPtr;
@@ -149,6 +150,9 @@ class MapGrid
         const float min_theta_;
         const float max_theta_;
 
+        const float step_cost_weight_ = 3.0;
+        const float dynamics_cost_weight_ = 0.1;
+
         std::map<int, std::vector< GridIndices2D > > left_foot_neighbor_window_;
         std::map<int, std::vector< GridIndices2D > > right_foot_neighbor_window_;
         std::map<int, std::vector< GridIndices2D > > torso_neighbor_window_;
@@ -171,33 +175,48 @@ class MapGrid
         // the drawing handler
         std::shared_ptr<DrawingHandler> drawing_handler_;
 
-        // new stuff after this line
-        int ANGLE_RESOLUTION = 15;
-        float GRID_RESOLUTION = 0.15;
-        float MAP_RESOLUTION = 0.025;
-        float GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE = 1.6;
-        int GROUND_MAP_EDGE = round(GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE / 2 / MAP_RESOLUTION);
-        int GROUND_DEFAULT_DEPTH = -1.0;
+    private:
+        class HeuristicHelper {
+            public:
+                HeuristicHelper();
+                void saveStructures(std::vector< std::shared_ptr<TrimeshSurface> > _structures);
+                torch::Tensor getGroundDepthBoundaryMap(MapGrid* map_grid_ptr, GridIndices3D indices);
+                torch::Tensor getWallDepthBoundaryMap(MapGrid* map_grid_ptr, GridIndices3D indices);
+                // float getDynamicCost(MapGrid* map_grid_ptr, GridIndices3D current_cell_indices, GridIndices3D child_cell_indices);
 
-        std::vector< std::shared_ptr<TrimeshSurface> > structures_;
-        // possible keys are [0, 1, 2, ..., 21, 22, 23] if the angle resolution is 15.
-        // x_min, x_max, y_min, y_max
-        std::map<int, std::vector<float> > boundary_map_;
-        // possible keys are [0, 1, 2, ..., 21, 22, 23] if the angle resolution is 15.
-        std::map<int, torch::Tensor> entire_ground_depth_and_boundary_map_map_;
-        // the first key is p1 x index, the second key is p1 y index and the third key is p1 theta index
-        std::map<int, std::map<int, std::map<int, torch::Tensor> > > ground_depth_and_boundary_map_map_;
-        // the first key is p1 x index, the second key is p1 y index and the third key is p1 theta index
-        std::map<int, std::map<int, std::map<int, torch::Tensor> > > wall_depth_and_boundary_map_map_;
+                const int ANGLE_RESOLUTION = 15;
+                const float GRID_RESOLUTION = 0.15;
+                const float MAP_RESOLUTION = 0.025;
 
-        void saveStructures(std::vector< std::shared_ptr<TrimeshSurface> > _structures);
+                const float GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE = 1.6;
+                const float GROUND_DEFAULT_DEPTH = -1.0;
+                const int GROUND_MAP_EDGE = ceil(GROUND_DEPTH_AND_BOUNDARY_MAP_SIDE / 2 / MAP_RESOLUTION);
+                const int GROUND_MAP_SIDE = GROUND_MAP_EDGE * 2 + 1;
+                
+                const float WALL_DEPTH_AND_BOUNDARY_MAP_RADIUS = 1.0;
+                const float WALL_DEFAULT_DEPTH = 2.0;
+                const float WALL_MIN_HEIGHT = 1.1;
+                const float WALL_MAX_HEIGHT = 1.7;
+                const int WALL_MAP_LENGTH = ceil(2 * M_PI * WALL_DEPTH_AND_BOUNDARY_MAP_RADIUS / MAP_RESOLUTION);
+                const int WALL_MAP_WIDTH = (WALL_MAX_HEIGHT - WALL_MIN_HEIGHT) / MAP_RESOLUTION + 1;
 
-        torch::Tensor getGroundDepthBoundaryMap(GridIndices3D indices);
-        torch::Tensor getWallDepthBoundaryMap(GridIndices3D indices);
+                torch::jit::script::Module module;
 
-        // return a vector of {x_min, x_max, y_min, y_max}
-        std::vector<float> get_boundary(std::vector<std::vector<Translation3D> > structure_vertices);   
+                std::vector< std::shared_ptr<TrimeshSurface> > structures_;
+                // possible keys are [0, 1, 2, ..., 21, 22, 23] (if the angle resolution is 15), mapped value is [x_min line, x_max line, y_min line, y_max line]
+                std::unordered_map<int, std::vector<Line2D> > boundary_line_map_;
+                // possible keys are [0, 1, 2, ..., 21, 22, 23] (if the angle resolution is 15).
+                std::unordered_map<int, torch::Tensor> entire_ground_depth_and_boundary_map_map_;
+                std::unordered_map<GridIndices3D, torch::Tensor, hash<GridIndices3D> > ground_depth_and_boundary_map_map_;
+                std::unordered_map<GridIndices2D, std::unordered_map<int, torch::Tensor>, hash<GridIndices2D> > wall_depth_and_boundary_map_map_;
+                std::unordered_map<GridIndices3D, std::unordered_map<GridIndices3D, float, hash<GridIndices3D> >, hash<GridIndices3D> > dynamic_cost_map_;
+                
+                // return a vector of {x_min, x_max, y_min, y_max}
+                std::vector<float> getBoundary(const std::vector<std::vector<Translation3D> >& structure_vertices);
+                torch::Tensor getBoundaryMap(const std::vector<std::vector<int>>& structure_id_map, torch::Tensor initialized_boundary_map, int dx, int dy, int edge);
+        };
 
+        HeuristicHelper heuristic_helper_;
 };
 
 #endif

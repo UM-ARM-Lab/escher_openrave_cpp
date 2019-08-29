@@ -7,8 +7,8 @@ class map_grid_dim:
         self.max_x = max_x
         self.min_y = min_y
         self.max_y = max_y
-        self.min_theta = -180
-        self.max_theta = 165
+        self.min_theta = -180-orientation_resolution/2.0
+        self.max_theta = 180-orientation_resolution/2.0
         self.distance_resolution = distance_resolution
         self.orientation_resolution = orientation_resolution
 

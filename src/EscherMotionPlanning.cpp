@@ -1,8 +1,10 @@
 // #include "EscherMotionPlanning.hpp"
 #include "Utilities.hpp"
+#include <torch/script.h>
 
 #include <openrave/plugin.h>
 #include <omp.h>
+#include <memory>
 
 EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, std::istream& ss) : OpenRAVE::ModuleBase(penv)
 {
@@ -2346,26 +2348,94 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     map_grid_->obstacleAndGapMapping(penv_, structures_);
     RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
-    // manually generate the 8-connected transition model
+    // // manually generate the 8-connected transition model
+    // std::map< int,std::vector<GridIndices3D> > transition_model;
+    // std::vector<GridIndices3D> transition;
+    // for(int ix = -1; ix <= 1; ix++)
+    // {
+    //     for(int iy = -1; iy <= 1; iy++)
+    //     {
+    //         // for(int itheta = -1; itheta <= 1; itheta++)
+    //         // {
+    //             if(ix != 0 || iy != 0)
+    //             {
+    //                 transition.push_back({ix,iy,0});
+    //             }
+    //         // }
+    //     }
+    // }
+    // for(int itheta = 0; itheta < map_grid_->dim_theta_; itheta++)
+    // {
+    //     transition_model.insert(std::make_pair(itheta, transition));
+    // }
+
     std::map< int,std::vector<GridIndices3D> > transition_model;
-    std::vector<GridIndices3D> transition;
-    for(int ix = -1; ix <= 1; ix++)
-    {
-        for(int iy = -1; iy <= 1; iy++)
-        {
-            // for(int itheta = -1; itheta <= 1; itheta++)
-            // {
-                if(ix != 0 || iy != 0)
-                {
-                    transition.push_back({ix,iy,0});
-                }
-            // }
+    std::ifstream ifs("torso_pose_transition_model_15.txt");
+    std::string dx_s, dy_s, dtheta_s;
+    int itheta = 0;
+    std::vector<GridIndices3D> temp_transition;
+    while (ifs >> dx_s >> dy_s >> dtheta_s) {
+        if (dx_s[0] == 'O') {
+            if (!temp_transition.empty()) {
+                transition_model.insert(std::make_pair(itheta, temp_transition));
+                temp_transition.clear();
+                itheta++;
+            }
+        } else {
+            temp_transition.push_back({stoi(dx_s), stoi(dy_s), stoi(dtheta_s)});
         }
     }
-    for(int itheta = 0; itheta < map_grid_->dim_theta_; itheta++)
-    {
-        transition_model.insert(std::make_pair(itheta, transition));
+    transition_model.insert(std::make_pair(itheta, temp_transition));
+    temp_transition.clear();
+    ifs.close();
+
+    // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
+    //     std::cout << "itheta: " << itheta << std::endl;
+    //     for (auto it = transition_model[itheta].begin(); it != transition_model[itheta].end(); it++) {
+    //         std::cout << (*it)[0] << " " << (*it)[1] << " " << (*it)[2] << std::endl;
+    //     }
+    // }
+
+    // std::map< int,std::vector<GridIndices3D> > reverse_transition_model;
+    // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
+    //     for (auto it = transition_model[itheta].begin(); it != transition_model[itheta].end(); it++) {
+    //         reverse_transition_model[((*it)[2] + itheta + map_grid_->dim_theta_) % map_grid_->dim_theta_].push_back({-(*it)[0], -(*it)[1], -(*it)[2]}); 
+    //     }
+    // }
+
+    // std::ofstream ofs("reverse_torso_pose_transition_model_22.5.txt");
+    // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
+    //     ofs << "Orientation: " << map_grid_->theta_resolution_ * itheta - 180 << " degrees.\n"; 
+    //     for (auto it = reverse_transition_model[itheta].begin(); it != reverse_transition_model[itheta].end(); it++) {
+    //          ofs << (*it)[0] << " " << (*it)[1] << " " << (*it)[2] << std::endl;
+    //     }
+    // }
+    // ofs.close();
+    // exit(1);
+
+    std::map< int,std::vector<GridIndices3D> > reverse_transition_model;
+    std::ifstream ifs_r("reverse_torso_pose_transition_model_15.txt");
+    itheta = 0;
+    while (ifs_r >> dx_s >> dy_s >> dtheta_s) {
+        if (dx_s[0] == 'O') {
+            if (!temp_transition.empty()) {
+                reverse_transition_model.insert(std::make_pair(itheta, temp_transition));
+                temp_transition.clear();
+                itheta++;
+            }
+        } else {
+            temp_transition.push_back({stoi(dx_s), stoi(dy_s), stoi(dtheta_s)});
+        }
     }
+    reverse_transition_model.insert(std::make_pair(itheta, temp_transition));
+    ifs_r.close();
+
+    // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
+    //     std::cout << "itheta: " << itheta << std::endl;
+    //     for (auto it = reverse_transition_model[itheta].begin(); it != reverse_transition_model[itheta].end(); it++) {
+    //         std::cout << (*it)[0] << " " << (*it)[1] << " " << (*it)[2] << std::endl;
+    //     }
+    // }
 
     RPYTF initial_virtual_body_pose = initial_state->getVirtualBodyPose();
 
@@ -2377,7 +2447,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
     std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
-    map_grid_->generateDijkstraHeuristics(goal_cell, transition_model, region_mask);
+    map_grid_->generateDijkstraHeuristics(goal_cell, reverse_transition_model, region_mask);
 
     // getchar();
 
