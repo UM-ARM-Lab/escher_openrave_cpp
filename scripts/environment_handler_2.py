@@ -1214,6 +1214,163 @@ class environment_handler:
             self.goal_x = ground_max_x - 0.6
             self.goal_y = ground_max_y - 0.4
 
+        elif(surface_source == 'capture_test_env_6'): # new oil platform
+            ground_max_x = 4.0
+            ground_min_x = -2.0
+            ground_max_y = 5.5
+            ground_min_y = -1.0
+
+            obstacle_1_max_x = 1.0
+            obstacle_1_min_x = -1.0
+            obstacle_1_max_y = 2.8
+            obstacle_1_min_y = 0.8
+
+            obstacle_2_max_x = obstacle_1_max_x
+            obstacle_2_min_x = obstacle_1_min_x
+            obstacle_2_max_y = 4.8
+            obstacle_2_min_y = 3.8
+
+            # ground_max_x = 4.0
+            # ground_min_x = -2.0
+            # ground_max_y = 8.5
+            # ground_min_y = -1.0
+
+            # obstacle_1_max_x = 2.0
+            # obstacle_1_min_x = 0.5
+            # obstacle_1_max_y = 3.5
+            # obstacle_1_min_y = 1.5
+
+            # obstacle_2_max_x = obstacle_1_max_x
+            # obstacle_2_min_x = obstacle_1_min_x
+            # obstacle_2_max_y = 6.5
+            # obstacle_2_min_y = 4.5
+
+            wall_clearance = 0.2
+
+            obstacle_1_ground_max_x = obstacle_1_max_x + wall_clearance
+            obstacle_1_ground_min_x = obstacle_1_min_x - wall_clearance
+            obstacle_1_ground_max_y = obstacle_1_max_y + wall_clearance
+            obstacle_1_ground_min_y = obstacle_1_min_y - wall_clearance
+
+            obstacle_2_ground_max_x = obstacle_2_max_x + wall_clearance
+            obstacle_2_ground_min_x = obstacle_2_min_x - wall_clearance
+            obstacle_2_ground_max_y = obstacle_2_max_y + wall_clearance
+            obstacle_2_ground_min_y = obstacle_2_min_y - wall_clearance
+
+            # ground platforms
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(obstacle_1_ground_min_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(obstacle_1_ground_min_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(obstacle_1_ground_min_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(obstacle_1_ground_min_y-ground_min_y)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,(obstacle_1_ground_min_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(obstacle_2_ground_min_y-obstacle_1_ground_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(obstacle_2_ground_min_y-obstacle_1_ground_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(obstacle_2_ground_min_y-obstacle_1_ground_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(obstacle_2_ground_min_y-obstacle_1_ground_max_y)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,(obstacle_2_ground_min_y+obstacle_1_ground_max_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_2_ground_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_2_ground_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_2_ground_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_2_ground_max_y)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,(ground_max_y+obstacle_2_ground_max_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-obstacle_2_ground_max_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-obstacle_2_ground_max_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-obstacle_2_ground_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-obstacle_2_ground_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0)],
+                                                        [(ground_max_x+obstacle_2_ground_max_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_1_ground_min_x-ground_min_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(obstacle_1_ground_min_x-ground_min_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(obstacle_1_ground_min_x-ground_min_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((obstacle_1_ground_min_x-ground_min_x)/2.0,-(ground_max_y-ground_min_y)/2.0)],
+                                                        [(obstacle_1_ground_min_x+ground_min_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            wall_max_z = 2.0
+            wall_min_z = 0.0
+
+            self.add_quadrilateral_surface(structures, [((obstacle_1_max_x-obstacle_1_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_x-obstacle_1_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_x-obstacle_1_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_1_max_x-obstacle_1_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(obstacle_1_max_x+obstacle_1_min_x)/2.0,obstacle_1_min_y,(wall_max_z+wall_min_z)/2.0,90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_2_max_y-obstacle_2_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_y-obstacle_2_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_y-obstacle_2_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_2_max_y-obstacle_2_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [obstacle_2_max_x,(obstacle_2_max_y+obstacle_2_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_2_max_x-obstacle_2_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_x-obstacle_2_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_x-obstacle_2_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_2_max_x-obstacle_2_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(obstacle_2_max_x+obstacle_2_min_x)/2.0,obstacle_2_max_y,(wall_max_z+wall_min_z)/2.0,-90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_2_max_y-obstacle_2_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_y-obstacle_2_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_y-obstacle_2_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_2_max_y-obstacle_2_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [obstacle_2_min_x,(obstacle_2_max_y+obstacle_2_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,-90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_2_max_x-obstacle_2_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_x-obstacle_2_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_2_max_x-obstacle_2_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_2_max_x-obstacle_2_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(obstacle_2_max_x+obstacle_2_min_x)/2.0,obstacle_2_min_y,(wall_max_z+wall_min_z)/2.0,90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_1_max_y-obstacle_1_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_y-obstacle_1_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_y-obstacle_1_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_1_max_y-obstacle_1_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [obstacle_1_max_x,(obstacle_1_max_y+obstacle_1_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_1_max_x-obstacle_1_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_x-obstacle_1_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_x-obstacle_1_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_1_max_x-obstacle_1_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(obstacle_1_max_x+obstacle_1_min_x)/2.0,obstacle_1_max_y,(wall_max_z+wall_min_z)/2.0,-90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((obstacle_1_max_y-obstacle_1_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_y-obstacle_1_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(obstacle_1_max_y-obstacle_1_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((obstacle_1_max_y-obstacle_1_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [obstacle_1_min_x,(obstacle_1_max_y+obstacle_1_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,-90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.goal_x = 3.0
+            self.goal_y = 3.3
+
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))
 

@@ -10,5 +10,6 @@ ominaeshi = [221,210,59]
 tokiwa = [27,129,62]
 sabitetsuonando = [64,91,85]
 ginnezumi = [145,152,159]
+ginsyu = [199,62,58]
 
 color_library = [hiwa, midori, hiwamoegi, tamago, urayanagi, nae, aotake, kihada, ominaeshi, tokiwa]

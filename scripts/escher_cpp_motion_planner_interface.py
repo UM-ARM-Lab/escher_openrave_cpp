@@ -288,6 +288,28 @@ def main(meta_path_generation_method='all_planning',
             initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
             initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
 
+        elif surface_source == 'capture_test_env_6':
+            # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.7 * robot_mass, 0, 0, 0, 0, 0.25])
+            # disturbance_samples.append([0, -0.8 * robot_mass, 0, 0, 0, 0, 0.25])
+
+            disturbance_samples.append([-0.5 * robot_mass, 0, 0, 0, 0, 0, 0.3333])
+            disturbance_samples.append([-0.6 * robot_mass, 0, 0, 0, 0, 0, 0.3334])
+            disturbance_samples.append([-0.7 * robot_mass, 0, 0, 0, 0, 0, 0.3333])
+
+            # disturbance_samples.append([-0.9 * robot_mass, 0, 0, 0, 0, 0, 1.0])
+
+            # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.3333])
+            # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.3334])
+            # disturbance_samples.append([0, -0.7 * robot_mass, 0, 0, 0, 0, 0.3333])
+
+            # disturbance_samples.append([0, 0.5 * robot_mass, 0, 0, 0, 0, 0.3333])
+            # disturbance_samples.append([0, 0.6 * robot_mass, 0, 0, 0, 0, 0.3334])
+            # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.3333])
+
+            # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 1.0])
+
         env_handler.update_environment(escher, escher_planning_data_path + environment_path + '/env_' + str(env_id), surface_source)
 
         goal_x = env_handler.goal_x
@@ -364,7 +386,7 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=100.0,
+                                                time_limit=30.0,
                                                 planning_heuristics='euclidean',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,
