@@ -447,7 +447,14 @@ tensorflow::Status NeuralNetworkInterface::LoadTensorflowGraph(const std::string
         return tensorflow::errors::NotFound("Failed to load compute graph at '", graph_file_name, "'");
     }
 
-    session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
+    tensorflow::SessionOptions option;
+    tensorflow::graph::SetDefaultDevice("/CPU:0", &graph_def);
+    // tensorflow::graph::SetDefaultDevice("/device:GPU:0", &graph_def);
+    // option.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.5);
+    // option.config.mutable_gpu_options()->set_allow_growth(true);
+    session->reset(tensorflow::NewSession(option));
+
+    // session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
     tensorflow::Status session_create_status = (*session)->Create(graph_def);
 
     if (!session_create_status.ok())

@@ -148,6 +148,9 @@ class ContactSpacePlanning
         bool footPoseSampling(ContactManipulator& contact_manipulator, RPYTF& projection_pose, double height);
         bool handPoseSampling(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
 
+        void extendZeroStepCaptureStates(std::vector< std::shared_ptr<ContactState> >& zero_step_capture_contact_state_vector, std::shared_ptr<ContactState> current_state, ContactManipulator& move_manip, Translation3D& initial_com, Vector3D& initial_lmom);
+        void extendOneStepCaptureStates(std::vector< std::shared_ptr<ContactState> >& one_step_capture_contact_state_vector, std::shared_ptr<ContactState> zero_step_capture_state, std::vector< std::shared_ptr<ContactState> >& disturbance_rejection_branching_states);
+
         void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
         void updateExploreStatesAndOpenHeap();
