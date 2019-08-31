@@ -619,27 +619,30 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 }
                 std::cout << "]";
 
-                // std::cout << ", Valid Capture Pose Num:";
-                // for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
-                // {
-                //     std::vector<int> valid_capture_pose_num_vec(int(ContactManipulator::MANIP_NUM), 0);
-                //     int capture_pose_num = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_.size();
-                //     for(int capture_id = disturb_id * capture_pose_num; capture_id < (disturb_id+1) * capture_pose_num; capture_id++)
-                //     {
-                //         auto capture_pose = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_[capture_id % capture_pose_num];
-                //         int capture_pose_prediction = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_prediction_vector_[capture_id];
-                //         valid_capture_pose_num_vec[int(capture_pose.contact_manip_)] += capture_pose_prediction;
-                //     }
+                std::cout << ", Valid Capture Pose Num:";
+                for(int time_id = 0; time_id < 4; time_id++)
+                {
+                    for(int disturb_id = 0; disturb_id < disturbance_samples_.size(); disturb_id++)
+                    {
+                        std::vector<int> valid_capture_pose_num_vec(int(ContactManipulator::MANIP_NUM), 0);
+                        int capture_pose_num = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_.size();
+                        for(int capture_id = (time_id*disturbance_samples_.size()+disturb_id) * capture_pose_num; capture_id < (time_id*disturbance_samples_.size()+disturb_id+1) * capture_pose_num; capture_id++)
+                        {
+                            auto capture_pose = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_vector_[capture_id % capture_pose_num];
+                            int capture_pose_prediction = all_solution_contact_paths[i][state_id]->transition_phase_capture_poses_prediction_vector_[capture_id];
+                            valid_capture_pose_num_vec[int(capture_pose.contact_manip_)] += capture_pose_prediction;
+                        }
 
-                //     std::cout << " [";
-                //     for(int manip_id = 0; manip_id < int(ContactManipulator::MANIP_NUM); manip_id++)
-                //     {
-                //         std::cout << valid_capture_pose_num_vec[manip_id];
-                //         if(manip_id < int(ContactManipulator::MANIP_NUM)-1)
-                //             std::cout << ",";
-                //     }
-                //     std::cout << "]";
-                // }
+                        std::cout << " [";
+                        for(int manip_id = 0; manip_id < int(ContactManipulator::MANIP_NUM); manip_id++)
+                        {
+                            std::cout << valid_capture_pose_num_vec[manip_id];
+                            if(manip_id < int(ContactManipulator::MANIP_NUM)-1)
+                                std::cout << ",";
+                        }
+                        std::cout << "]";
+                    }
+                }
 
                 std::cout << std::endl;
 
@@ -723,7 +726,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 bool enable_file_output = false;
 
                 std::string config_path = "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/";
-                std::string experiment_name = "oil_platform_2_new_round_baseline_0";
+                std::string experiment_name = "narrw_flat_ground_edge_checking";
                 std::string kindynopt_config_locomotion_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_hermes_full.yaml";
                 // std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template_capture_motion_hermes_full.yaml";
                 std::string kindynopt_config_capture_template_path = "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_hermes_full.yaml";
@@ -1264,12 +1267,25 @@ void ContactSpacePlanning::kinematicsVerification_StateOnly(std::vector< std::sh
 
     // std::array<int,4> num_contacts = {1,1,0,0};
 
+    float post_transition_com_progress = 0.4;
     for(auto & contact_state : contact_state_path)
     {
         if(!contact_state->is_root_)
         {
             // std::cout << "dynamics cost: "<< contact_state->accumulated_dynamics_cost_ - contact_state->parent_->accumulated_dynamics_cost_ << std::endl;
             drawing_handler_->DrawLineSegment(contact_state->parent_->com_, contact_state->com_, {1,0,0,1});
+
+            Translation3D post_transition_com = post_transition_com_progress * contact_state->com_ + (1-post_transition_com_progress) * contact_state->parent_->com_;
+            Translation3D post_transition_com_dot = contact_state->com_dot_;
+
+            for(int time_id = 1; time_id < 4; time_id++)
+            {
+                float transition_progress = time_id * 1.0 / 3;
+                Translation3D transition_com = transition_progress * post_transition_com + (1-transition_progress) * contact_state->parent_->com_;
+                Translation3D transition_com_dot = transition_progress * post_transition_com_dot + (1-transition_progress) * contact_state->parent_->com_dot_;
+                drawing_handler_->DrawLocation(transition_com, Vector3D(1,0,0));
+                drawing_handler_->DrawArrow(transition_com, transition_com_dot, Vector3D(1,0,0));
+            }
         }
         // std::cout << "com: " << contact_state->com_[0] << " " << contact_state->com_[1] << " " << contact_state->com_[2] << std::endl;
         // std::cout << "com_dot: " << contact_state->com_dot_[0] << " " << contact_state->com_dot_[1] << " " << contact_state->com_dot_[2] << std::endl;
@@ -2419,9 +2435,6 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         //     {
         //         std::shared_ptr<ContactState> branching_state = tmp_branching_states[i];
         //         float dynamics_cost = 0.0;
-        //         float disturbance_cost = disturbance_costs[int(branching_state->prev_move_manip_)];
-        //         branching_state->transition_phase_capture_poses_vector_ = capture_poses_by_manip[int(branching_state->prev_move_manip_)];
-        //         branching_state->transition_phase_capture_poses_prediction_vector_ = capture_poses_prediction_by_manip[int(branching_state->prev_move_manip_)];
         //         state_feasibility_vector[i] = !use_dynamics_planning_ || stateFeasibilityCheck(branching_state, dynamics_cost, i); // we use lazy checking when not using dynamics planning
         //         tmp_dynamics_cost_vec[i] = dynamics_cost;
         //     }
@@ -2486,6 +2499,8 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
 
         if(check_edge)
         {
+            auto time_start_check_edge = std::chrono::high_resolution_clock::now();
+
             if(!check_contact_transition_feasibility_)
             {
                 RAVELOG_ERROR("If edge checking for capturability is applied, must enable contact transition feasibility check to update the branching states' CoM.\n");
@@ -2556,7 +2571,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 Translation3D post_transition_lmom = branching_state->lmom_;
                 for(int time_id = 1; time_id < swing_phase_time_step_num; time_id++)
                 {
-                    float transition_progress = time_id * 1.0 / swing_phase_time_step_num;
+                    float transition_progress = time_id * 1.0 / (swing_phase_time_step_num-1);
                     Translation3D transition_com = transition_progress * post_transition_com + (1-transition_progress) * current_state->com_;
                     Translation3D transition_lmom = transition_progress * post_transition_lmom + (1-transition_progress) * current_state->lmom_;
                     extendZeroStepCaptureStates(zero_step_capture_state_vec, current_state, branching_state->prev_move_manip_, transition_com, transition_lmom);
@@ -2566,11 +2581,16 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 branching_state_id++;
             }
 
+            auto time_after_get_zero_step_capture_state = std::chrono::high_resolution_clock::now();
+
             // check zero step capture
             if(check_zero_step_capturability_)
             {
                 zero_step_dynamically_feasible_vec = neural_network_interface_vector_[0]->predictZeroStepCaptureDynamics(zero_step_capture_state_vec, NeuralNetworkModelType::TENSORFLOW);
             }
+
+            auto time_after_check_zero_step_capture_state = std::chrono::high_resolution_clock::now();
+            auto time_after_get_one_step_capture_state = std::chrono::high_resolution_clock::now();
 
             // get all the transition timestep one step capture state
             if(check_one_step_capturability_)
@@ -2585,8 +2605,12 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                     zero_step_capture_state_id++;
                 }
 
+                time_after_get_one_step_capture_state = std::chrono::high_resolution_clock::now();
+
                 one_step_dynamically_feasible_vec = neural_network_interface_vector_[0]->predictOneStepCaptureDynamics(one_step_capture_state_vec, NeuralNetworkModelType::TENSORFLOW);
             }
+
+            auto time_after_check_one_step_capture_state = std::chrono::high_resolution_clock::now();
 
             // get the disturbance costs
             for(int i = 0; i < branching_states.size(); i++)
@@ -2676,6 +2700,18 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
                 disturbance_costs_vec[i] = transition_disturbance_cost;
                 capture_poses_predictions_vec[i] = capture_poses_predictions;
             }
+
+            auto time_after_assign_edge_costs = std::chrono::high_resolution_clock::now();
+
+            // std::cout << "get zero step capture state time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_get_zero_step_capture_state - time_start_check_edge).count() << std::endl;
+            // std::cout << "check zero step capture state time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_check_zero_step_capture_state - time_after_get_zero_step_capture_state).count() << std::endl;
+            // std::cout << "get one step capture state time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_get_one_step_capture_state - time_after_check_zero_step_capture_state).count() << std::endl;
+            // std::cout << "check one step capture state time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_check_one_step_capture_state - time_after_get_one_step_capture_state).count() << std::endl;
+            // std::cout << "edge cost assignment time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_assign_edge_costs - time_after_check_one_step_capture_state).count() << std::endl;
+            // std::cout << "branching states size: " << branching_states.size() << std::endl;
+            // std::cout << "disturbance samples size: " << disturbance_samples_.size() << std::endl;
+            // std::cout << "------------------------------------" << std::endl;
+            // getchar();
         }
         else
         {

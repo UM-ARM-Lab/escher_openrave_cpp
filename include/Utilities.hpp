@@ -257,6 +257,15 @@ struct EigenVectorHash
     }
 };
 
+struct PairHash
+{
+	template <class T1, class T2>
+	std::size_t operator() (const std::pair<T1, T2> &pair) const
+	{
+		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+	}
+};
+
 struct pointer_less
 {
     template <typename T>
@@ -377,8 +386,8 @@ float orientationDistance(const Quaternion& q, const Quaternion& p);
 
 // Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
-TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform transform);
-TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform& transform);
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix& T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T);

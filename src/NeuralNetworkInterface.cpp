@@ -227,6 +227,7 @@ Eigen::MatrixXd RegressionModel::predict(Eigen::MatrixXd input, NeuralNetworkMod
     size_t data_num = input.cols();
     Eigen::MatrixXd normalized_input = (input - input_mean_.replicate(1,data_num)).cwiseQuotient(input_std_.replicate(1,data_num));
     Eigen::MatrixXd normalized_result(output_dim_, data_num);
+    // Eigen::MatrixXf normalized_result_tmp(data_num, output_dim_);
 
     if(model_type == NeuralNetworkModelType::FRUGALLY_DEEP)
     {
@@ -278,7 +279,9 @@ Eigen::MatrixXd RegressionModel::predict(Eigen::MatrixXd input, NeuralNetworkMod
             }
         }
 
-        // normalized_result = Eigen::Map<Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> >(tf_result[0].flat<double>().data(), tf_result[0].dim_size(0), tf_result[0].dim_size(1));
+        // normalized_result_tmp = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> >(tf_result[0].flat<float>().data(), tf_result[0].dim_size(0), tf_result[0].dim_size(1));
+        // normalized_result = normalized_result_tmp.transpose().cast<double>();
+
         // normalized_result = tf_result[0].matrix<double>();
     }
 
@@ -450,7 +453,7 @@ tensorflow::Status NeuralNetworkInterface::LoadTensorflowGraph(const std::string
     tensorflow::SessionOptions option;
     tensorflow::graph::SetDefaultDevice("/CPU:0", &graph_def);
     // tensorflow::graph::SetDefaultDevice("/device:GPU:0", &graph_def);
-    // option.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.5);
+    // option.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.8);
     // option.config.mutable_gpu_options()->set_allow_growth(true);
     session->reset(tensorflow::NewSession(option));
 
@@ -585,6 +588,7 @@ std::vector< std::tuple<bool, float, Translation3D, Vector3D> > NeuralNetworkInt
             for(auto & data_id : contact_transition_code_branching_state_index_pair.second)
             {
                 if(contact_transition_dynamics_feasibility_predictions[query_data_id] >= 0.5)
+                // if(true)
                 {
                     Translation3D predicted_com = contact_transition_dynamics_objective_predictions.block(0,query_data_id,3,1).cast<float>();
                     Vector3D predicted_com_dot = contact_transition_dynamics_objective_predictions.block(3,query_data_id,3,1).cast<float>();
@@ -849,33 +853,140 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
     std::unordered_map<OneStepCaptureCode, std::vector<int>, EnumClassHash> capture_code_one_step_capture_state_indices_map;
     std::vector<Eigen::VectorXd> feature_vector_vec(one_step_capture_state_vec.size());
 
+    std::vector<ContactManipulator> mirror_manip_vec = {ContactManipulator::R_LEG, ContactManipulator::L_LEG, ContactManipulator::R_ARM, ContactManipulator::L_ARM};
+
+    // RotationMatrix mirror_matrix;
+    // mirror_matrix << 1,  0, 0,
+    //                  0, -1, 0,
+    //                  0,  0, 1;
+
     if(one_step_capture_state_vec.size() != 0)
     {
+        auto time_start_predict_one_step_capture_dynamics = std::chrono::high_resolution_clock::now();
+
+        // custom build the query vector vector
+        std::unordered_map< std::pair<std::size_t,int>, std::shared_ptr<ContactState>, PairHash> prev_standard_states;
         int data_id = 0;
         for(auto one_step_capture_state : one_step_capture_state_vec)
         {
-            // get reference frame
-            std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
-            std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+            std::shared_ptr<ContactState> prev_state = one_step_capture_state->parent_;
+            ContactManipulator move_manip = one_step_capture_state->prev_move_manip_;
+            TransformationMatrix reference_frame = one_step_capture_state->parent_->getFeetMeanTransform();
+            TransformationMatrix inv_reference_frame = inverseTransformationMatrix(reference_frame);
 
-            // decide the motion code & the poses
-            auto motion_code_poses_pair = standard_input_state->getOneStepCapturabilityCodeAndPoses();
-            OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
-            std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+            int manip_side = (move_manip == ContactManipulator::R_LEG || move_manip == ContactManipulator::R_ARM) ? 1 : 0;
+            std::size_t zero_step_capture_state_hash = std::hash<ContactState>()(*(one_step_capture_state->parent_));
+            std::pair<std::size_t, int> prev_state_key = std::make_pair(zero_step_capture_state_hash, manip_side);
+            if(prev_standard_states.find(prev_state_key) == prev_standard_states.end())
+            {
+                if(move_manip == ContactManipulator::R_LEG || move_manip == ContactManipulator::R_ARM)
+                {
+                    prev_state = one_step_capture_state->parent_->getMirrorState(reference_frame);
+                }
+                prev_state = prev_state->getCenteredState(reference_frame);
+                prev_standard_states[prev_state_key] = prev_state;
+            }
+            else
+            {
+                prev_state = prev_standard_states[prev_state_key];
+            }
+
+            // get reference frame
+            ContactManipulator standard_move_manip = move_manip;
+            std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_state->stances_vector_[0]->ee_contact_status_;
+            std:array<RPYTF,ContactManipulator::MANIP_NUM> ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
+            TransformationMatrix capture_pose = inv_reference_frame * XYZRPYToSE3(one_step_capture_state->stances_vector_[0]->ee_contact_poses_[move_manip]);
+
+            if(move_manip == ContactManipulator::R_LEG || move_manip == ContactManipulator::R_ARM)
+            {
+                standard_move_manip = mirror_manip_vec[int(move_manip)];
+                // capture_pose.block(0,0,3,3) = mirror_matrix * capture_pose.block(0,0,3,3) * mirror_matrix;
+                capture_pose(0,1) = -capture_pose(0,1); // mirror
+                capture_pose(1,0) = -capture_pose(1,0);
+                capture_pose(2,1) = -capture_pose(2,1);
+                capture_pose(1,2) = -capture_pose(1,2);
+                capture_pose(1,3) = -capture_pose(1,3);
+            }
+
+            ee_contact_poses[int(standard_move_manip)] = SE3ToXYZRPY(capture_pose);
+            std::vector<ContactManipulator> contact_manipulators;
+
+            OneStepCaptureCode one_step_capture_code;
+            if(ee_contact_status[ContactManipulator::R_LEG] && standard_move_manip == ContactManipulator::L_LEG)
+            {
+                one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_FOOT;
+                contact_manipulators = {ContactManipulator::R_LEG, ContactManipulator::L_LEG};
+            }
+            else if(ee_contact_status[ContactManipulator::R_LEG] && standard_move_manip == ContactManipulator::L_ARM)
+            {
+                one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_OUTER_HAND;
+                contact_manipulators = {ContactManipulator::R_LEG, ContactManipulator::L_ARM};
+            }
+            else if(ee_contact_status[ContactManipulator::L_LEG] && standard_move_manip == ContactManipulator::L_ARM)
+            {
+                one_step_capture_code = OneStepCaptureCode::ONE_FOOT_ADD_INNER_HAND;
+                contact_manipulators = {ContactManipulator::L_LEG, ContactManipulator::L_ARM};
+            }
+
+            Eigen::VectorXd feature_vector(contact_manipulators.size()*6+6);
+
+            unsigned int counter = 0;
+            for(auto & contact_manip : contact_manipulators)
+            {
+                feature_vector[counter]   = ee_contact_poses[contact_manip].x_;
+                feature_vector[counter+1] = ee_contact_poses[contact_manip].y_;
+                feature_vector[counter+2] = ee_contact_poses[contact_manip].z_;
+                feature_vector[counter+3] = ee_contact_poses[contact_manip].roll_ * DEG2RAD;
+                feature_vector[counter+4] = ee_contact_poses[contact_manip].pitch_ * DEG2RAD;
+                feature_vector[counter+5] = ee_contact_poses[contact_manip].yaw_ * DEG2RAD;
+
+                counter += 6;
+            }
+            feature_vector.block(feature_vector.size()-6, 0, 3, 1) = prev_state->com_.cast<double>();
+            feature_vector.block(feature_vector.size()-3, 0, 3, 1) = prev_state->lmom_.cast<double>();
+            feature_vector_vec[data_id] = feature_vector;
 
             if(capture_code_one_step_capture_state_indices_map.find(one_step_capture_code) == capture_code_one_step_capture_state_indices_map.end())
             {
                 capture_code_one_step_capture_state_indices_map[one_step_capture_code] = {data_id};
+                capture_code_one_step_capture_state_indices_map[one_step_capture_code].reserve(one_step_capture_state_vec.size());
             }
             else
             {
                 capture_code_one_step_capture_state_indices_map[one_step_capture_code].push_back(data_id);
             }
 
-            feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->lmom_);
-
             data_id++;
         }
+
+        // // structured but slow way to build the query vector vector
+        // int data_id = 0;
+        // for(auto one_step_capture_state : one_step_capture_state_vec)
+        // {
+        //     // get reference frame
+        //     std::shared_ptr<ContactState> standard_input_state = one_step_capture_state->getStandardInputState(DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+        //     std::shared_ptr<ContactState> prev_state = standard_input_state->parent_;
+
+        //     // decide the motion code & the poses
+        //     auto motion_code_poses_pair = standard_input_state->getOneStepCapturabilityCodeAndPoses();
+        //     OneStepCaptureCode one_step_capture_code = motion_code_poses_pair.first;
+        //     std::vector<RPYTF> contact_manip_pose_vec = motion_code_poses_pair.second;
+
+        //     if(capture_code_one_step_capture_state_indices_map.find(one_step_capture_code) == capture_code_one_step_capture_state_indices_map.end())
+        //     {
+        //         capture_code_one_step_capture_state_indices_map[one_step_capture_code] = {data_id};
+        //     }
+        //     else
+        //     {
+        //         capture_code_one_step_capture_state_indices_map[one_step_capture_code].push_back(data_id);
+        //     }
+
+        //     feature_vector_vec[data_id] = constructFeatureVector(contact_manip_pose_vec, prev_state->com_, prev_state->lmom_);
+
+        //     data_id++;
+        // }
+
+        auto time_after_collect_feature_vectors = std::chrono::high_resolution_clock::now();
 
         for(auto & capture_code_one_step_capture_state_index_pair : capture_code_one_step_capture_state_indices_map)
         {
@@ -892,13 +1003,6 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
                 query_data_id++;
             }
 
-            // Eigen::MatrixXd duplicate_feature_matrix(input_dim, data_num*100);
-
-            // for(int i = 0; i < 100; i++)
-            // {
-            //     duplicate_feature_matrix.block(0,data_num*i,input_dim,data_num) = feature_matrix;
-            // }
-
             std::vector<float> one_step_capturability_predictions = one_step_capturability_calssification_models_map_.find(one_step_capture_code)->second.predict(feature_matrix, model_type);
 
             query_data_id = 0;
@@ -907,8 +1011,18 @@ std::vector<bool> NeuralNetworkInterface::predictOneStepCaptureDynamics(std::vec
                 one_step_capturability_vec[data_id] = one_step_capturability_predictions[query_data_id] >= 0.5;
                 query_data_id++;
             }
+
+            // std::cout << data_num << " ";
         }
 
+        auto time_after_query_one_step_capturabiltiy_classifiers = std::chrono::high_resolution_clock::now();
+
+        // std::cout << std::endl;
+        // std::cout << "  get feature vector time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_collect_feature_vectors - time_start_predict_one_step_capture_dynamics).count() << std::endl;
+        // std::cout << "  query classifier time: " << std::chrono::duration_cast<std::chrono::microseconds>(time_after_query_one_step_capturabiltiy_classifiers - time_after_collect_feature_vectors).count() << std::endl;
+        // std::cout << data_id << std::endl;
+        // std::cout << prev_standard_states.size() << std::endl;
+        // // getchar();
     }
 
     return one_step_capturability_vec;

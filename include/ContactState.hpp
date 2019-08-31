@@ -25,7 +25,7 @@ class Stance
     private:
 };
 
-class ContactState
+class ContactState : public std::enable_shared_from_this<ContactState>
 {
     public:
         // ContactState():num_stance_in_state_(0), is_root_(false){}

@@ -309,10 +309,10 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
 
     std::vector<ContactManipulator> mirror_manip_vec = {ContactManipulator::R_LEG, ContactManipulator::L_LEG, ContactManipulator::R_ARM, ContactManipulator::L_ARM};
 
-    std::vector< std::shared_ptr<Stance> > mirror_stance_vector;
-    std::vector<ContactManipulator> mirror_future_move_manips;
-    mirror_stance_vector.reserve(stances_vector_.size());
+    std::vector< std::shared_ptr<Stance> > mirror_stance_vector(stances_vector_.size());
+    std::vector<ContactManipulator> mirror_future_move_manips(future_move_manips_.size());
 
+    int stance_id = 0;
     for(auto & stance : stances_vector_)
     {
         std::array<RPYTF,ContactManipulator::MANIP_NUM> mirror_ee_contact_pose;
@@ -340,7 +340,8 @@ std::shared_ptr<ContactState> ContactState::getMirrorState(TransformationMatrix&
             mirror_ee_contact_status[int(mirror_manip_vec[int(manip)])] = stance->ee_contact_status_[int(manip)];
         }
 
-        mirror_stance_vector.push_back(std::make_shared<Stance>(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3], mirror_ee_contact_status));
+        mirror_stance_vector[stance_id] = std::make_shared<Stance>(mirror_ee_contact_pose[0], mirror_ee_contact_pose[1], mirror_ee_contact_pose[2], mirror_ee_contact_pose[3], mirror_ee_contact_status);
+        stance_id++;
     }
 
     for(int i = 0; i < future_move_manips_.size(); i++)
@@ -379,6 +380,7 @@ std::shared_ptr<ContactState> ContactState::getCenteredState(TransformationMatri
 {
     // mirror the left and right end-effector poses
     TransformationMatrix inv_reference_frame =  inverseTransformationMatrix(reference_frame);
+
     RotationMatrix reference_frame_rotation = reference_frame.block(0,0,3,3);
     RotationMatrix inv_reference_frame_rotation = inv_reference_frame.block(0,0,3,3);
 
@@ -433,8 +435,10 @@ std::shared_ptr<ContactState> ContactState::getStandardInputState(DynOptApplicat
     if(dynamics_optimizer_application == DynOptApplication::CONTACT_TRANSITION_DYNOPT ||
        dynamics_optimizer_application == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
     {
-        standard_state = std::make_shared<ContactState>(*this);
-        prev_state = std::make_shared<ContactState>(*parent_);
+        // standard_state = std::make_shared<ContactState>(*this);
+        // prev_state = std::make_shared<ContactState>(*parent_);
+        standard_state = shared_from_this();
+        prev_state = parent_;
         reference_frame = prev_state->getFeetMeanTransform();
 
         // mirror the states if necessary
@@ -457,7 +461,8 @@ std::shared_ptr<ContactState> ContactState::getStandardInputState(DynOptApplicat
     }
     else if(dynamics_optimizer_application == DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT)
     {
-        standard_state = std::make_shared<ContactState>(*this);
+        // standard_state = std::make_shared<ContactState>(*this);
+        standard_state = shared_from_this();
         reference_frame = standard_state->getFeetMeanTransform();
 
         if((standard_state->manip_in_contact(ContactManipulator::L_LEG) && !standard_state->manip_in_contact(ContactManipulator::R_LEG)) ||
