@@ -592,7 +592,7 @@ class escher_openrave_cpp_wrapper(object):
             cmd.append(time_limit)
             cmd.append(epsilon)
 
-            if planning_heuristics == 'euclidean' or planning_heuristics == 'dijkstra':
+            if planning_heuristics == 'euclidean' or planning_heuristics == 'dijkstra' or planning_heuristics == 'dijkstra_with_dyncost':
                 cmd.append(planning_heuristics)
             else:
                 print('Unknown planning heuristics type %s. Abort.'%(planning_heuristics))

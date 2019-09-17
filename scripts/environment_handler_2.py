@@ -1331,6 +1331,7 @@ class environment_handler:
                 for col in range(col_num): # columns of stepping stones
                     surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 2,
                                          (col - col_num // 2)*stepping_stone_size[1] - 0.5,
+                                        #  (col - col_num // 2)*stepping_stone_size[1] - 0.5 - 0.1,
                                          random.uniform(-0.05,0.05),
                                          random.uniform(-20,20),
                                          random.uniform(-20,20),

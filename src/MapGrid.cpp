@@ -193,6 +193,8 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
 
         // Filter(Smooth) the height map (or you can just fill in holes)
         std::cout << "Height map smoothing." << std::endl;
+        // !!!!!!!!!!!!!!!!!!!!
+        // int window_size = 3;
         int window_size = 1; // must be a odd number
         for(int ix = 1; ix < dim_x_-1; ix++)
         {
@@ -413,9 +415,7 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
             inputs.push_back(ground_map.cuda());
             inputs.push_back(wall_map.cuda());
             inputs.push_back(torch::from_blob(p2_arr, {pending_transitions.size(),3}).cuda());
-            // cudaDeviceSynchronize();
             at::Tensor output = heuristic_helper_.module.forward(inputs).toTensor().cpu();
-            // cudaDeviceSynchronize();
             auto output_a = output.accessor<float, 2>();
             // std::vector<std::vector<float>> output_a(pending_transitions.size(), std::vector<float>(1, 1));
 
@@ -440,7 +440,7 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
         }
     }
 
-    std::cout << global_smallest_cost << " " << global_highest_cost << std::endl;
+    std::cout << "global smallest cost: " << global_smallest_cost << " global highest cost: " <<  global_highest_cost << std::endl;
 
     // visualize the cost returned by the dijkstra (select the lowest value among all theta in each x,y)
     std::cout << std::endl << "Dijkstra Cost Map Visualization: (0-9: number*0.1 is the cost ratio of the cost of each cell to the range between max/min costs), X: outside mask or not accessible" << std::endl;
@@ -720,7 +720,7 @@ std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initia
             }
         }
 
-        // getchar();
+        getchar();
     }
 
     return torso_path;
@@ -1156,7 +1156,7 @@ torch::Tensor MapGrid::HeuristicHelper::getWallDepthBoundaryMap(MapGrid* map_gri
     }
 
     // case 3: even a related wall depth map has not been generated before
-    std::cout << indices[0] << "," << indices[1] << "," << indices[2] << std::endl;
+    // std::cout << indices[0] << "," << indices[1] << "," << indices[2] << std::endl;
     torch::Tensor wall_depth_map = torch::ones({WALL_MAP_WIDTH, WALL_MAP_LENGTH}/*, torch::TensorOptions().device(torch::kCUDA, 0)*/) * WALL_DEFAULT_DEPTH;
     auto wall_depth_map_a = wall_depth_map.accessor<float, 2>();
     // 1 is the edge of wall_depth_map

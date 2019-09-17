@@ -60,7 +60,7 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
                                                                                        "../data/dynopt_result/one_step_capture_feasibility_classification_nn_models_2/");
     }
 
-    RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
+    // RAVELOG_INFO("Initialize dynamics optimizer interface.\n");
     dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
 
     for(unsigned int i = 0; i < dynamics_optimizer_interface_vector_.size(); i++)
@@ -70,38 +70,38 @@ check_contact_transition_feasibility_(_check_contact_transition_feasibility)
                                                                                           _robot_properties->ee_offset_transform_to_dynopt_);
     }
 
-    one_step_capture_dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
+    // one_step_capture_dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
 
-    for(unsigned int i = 0; i < one_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
-    {
-        one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
-                                                                                                           _robot_properties->ee_offset_transform_to_dynopt_,
-                                                                                                           DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // for(unsigned int i = 0; i < one_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
+    // {
+    //     one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_capture_motion_" + robot_properties_->name_ + ".yaml",
+    //                                                                                                        _robot_properties->ee_offset_transform_to_dynopt_,
+    //                                                                                                        DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
-        // one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
-        //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
-    }
+    //     // one_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
+    //     //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // }
 
-    // one_step_capture_dynamics_optimizer_interface_vector_[1] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_relaxed_0_1.yaml",
-    //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // // one_step_capture_dynamics_optimizer_interface_vector_[1] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_relaxed_0_1.yaml",
+    // //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
-    // one_step_capture_dynamics_optimizer_interface_vector_[2] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_relaxed_1_0.yaml",
-    //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // // one_step_capture_dynamics_optimizer_interface_vector_[2] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_relaxed_1_0.yaml",
+    // //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
-    // one_step_capture_dynamics_optimizer_interface_vector_[3] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_unlimited.yaml",
-    //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // // one_step_capture_dynamics_optimizer_interface_vector_[3] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_unlimited.yaml",
+    // //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
-    // one_step_capture_dynamics_optimizer_interface_vector_[4] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_original.yaml",
-    //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
+    // // one_step_capture_dynamics_optimizer_interface_vector_[4] = std::make_shared<OptimizationInterface>(0.5, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability_original.yaml",
+    // //                                                                                                    DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT);
 
-    zero_step_capture_dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
+    // zero_step_capture_dynamics_optimizer_interface_vector_.resize(2 * (foot_transition_model_.size() + hand_transition_model_.size()));
 
-    for(unsigned int i = 0; i < zero_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
-    {
-        zero_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.0, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
-                                                                                                            _robot_properties->ee_offset_transform_to_dynopt_,
-                                                                                                            DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
-    }
+    // for(unsigned int i = 0; i < zero_step_capture_dynamics_optimizer_interface_vector_.size(); i++)
+    // {
+    //     zero_step_capture_dynamics_optimizer_interface_vector_[i] = std::make_shared<OptimizationInterface>(0.0, 2.0, "../data/SL_optim_config_template/cfg_kdopt_demo_one_step_capturability.yaml",
+    //                                                                                                         _robot_properties->ee_offset_transform_to_dynopt_,
+    //                                                                                                         DynOptApplication::ZERO_STEP_CAPTURABILITY_DYNOPT);
+    // }
 
     if(!use_dynamics_planning_)
     {
@@ -271,6 +271,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     std::uniform_int_distribution<> int_unif(0, contact_states_map_.size()-1);
                     auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng_));
                     current_state = random_it->second;
+                    std::cout << "epsilon work" << std::endl;
                 }
 
                 // current_state = open_heap_.top();
@@ -374,8 +375,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                             {
                                 solution_contact_path[i]->parent_ = solution_contact_path[i-1];
 
-                                std::cout << "prev move manip: " << solution_contact_path[i]->prev_move_manip_;
-                                std::cout << ", disturbance cost: " << solution_contact_path[i]->prev_disturbance_cost_ << std::endl;
+                                // std::cout << "prev move manip: " << solution_contact_path[i]->prev_move_manip_;
+                                // std::cout << ", disturbance cost: " << solution_contact_path[i]->prev_disturbance_cost_ << std::endl;
                             }
                         }
                         all_solution_contact_paths.push_back(solution_contact_path);
@@ -387,9 +388,15 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         all_solution_planning_times.push_back(planning_time);
 
                         RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
-
                         drawing_handler_->ClearHandler();
                         drawing_handler_->DrawContactPath(solution_contact_path[solution_contact_path.size()-1]);
+
+                        // !!!!!!!!!!!!!!!!!!!!
+                        for(unsigned int i = 0; i < solution_contact_path.size(); i++) {
+                            std::cout << "position: " << i << " h: " << solution_contact_path[i]->h_
+                                      << " g: " << solution_contact_path[i]->g_ << std::endl;
+                        }
+                        std::cout << "end" << std::endl;
 
                         getchar();
 
@@ -522,140 +529,140 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
             total_dynamics_cost = fillDynamicsSequence(all_solution_contact_paths[i]);
             std::cout << "Whole Contact Sequence Optimization CoM trajectory(Blue)." << std::endl;
 
-            if(total_dynamics_cost != 99999.0)
-            {
-                // getchar();
-                num_contact_sequence_tried = all_solution_contact_paths.size() - i;
+            // if(total_dynamics_cost != 99999.0)
+            // {
+            //     // getchar();
+            //     num_contact_sequence_tried = all_solution_contact_paths.size() - i;
 
-                // export the movement & capture contact sequence for kinematics optimization
-                exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                                                             all_solution_contact_paths[i],
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
+            //     // export the movement & capture contact sequence for kinematics optimization
+            //     exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+            //                                                  all_solution_contact_paths[i],
+            //                                                  "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/cfg_kdopt_demo.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
 
-                exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                                                             all_solution_contact_paths[i],
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/initial_motion_cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
+            //     exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+            //                                                  all_solution_contact_paths[i],
+            //                                                  "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/initial_motion_cfg_kdopt_demo.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
 
-                int max_rejection_num = 0;
-                int impact_state_id = all_solution_contact_paths[i].size() - 2;
-                for(int state_id = 1; state_id < all_solution_contact_paths[i].size()-1; state_id++)
-                {
-                    std::cout << all_solution_contact_paths[i][state_id]->capture_poses_vector_.size() << std::endl;
-                    if(all_solution_contact_paths[i][state_id]->capture_poses_vector_.size() >= max_rejection_num)
-                    {
-                        impact_state_id = state_id;
-                        max_rejection_num = all_solution_contact_paths[i][state_id]->capture_poses_vector_.size();
-                    }
-                }
+            //     int max_rejection_num = 0;
+            //     int impact_state_id = all_solution_contact_paths[i].size() - 2;
+            //     for(int state_id = 1; state_id < all_solution_contact_paths[i].size()-1; state_id++)
+            //     {
+            //         std::cout << all_solution_contact_paths[i][state_id]->capture_poses_vector_.size() << std::endl;
+            //         if(all_solution_contact_paths[i][state_id]->capture_poses_vector_.size() >= max_rejection_num)
+            //         {
+            //             impact_state_id = state_id;
+            //             max_rejection_num = all_solution_contact_paths[i][state_id]->capture_poses_vector_.size();
+            //         }
+            //     }
 
-                std::cout << "***" << std::endl;
+            //     std::cout << "***" << std::endl;
 
-                std::shared_ptr<ContactState> impact_state = all_solution_contact_paths[i][impact_state_id]; // the state-to-be if the disturbance does not happen
-                std::shared_ptr<ContactState> prev_state = impact_state->parent_;
-                ContactManipulator move_manip = impact_state->prev_move_manip_;
+            //     std::shared_ptr<ContactState> impact_state = all_solution_contact_paths[i][impact_state_id]; // the state-to-be if the disturbance does not happen
+            //     std::shared_ptr<ContactState> prev_state = impact_state->parent_;
+            //     ContactManipulator move_manip = impact_state->prev_move_manip_;
 
-                // construct the contact floating state, the capture state, and the come back state
-                std::shared_ptr<ContactState> post_impact_state, capture_state, come_back_state;
-                std::vector< std::shared_ptr<ContactState> > capture_path, later_path;
+            //     // construct the contact floating state, the capture state, and the come back state
+            //     std::shared_ptr<ContactState> post_impact_state, capture_state, come_back_state;
+            //     std::vector< std::shared_ptr<ContactState> > capture_path, later_path;
 
-                std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_state->stances_vector_[0]->ee_contact_status_;
-                ee_contact_status[move_manip] = false;
-                std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
-                ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
+            //     std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status = prev_state->stances_vector_[0]->ee_contact_status_;
+            //     ee_contact_status[move_manip] = false;
+            //     std::array<RPYTF, ContactManipulator::MANIP_NUM> ee_contact_poses = prev_state->stances_vector_[0]->ee_contact_poses_;
+            //     ee_contact_poses[move_manip] = RPYTF(-99.0, -99.0, -99.0, -99.0, -99.0, -99.0);
 
-                std::shared_ptr<Stance> post_impact_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                      ee_contact_poses[2], ee_contact_poses[3],
-                                                                                      ee_contact_status);
+            //     std::shared_ptr<Stance> post_impact_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+            //                                                                           ee_contact_poses[2], ee_contact_poses[3],
+            //                                                                           ee_contact_status);
 
-                Translation3D post_impact_com = prev_state->com_;
+            //     Translation3D post_impact_com = prev_state->com_;
 
-                std::cout << impact_state->capture_poses_vector_.size() << std::endl;
+            //     std::cout << impact_state->capture_poses_vector_.size() << std::endl;
 
-                for(auto & capture_info : impact_state->capture_poses_vector_)
-                {
-                    if(capture_info.contact_manip_ == ContactManipulator::L_ARM ||
-                       capture_info.contact_manip_ == ContactManipulator::R_ARM)
-                    {
-                        Vector3D post_impact_com_dot = capture_info.post_impact_lmom_ / robot_properties_->mass_;
-                        Vector3D post_impact_lmom = capture_info.post_impact_lmom_;
-                        Vector3D post_impact_amom = capture_info.post_impact_amom_;
-                        RPYTF capture_pose = capture_info.capture_pose_;
-                        ContactManipulator capture_contact_manip = capture_info.contact_manip_;
+            //     for(auto & capture_info : impact_state->capture_poses_vector_)
+            //     {
+            //         if(capture_info.contact_manip_ == ContactManipulator::L_ARM ||
+            //            capture_info.contact_manip_ == ContactManipulator::R_ARM)
+            //         {
+            //             Vector3D post_impact_com_dot = capture_info.post_impact_lmom_ / robot_properties_->mass_;
+            //             Vector3D post_impact_lmom = capture_info.post_impact_lmom_;
+            //             Vector3D post_impact_amom = capture_info.post_impact_amom_;
+            //             RPYTF capture_pose = capture_info.capture_pose_;
+            //             ContactManipulator capture_contact_manip = capture_info.contact_manip_;
 
-                        post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
+            //             post_impact_state = std::make_shared<ContactState>(post_impact_stance, post_impact_com, post_impact_com_dot, post_impact_lmom, post_impact_amom, 1);
 
-                        ee_contact_status = post_impact_state->stances_vector_[0]->ee_contact_status_;
-                        ee_contact_status[capture_contact_manip] = true;
-                        ee_contact_poses = post_impact_state->stances_vector_[0]->ee_contact_poses_;
-                        ee_contact_poses[capture_contact_manip] = capture_pose;
+            //             ee_contact_status = post_impact_state->stances_vector_[0]->ee_contact_status_;
+            //             ee_contact_status[capture_contact_manip] = true;
+            //             ee_contact_poses = post_impact_state->stances_vector_[0]->ee_contact_poses_;
+            //             ee_contact_poses[capture_contact_manip] = capture_pose;
 
-                        std::shared_ptr<Stance> capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                          ee_contact_poses[2], ee_contact_poses[3],
-                                                                                          ee_contact_status);
+            //             std::shared_ptr<Stance> capture_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+            //                                                                               ee_contact_poses[2], ee_contact_poses[3],
+            //                                                                               ee_contact_status);
 
-                        capture_state = std::make_shared<ContactState>(capture_stance, post_impact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
+            //             capture_state = std::make_shared<ContactState>(capture_stance, post_impact_state, capture_contact_manip, 1, robot_properties_->robot_z_);
 
-                        ee_contact_status = capture_state->stances_vector_[0]->ee_contact_status_;
-                        ee_contact_status[move_manip] = impact_state->stances_vector_[0]->ee_contact_status_[move_manip];
-                        ee_contact_poses = capture_state->stances_vector_[0]->ee_contact_poses_;
-                        ee_contact_poses[move_manip] = impact_state->stances_vector_[0]->ee_contact_poses_[move_manip];
+            //             ee_contact_status = capture_state->stances_vector_[0]->ee_contact_status_;
+            //             ee_contact_status[move_manip] = impact_state->stances_vector_[0]->ee_contact_status_[move_manip];
+            //             ee_contact_poses = capture_state->stances_vector_[0]->ee_contact_poses_;
+            //             ee_contact_poses[move_manip] = impact_state->stances_vector_[0]->ee_contact_poses_[move_manip];
 
-                        std::shared_ptr<Stance> come_back_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
-                                                                                            ee_contact_poses[2], ee_contact_poses[3],
-                                                                                            ee_contact_status);
+            //             std::shared_ptr<Stance> come_back_stance = std::make_shared<Stance>(ee_contact_poses[0], ee_contact_poses[1],
+            //                                                                                 ee_contact_poses[2], ee_contact_poses[3],
+            //                                                                                 ee_contact_status);
 
-                        come_back_state = std::make_shared<ContactState>(come_back_stance, capture_state, move_manip, 1, robot_properties_->robot_z_);
+            //             come_back_state = std::make_shared<ContactState>(come_back_stance, capture_state, move_manip, 1, robot_properties_->robot_z_);
 
-                        impact_state->prev_move_manip_ = capture_contact_manip;
-                        impact_state->parent_ = come_back_state;
+            //             impact_state->prev_move_manip_ = capture_contact_manip;
+            //             impact_state->parent_ = come_back_state;
 
-                        break;
-                    }
-                }
+            //             break;
+            //         }
+            //     }
 
-                capture_path.push_back(post_impact_state);
-                capture_path.push_back(capture_state);
+            //     capture_path.push_back(post_impact_state);
+            //     capture_path.push_back(capture_state);
 
-                later_path.push_back(capture_state);
-                later_path.push_back(come_back_state);
-                later_path.insert(later_path.end(), all_solution_contact_paths[i].begin()+impact_state_id, all_solution_contact_paths[i].end());
+            //     later_path.push_back(capture_state);
+            //     later_path.push_back(come_back_state);
+            //     later_path.insert(later_path.end(), all_solution_contact_paths[i].begin()+impact_state_id, all_solution_contact_paths[i].end());
 
-                exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
-                                                             capture_path,
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/capture_motion_cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
+            //     exportContactSequenceOptimizationConfigFiles(one_step_capture_dynamics_optimizer_interface_vector_[0],
+            //                                                  capture_path,
+            //                                                  "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/capture_motion_cfg_kdopt_demo.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
 
-                exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
-                                                             later_path,
-                                                             "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/final_motion_cfg_kdopt_demo.yaml",
-                                                             "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
+            //     exportContactSequenceOptimizationConfigFiles(dynamics_optimizer_interface_vector_[0],
+            //                                                  later_path,
+            //                                                  "../data/SL_optim_config_template/cfg_kdopt_demo_invdynkin_template.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/final_motion_cfg_kdopt_demo.yaml",
+            //                                                  "/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/Objects.cf");
 
-                // std::ofstream planning_contact_list_fstream("contact_list.txt", std::ofstream::out);
+            //     // std::ofstream planning_contact_list_fstream("contact_list.txt", std::ofstream::out);
 
-                // for(auto & state : all_solution_contact_paths[i])
-                // {
-                //     if(!state->is_root_)
-                //     {
-                //         int move_manip = int(state->prev_move_manip_);
-                //         planning_contact_list_fstream << move_manip << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].x_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].y_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].z_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].roll_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].pitch_ << " "
-                //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].yaw_ << " "
-                //                                       << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
-                //     }
-                // }
+            //     // for(auto & state : all_solution_contact_paths[i])
+            //     // {
+            //     //     if(!state->is_root_)
+            //     //     {
+            //     //         int move_manip = int(state->prev_move_manip_);
+            //     //         planning_contact_list_fstream << move_manip << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].x_ << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].y_ << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].z_ << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].roll_ << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].pitch_ << " "
+            //     //                                       << state->stances_vector_[0]->ee_contact_poses_[move_manip].yaw_ << " "
+            //     //                                       << state->com_[0] << " " << state->com_[1] << " " << state->com_[2] << std::endl;
+            //     //     }
+            //     // }
 
-                break;
-            }
+            //     break;
+            // }
         }
 
         auto time_after_dynopt = std::chrono::high_resolution_clock::now();
@@ -2716,7 +2723,7 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
         float euclidean_distance_to_goal = std::sqrt(std::pow(current_state->mean_feet_position_[0] - goal_[0],2) +
                                                      std::pow(current_state->mean_feet_position_[1] - goal_[1],2));
         float step_cost_to_goal = step_cost_weight_ * (euclidean_distance_to_goal / robot_properties_->max_stride_);
-
+        // !!!!!!!!!!!!!!!!!!!!
         return (euclidean_distance_to_goal + step_cost_to_goal);
     }
     else if(heuristics_type_ == PlanningHeuristicsType::DIJKSTRA)

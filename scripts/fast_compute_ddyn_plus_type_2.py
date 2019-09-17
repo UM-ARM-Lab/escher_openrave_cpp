@@ -87,32 +87,7 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    # # build knn index
-    # classification_training_data_mean = {}
-    # classification_training_data_std = {}
-    # classification_training_data_tree = {}
-    # regression_training_data_mean = {}
-    # regression_training_data_std = {}
-    # regression_training_data_tree = {}
-    # for i in range(10):
-    #     file = open('../data/dynopt_result/dataset/dynopt_total_data_' + str(i), 'r')
-    #     original_X = pickle.load(file)[:, 1:-7]
-    #     regression_training_data_mean[i] = np.mean(original_X, axis=0, dtype=np.float32)
-    #     regression_training_data_std[i] = np.std(original_X, axis=0, dtype=np.float32)
-    #     normalized_original_X = (original_X - regression_training_data_mean[i]) / regression_training_data_std[i]
-    #     regression_training_data_tree[i] = faiss.IndexFlatL2(normalized_original_X.shape[1])
-    #     regression_training_data_tree[i].add(np.float32(normalized_original_X))
-    
-    #     file = open('../data/dynopt_result/dataset/dynopt_infeasible_total_data_' + str(i), 'r')
-    #     infeasible_original_X = pickle.load(file)[:, 1:-1]
-    #     all_original_X = np.concatenate((original_X, infeasible_original_X), axis=0)
-    #     classification_training_data_mean[i] = np.mean(all_original_X, axis=0, dtype=np.float32)
-    #     classification_training_data_std[i] = np.std(all_original_X, axis=0, dtype=np.float32)
-    #     normalized_all_original_X = (all_original_X - classification_training_data_mean[i]) / classification_training_data_std[i]
-    #     classification_training_data_tree[i] = faiss.IndexFlatL2(normalized_all_original_X.shape[1])
-    #     classification_training_data_tree[i].add(np.float32(normalized_all_original_X))
-
-    for environment_index in range(100, 101):
+    for environment_index in range(150, 200):
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
             data = pickle.load(file)
 
@@ -159,14 +134,6 @@ def main():
                                 continue
                             X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
-                        # # check the distance to the training data of classification model
-                        # dist, _ = classification_training_data_tree[transition_type].search(np.float32((X - classification_training_data_mean[transition_type]) / classification_training_data_std[transition_type]), 10)
-                        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-                        # valid_com_indices = dist < 3.0
-                        # if np.sum(valid_com_indices) == 0:
-                        #     continue
-                        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
-
                         # query the classification model
                         prediction = classification_models[transition_type].predict((X - classification_input_normalize_params[transition_type][0]) / classification_input_normalize_params[transition_type][1])
                         valid_com_indices = prediction.reshape(-1,) > 0.5
@@ -174,20 +141,12 @@ def main():
                             continue
                         X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
 
-                        # # check the distance to the training data of the regression model
-                        # dist, _ = regression_training_data_tree[transition_type].search(np.float32((X - regression_training_data_mean[transition_type]) / regression_training_data_std[transition_type]), 10)
-                        # dist = np.mean(np.sqrt(dist.clip(min=0)), axis=1)
-                        # valid_com_indices = dist < 3.0
-                        # if np.sum(valid_com_indices) == 0:
-                        #     continue
-                        # X = X[np.argwhere(valid_com_indices == True).reshape(-1,)]
-
                         # query the regression model
                         prediction = regression_models[transition_type].predict((X - regression_input_normalize_params[transition_type][0]) / regression_input_normalize_params[transition_type][1]) * regression_output_denormalize_params[transition_type][1] + regression_output_denormalize_params[transition_type][0]
                         info[p1][p2][transition_type][index] = prediction[:, 6]
 
         print('start save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, environment_index))
-        with open('/mnt/big_narstie_data/chenxi/data/dataset_225/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index) + '_filter', 'w') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/dataset_225/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index), 'w') as file:
             pickle.dump(info, file)
         print('finish save data to file dynamic_cost_plus_type_{}_{}'.format(environment_type, environment_index))
 

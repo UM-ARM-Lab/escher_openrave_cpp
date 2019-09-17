@@ -2172,6 +2172,12 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
                 RAVELOG_INFO("Use Dijkstra heuristics.\n");
                 // RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
             }
+            else if(strcmp(param.c_str(), "dijkstra_with_dyncost") == 0)
+            {
+                heuristics_type = PlanningHeuristicsType::DIJKSTRA_WITH_DYNCOST;
+                RAVELOG_INFO("Use Dijkstra heuristics.\n");
+                // RAVELOG_WARNA("Dijkstra heuristics have not been implemented. Use Euclidean heuristics.\n");
+            }
 
             sinput >> param;
             if(strcmp(param.c_str(), "0") == 0)
@@ -2447,6 +2453,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
     std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
+    // std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 5.0, 180);
     map_grid_->generateDijkstraHeuristics(goal_cell, reverse_transition_model, region_mask);
 
     // getchar();
@@ -2454,36 +2461,22 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     // // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
     // // map_grid_->generateDijkstraHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
-    // general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+    general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
-    // ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
-    //                                            structures_, structures_dict_, map_grid_,
-    //                                            general_ik_interface_, 1, thread_num, drawing_handler_,
-    //                                            planning_id, use_dynamics_planning, disturbance_samples_,
-    //                                            PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
-    //                                            check_one_step_capturability, check_contact_transition_feasibility);
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
+                                               structures_, structures_dict_, map_grid_,
+                                               general_ik_interface_, 1, thread_num, drawing_handler_,
+                                               planning_id, use_dynamics_planning, disturbance_samples_,
+                                               PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
+                                               check_one_step_capturability, check_contact_transition_feasibility);
 
-    // RAVELOG_INFO("Start ANA* Planning \n");
+    RAVELOG_INFO("Start ANA* Planning \n");
 
-    // contact_space_planner.storeSLEnvironment();
+    contact_space_planner.storeSLEnvironment();
 
-    // // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
-
-    // // RPYTF initial_torso_pose(0, 0, 1.2, 0, 0, 0);
-    // // RPYTF goal_torso_pose(1.3, 0, -3.1, 0, 0, 0);
-    // // // RPYTF goal_torso_pose(2.6, 0, 1.2, 0, 0, 0);
-    // // auto initial_torso_pose_state = std::make_shared<TorsoPoseState>(initial_torso_pose);
-
-    // // RPYTF far_away_pose(99.0, 99.0, 99.0, 0, 0, 0);
-    // // probot_->SetTransform(far_away_pose.GetRaveTransform());
-
-    // // std::vector< std::shared_ptr<TorsoPoseState> > torso_path = torso_path_planner.AStarPlanning(initial_torso_pose_state, goal_torso_pose, time_limit);
-
-    // // getchar();
-
-    // std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
-    //                                                                                                         branching_method, time_limit, epsilon, output_first_solution,
-    //                                                                                                         goal_as_exact_poses, use_learned_dynamics_model, enforce_stop_in_the_end);
+    std::vector< std::shared_ptr<ContactState> > contact_state_path = contact_space_planner.ANAStarPlanning(initial_state, {goal_[0], goal_[1], goal_[2]}, goal_radius, heuristics_type,
+                                                                                                            branching_method, time_limit, epsilon, output_first_solution,
+                                                                                                            goal_as_exact_poses, use_learned_dynamics_model, enforce_stop_in_the_end);
 
 }
 

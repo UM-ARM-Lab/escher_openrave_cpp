@@ -24,6 +24,7 @@ class trimesh_surface(structure):
 
 		self.vertices = vertices
 		self.boundaries = boundaries
+		self.plane_parameters = plane_parameters
 
 		self.xo = 0.0; self.yo = 0.0; self.zo = 0.0
 
@@ -167,6 +168,8 @@ class trimesh_surface(structure):
 				if(i % 2 == 1):
 					self.approx_area = self.approx_area + (y_boundaries[i] - y_boundaries[i-1]) * surface_slice_resolution
 					self.strip_decomposition.append((self.approx_area, key*surface_slice_resolution + self.min_proj_x, y_boundaries[i-1], y_boundaries[i]))
+	def get_id(self):
+		return self.id
 
 	def get_normal(self):
 		return np.array([[self.nx],[self.ny],[self.nz]])

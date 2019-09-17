@@ -75,10 +75,10 @@ class ContactSpacePlanning
         // cost parameters
         // const float step_cost_weight_ = 10.0;
         const float step_cost_weight_ = 3.0;
-        const float dynamics_cost_weight_ = 0.0; // test
-        // const float dynamics_cost_weight_ = 0.1; // original
+        // const float dynamics_cost_weight_ = 0.0; // test
+        const float dynamics_cost_weight_ = 0.1; // original
         // const float dynamics_cost_weight_ = 1.0; // simplified
-        const float disturbance_cost_weight_ = 500.0;
+        const float disturbance_cost_weight_ = 0.0;
 
         // random number generator & randomness parameter
         std::mt19937_64 rng_;

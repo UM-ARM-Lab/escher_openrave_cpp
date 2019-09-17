@@ -439,23 +439,25 @@ def main(robot_name='athena'): # for test
     for i in range(0, 200):
         print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
+        if i < 198:
+            continue
         # save the environment
         env = {}
-        env['ground_vertices'] = []
+        env['ground_structures'] = []
         # env['ground_normals'] = []
-        env['others_vertices'] = []
+        env['others_structures'] = []
         # env['others_normals'] = []
         for s in structures:
             if s.type == 'ground':
-                env['ground_vertices'].append(s.vertices)
+                env['ground_structures'].append((s.plane_parameters, s.vertices, s.boundaries))
                 # env['ground_normals'].append(s.get_normal())
             elif s.type == 'others':
-                env['others_vertices'].append(s.vertices)
+                env['others_structures'].append((s.plane_parameters, s.vertices, s.boundaries))
                 # env['others_normals'].append(s.get_normal())
             else:
                 print('invalid structure type')
                 exit(1)
-        with open('../data/dataset_225/' + environment_file + '_' + str(i), 'w') as file:
+        with open('../data/dataset_225/complete_' + environment_file + '_' + str(i), 'w') as file:
             pickle.dump(env, file)
 
         # save all transitions to this list

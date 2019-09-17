@@ -39,7 +39,7 @@ def main():
         print('usage: -e: [environment_type]')
         exit(1)
 
-    for environment_index in range(120, 130):
+    for environment_index in range(10, 20):
         # load sampled transitions
         transitions = None
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_' + environment_type + '_' + str(environment_index), 'r') as file:
@@ -76,7 +76,7 @@ def main():
                 info[discretized_p1][increment][transition_type] = [transition]
 
         print('start save data to file transitions_dict_{}_{}'.format(environment_type, environment_index))
-        with open('../data/dataset_225/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'w') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'w') as file:
             pickle.dump(info, file)
         print('finish save data to file transitions_dict_{}_{}'.format(environment_type, environment_index)) 
 

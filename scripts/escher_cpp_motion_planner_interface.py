@@ -141,8 +141,11 @@ def main(meta_path_generation_method='all_planning',
         rave.raveLogInfo('Start running C++ interface.')
         # Construct the initial node
 
-        initial_left_leg = [0.025,0.1,0.0,0,0,0]
-        initial_right_leg = [0.025,-0.1,0.0,0,0,0]
+        # initial_left_leg = [0.025,0.1,0.0,0,0,0]
+        # initial_right_leg = [0.025,-0.1,0.0,0,0,0]
+        # wrong
+        initial_left_leg = [0.025,0.0,0.0,0,0,0]
+        initial_right_leg = [0.025,-0.2,0.0,0,0,0]
         initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
         initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
 
@@ -151,44 +154,17 @@ def main(meta_path_generation_method='all_planning',
         # IPython.embed()
 
         disturbance_samples = []
-        disturbance_magnitude = 0.2
-        disturbance_sample_num = 8
-        for i in range(disturbance_sample_num):
-            disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
-                                        disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
-                                        0, 1.0/disturbance_sample_num])
+        # disturbance_magnitude = 0.2
+        # disturbance_sample_num = 8
+        # for i in range(disturbance_sample_num):
+        #     disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
+        #                                 disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
+        #                                 0, 1.0/disturbance_sample_num])
 
         # generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_athena/config/push_recovery/", structures)
         escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
-        # for collect data
-        escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
-                                                escher=escher,
-                                                initial_state=initial_node,
-                                                goal=goal,
-                                                epsilon=0.1,
-                                                foot_transition_model=step_transition_model,
-                                                hand_transition_model=hand_transition_model,
-                                                structures=structures,
-                                                map_grid_dim=env_map_grid_dim,
-                                                goal_radius=0.2,
-                                                time_limit=300.0,
-                                                planning_heuristics='dijkstra',
-                                                branching_method='contact_projection',
-                                                output_first_solution=False,
-                                                goal_as_exact_poses=False,
-                                                use_dynamics_planning=True,
-                                                use_learned_dynamics_model=True,
-                                                enforce_stop_in_the_end=False,
-                                                check_zero_step_capturability=True,
-                                                check_one_step_capturability=True,
-                                                check_contact_transition_feasibility=True,
-                                                disturbance_samples=disturbance_samples,
-                                                thread_num=1,
-                                                # thread_num=multiprocessing.cpu_count(),
-                                                planning_id=env_id,
-                                                printing=True)
-
+        # # for collect data
         # escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
         #                                         escher=escher,
         #                                         initial_state=initial_node,
@@ -199,7 +175,7 @@ def main(meta_path_generation_method='all_planning',
         #                                         structures=structures,
         #                                         map_grid_dim=env_map_grid_dim,
         #                                         goal_radius=0.2,
-        #                                         time_limit=30.0,
+        #                                         time_limit=300.0,
         #                                         planning_heuristics='dijkstra',
         #                                         branching_method='contact_projection',
         #                                         output_first_solution=False,
@@ -207,10 +183,44 @@ def main(meta_path_generation_method='all_planning',
         #                                         use_dynamics_planning=True,
         #                                         use_learned_dynamics_model=True,
         #                                         enforce_stop_in_the_end=False,
+        #                                         check_zero_step_capturability=True,
+        #                                         check_one_step_capturability=True,
+        #                                         check_contact_transition_feasibility=True,
+        #                                         disturbance_samples=disturbance_samples,
         #                                         thread_num=1,
         #                                         # thread_num=multiprocessing.cpu_count(),
         #                                         planning_id=env_id,
         #                                         printing=True)
+
+        # for planning
+        escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
+                                                escher=escher,
+                                                initial_state=initial_node,
+                                                goal=goal,
+                                                epsilon=0.2,
+                                                # epsilon=0.1,
+                                                # epsilon=0,
+                                                foot_transition_model=step_transition_model,
+                                                hand_transition_model=hand_transition_model,
+                                                structures=structures,
+                                                map_grid_dim=env_map_grid_dim,
+                                                goal_radius=0.2,
+                                                time_limit=6000.0,
+                                                # planning_heuristics='euclidean',
+                                                planning_heuristics='dijkstra_with_dyncost',
+                                                branching_method='contact_projection',
+                                                output_first_solution=False,
+                                                goal_as_exact_poses=False,
+                                                use_dynamics_planning=True,
+                                                use_learned_dynamics_model=True,
+                                                enforce_stop_in_the_end=False,
+                                                check_zero_step_capturability=False,
+                                                check_one_step_capturability=False,
+                                                check_contact_transition_feasibility=True,
+                                                thread_num=1,
+                                                # thread_num=multiprocessing.cpu_count(),
+                                                planning_id=env_id,
+                                                printing=True)
 
         env_id += 1
 
@@ -221,7 +231,7 @@ if __name__ == "__main__":
     path_segmentation_generation_type = 'motion_mode_and_traversability_segmentation'
     traversability_threshold = 0.3
     traversability_select_criterion = 'mean'
-    surface_source = 'torso_path_planning_test_env_5'
+    surface_source = 'torso_path_planning_test_env_0'
     environment_path = 'environment'
     log_file_name = 'exp_result.txt'
     start_env_id = 0
