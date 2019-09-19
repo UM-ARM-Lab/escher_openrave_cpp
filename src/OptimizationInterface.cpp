@@ -75,6 +75,7 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
 
     this->contactSequence().numContacts() = 0;
     this->viapointSequence().numViapoints() = 0;
+    float initial_time = this->timer_;
     this->timer_ = 0.0;
     for(int eff_id = 0; eff_id < momentumopt::Problem::n_endeffs_; eff_id++)
     {
@@ -114,14 +115,11 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             {
                 this->timer_ += this->support_phase_time_;
             }
+
+            this->timer_ += initial_time;
         }
         else
         {
-            if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
-            {
-                this->timer_ += this->support_phase_time_;
-            }
-
             // 0_6_0_4 legacy code
             // this->timer_ += 0.6;
 
@@ -161,6 +159,10 @@ solver::ExitCode ContactPlanFromContactSequence::customContactsOptimization(cons
             }
 
             if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
+            {
+                this->timer_ += this->support_phase_time_;
+            }
+            else if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
             {
                 this->timer_ += this->support_phase_time_;
             }
@@ -258,7 +260,7 @@ dynamics_optimizer_application_(_dynamics_optimizer_application)
     ee_offset_transform_to_dynopt = _ee_offset_transform_to_dynopt;
 }
 
-void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence)
+void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence, float initial_time)
 {
     this->contact_state_sequence_.resize(new_contact_state_sequence.size());
     this->contact_state_sequence_ = new_contact_state_sequence;
@@ -266,7 +268,7 @@ void OptimizationInterface::updateContactSequence(std::vector< std::shared_ptr<C
                                                                          this->step_transition_time_,
                                                                          this->support_phase_time_,
                                                                          dynamics_optimizer_application_);
-    this->updateContactSequenceRelatedDynamicsOptimizerSetting();
+    this->updateContactSequenceRelatedDynamicsOptimizerSetting(initial_time);
 }
 
 void OptimizationInterface::loadDynamicsOptimizerSetting(std::string _cfg_file)
@@ -274,10 +276,10 @@ void OptimizationInterface::loadDynamicsOptimizerSetting(std::string _cfg_file)
     optimizer_setting_.initialize(_cfg_file);
 }
 
-void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting()
+void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting(float initial_time)
 {
     int state_counter = 0;
-    float total_time = 0.0;
+    float total_time = initial_time;
     std::set<int> active_eff_set;
     double time_step = optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeStep);
     for(auto & contact_state : this->contact_state_sequence_)
@@ -304,8 +306,8 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
             // the result is the same, but we keep them separated for highlighting the underlying motion sequence
             if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
             {
-                total_time += this->support_phase_time_;
                 total_time += this->step_transition_time_;
+                total_time += this->support_phase_time_;
             }
             else if(dynamics_optimizer_application_ == DynOptApplication::ONE_STEP_CAPTURABILITY_DYNOPT)
             {
@@ -333,6 +335,32 @@ void OptimizationInterface::updateContactSequenceRelatedDynamicsOptimizerSetting
     // optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumActiveEndeffectors) = active_eff_set.size();
     optimizer_setting_.get(momentumopt::PlannerDoubleParam::PlannerDoubleParam_TimeHorizon) = std::floor(total_time / time_step + 0.001) * time_step;
     optimizer_setting_.get(momentumopt::PlannerIntParam::PlannerIntParam_NumTimesteps) = int(std::floor(total_time / time_step + 0.001));
+
+    // Vector3D com_translation;
+
+    // if(dynamics_optimizer_application_ == DynOptApplication::CONTACT_TRANSITION_DYNOPT)
+    // {
+    //     Translation3D final_com;
+    //     std::shared_ptr<ContactState> final_state = this->contact_state_sequence_[state_counter-1];
+    //     if(final_state->prev_move_manip_ == ContactManipulator::L_LEG)
+    //     {
+    //         final_com = 0.7 * final_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                       0.3 * final_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     }
+    //     else if(final_state->prev_move_manip_ == ContactManipulator::R_LEG)
+    //     {
+    //         final_com = 0.3 * final_state->stances_vector_[0]->left_foot_pose_.getXYZ() +
+    //                       0.7 * final_state->stances_vector_[0]->right_foot_pose_.getXYZ() + Vector3D(0,0,0.7);
+    //     }
+
+    //     com_translation = final_com - this->contact_state_sequence_[0]->com_;
+
+    //     // std::cout << "Final CoM: " << final_com.transpose() << std::endl;
+    // }
+    // else
+    // {
+    //     com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
+    // }
 
     Vector3D com_translation = this->contact_state_sequence_[state_counter-1]->nominal_com_ - this->contact_state_sequence_[0]->com_;
     optimizer_setting_.get(momentumopt::PlannerVectorParam::PlannerVectorParam_CenterOfMassMotion) = rotateVectorFromOpenraveToSL(com_translation);
@@ -440,10 +468,11 @@ void OptimizationInterface::fillInitialRobotState()
 
 }
 
-void OptimizationInterface::fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence)
+void OptimizationInterface::fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence, float initial_time)
 {
     // contact_sequence_interpreter_.initialize(optimizer_setting_, &kinematics_interface_);
     contact_sequence_interpreter_.initialize(optimizer_setting_, &dummy_kinematics_interface_);
+    contact_sequence_interpreter_.timer_ = initial_time;
     contact_sequence_interpreter_.optimize(initial_state_, dynamics_sequence);
 }
 
@@ -1151,11 +1180,17 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
         com = transformPositionFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).centerOfMass());
         com_dot = rotateVectorFromSLToOpenrave(dynamics_optimizer_.dynamicsSequence().dynamicsState(time_id).linearMomentum()) / robot_mass;
 
-        if(time_id % 10 == 5)
+        if(time_id % 10 == 0)
         {
             drawing_handler->DrawLocation(com, Vector3D(1.0,1.0,0));
             std::cout << com.transpose() << std::endl;
             drawing_handler->DrawArrow(com, com_dot, Vector3D(1.0,1.0,0));
+        }
+        else if(time_id % 10 < 5)
+        {
+            drawing_handler->DrawLocation(com, Vector3D(0.0,1.0,0));
+            std::cout << com.transpose() << std::endl;
+            drawing_handler->DrawArrow(com, com_dot, Vector3D(0.0,1.0,0));
         }
         else
         {
@@ -1175,11 +1210,12 @@ void OptimizationInterface::drawCoMTrajectory(std::shared_ptr<DrawingHandler> dr
 
 void OptimizationInterface::exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
                                               std::string objects_config_output_path, std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                                              std::shared_ptr<RobotProperties> robot_properties)
+                                              std::shared_ptr<RobotProperties> robot_properties,
+                                              float initial_time)
 {
     this->initializeDynamicsOptimizer();
     this->fillInitialRobotState();
-    this->fillContactSequence(dynamics_optimizer_.dynamicsSequence());
+    this->fillContactSequence(dynamics_optimizer_.dynamicsSequence(), initial_time);
 
     exportOptimizationConfigFile(optimization_config_template_path, optimization_config_output_path,
                                  floating_initial_contact_poses, robot_properties);

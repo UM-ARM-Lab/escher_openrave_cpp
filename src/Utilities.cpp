@@ -42,7 +42,7 @@ TransformationMatrix constructTransformationMatrix(float m00, float m01, float m
     return T;
 }
 
-TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform transform)
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform& transform)
 {
 	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix(transform);
 
@@ -56,7 +56,7 @@ TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform transform
     return T;
 }
 
-TransformationMatrix inverseTransformationMatrix(TransformationMatrix T)
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix& T)
 {
 	RotationMatrix R = T.block<3,3>(0,0);
 	Translation3D t = T.block<3,1>(0,3);

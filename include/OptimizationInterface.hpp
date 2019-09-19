@@ -107,11 +107,11 @@ class OptimizationInterface
         void loadDynamicsOptimizerSetting(std::string _cfg_file);
 
         // helper functions to load parameters from planner information (Input: Planner --> Optimizer)
-        void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence);
-        void updateContactSequenceRelatedDynamicsOptimizerSetting();
+        void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence, float initial_time=0.0);
+        void updateContactSequenceRelatedDynamicsOptimizerSetting(float initial_time=0.0);
         void updateReferenceDynamicsSequence(Translation3D com_translation, float desired_speed);
         void fillInitialRobotState();
-        void fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence);
+        void fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence, float initial_time=0.0);
 
         // methods to generate kinematics sequence
         bool simplifiedKinematicsOptimization();
@@ -138,7 +138,8 @@ class OptimizationInterface
         void exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
                                std::string objects_config_output_path,
                                std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
-                               std::shared_ptr<RobotProperties> robot_properties);
+                               std::shared_ptr<RobotProperties> robot_properties,
+                               float initial_time=0.0);
         void exportOptimizationConfigFile(std::string template_path, std::string output_path,
                                           std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
                                           std::shared_ptr<RobotProperties> robot_properties);

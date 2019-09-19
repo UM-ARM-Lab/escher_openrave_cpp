@@ -458,8 +458,9 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
         sinput >> amom(i);
     }
 
-    std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
-    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance, com, com_dot, lmom, amom, 1);
+    std::vector< std::shared_ptr<Stance> > stance_vector = {std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status)};
+    std::vector<ContactManipulator> empty_future_move_manips;
+    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance_vector, com, com_dot, lmom, amom, empty_future_move_manips, true);
 
     return state;
 }
@@ -2378,12 +2379,12 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Command Parsing Done. \n");
 
-    map_grid_->obstacleAndGapMapping(penv_, structures_);
+    // map_grid_->obstacleAndGapMapping(penv_, structures_);
     // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
-    GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
+    // GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
-    map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
+    // map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 

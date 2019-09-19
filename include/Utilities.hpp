@@ -114,11 +114,21 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
 
-const float OBSTACLE_MIN_X = 0.5;
-const float OBSTACLE_MAX_X = 2.0;
-const float OBSTACLE_MIN_Y = -0.9;
-const float OBSTACLE_MAX_Y = -0.3;
+// const float OBSTACLE_MIN_X = 0.6;
+// const float OBSTACLE_MAX_X = 1.1;
+// const float OBSTACLE_MIN_Y = -2.0;
+// const float OBSTACLE_MAX_Y = -0.5;
+const float OBSTACLE_MIN_X = 0.9;
+const float OBSTACLE_MAX_X = 1.5;
+const float OBSTACLE_MIN_Y = -1.9;
+const float OBSTACLE_MAX_Y = -0.4;
 const float OBSTACLE_CLEARANCE = 0.1;
+
+// const float OBSTACLE_MIN_X = 0.5;
+// const float OBSTACLE_MAX_X = 2.0;
+// const float OBSTACLE_MIN_Y = -0.9;
+// const float OBSTACLE_MAX_Y = -0.3;
+// const float OBSTACLE_CLEARANCE = 0.1;
 
 enum ContactManipulator
 {
@@ -257,6 +267,15 @@ struct EigenVectorHash
     }
 };
 
+struct PairHash
+{
+	template <class T1, class T2>
+	std::size_t operator() (const std::pair<T1, T2> &pair) const
+	{
+		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+	}
+};
+
 struct pointer_less
 {
     template <typename T>
@@ -377,8 +396,8 @@ float orientationDistance(const Quaternion& q, const Quaternion& p);
 
 // Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
-TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform transform);
-TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform& transform);
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix& T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T);

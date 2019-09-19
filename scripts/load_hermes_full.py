@@ -9,7 +9,8 @@ import IPython
 #initialize link configuration
 def hermes_full(env, active_dof_mode='whole_body', urdf_name=None):
 
-    urdf = 'package://hermes_full_description/robot/hermes_full.urdf'
+    # urdf = 'package://hermes_full_description/robot/hermes_full.urdf'
+    urdf = 'package://hermes_full_description/robot/hermes_full_wide_joint_limit.urdf'
     srdf = 'package://hermes_full_description/robot/hermes_full.srdf'
 
     if(urdf_name is not None):

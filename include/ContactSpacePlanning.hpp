@@ -131,11 +131,13 @@ class ContactSpacePlanning
         bool kinematicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, int index);
         bool dynamicsFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
         bool stateFeasibilityCheck(std::shared_ptr<ContactState> current_state, float& dynamics_cost, int index);
+        std::vector<bool> batchDynamicsFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > state_vec, std::vector<float>& dynamics_cost_vector);
+        std::vector<bool> batchStateFeasibilityCheck(std::vector< std::shared_ptr<ContactState> > current_states_vector, std::vector<float>& dynamics_cost_vector);
 
         float getHeuristics(std::shared_ptr<ContactState> current_state);
         float getEdgeCost(std::shared_ptr<ContactState> prev_state, std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
-        std::vector< std::shared_ptr<ContactState> > getBranchingStates(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator>& branching_manips, std::vector< std::array<float,3> > foot_transition_model, std::vector< std::array<float,2> > hand_transition_model);
+        std::vector< std::shared_ptr<ContactState> > getBranchingStates(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator>& branching_manips, std::vector< std::array<float,3> > foot_transition_model, std::vector< std::array<float,2> > hand_transition_model, bool remove_prev_move_manip=true);
         void branchingSearchTree(std::shared_ptr<ContactState> current_state, BranchingMethod branching_method);
         void branchingFootContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
         void branchingHandContacts(std::shared_ptr<ContactState> current_state, std::vector<ContactManipulator> branching_manips);
@@ -145,6 +147,9 @@ class ContactSpacePlanning
         bool feetReprojection(std::shared_ptr<ContactState> state);
         bool footPoseSampling(ContactManipulator& contact_manipulator, RPYTF& projection_pose, double height);
         bool handPoseSampling(ContactManipulator& contact_manipulator, Translation3D& shoulder_position, std::array<float,2>& arm_orientation, RPYTF& projection_pose);
+
+        void extendZeroStepCaptureStates(std::vector< std::shared_ptr<ContactState> >& zero_step_capture_contact_state_vector, std::shared_ptr<ContactState> current_state, ContactManipulator& move_manip, Translation3D& initial_com, Vector3D& initial_lmom);
+        void extendOneStepCaptureStates(std::vector< std::shared_ptr<ContactState> >& one_step_capture_contact_state_vector, std::shared_ptr<ContactState> zero_step_capture_state, std::vector< std::shared_ptr<ContactState> >& disturbance_rejection_branching_states);
 
         void insertState(std::shared_ptr<ContactState> current_state, float dynamics_cost=0.0, float disturbance_cost=0.0);
 
@@ -162,7 +167,8 @@ class ContactSpacePlanning
                                                           std::vector< std::shared_ptr<ContactState> > contact_sequence,
                                                           std::string optimization_config_template_path,
                                                           std::string optimization_config_output_path,
-                                                          std::string objects_config_output_path);
+                                                          std::string objects_config_output_path,
+                                                          float initial_time=0.0);
 };
 
 #endif
