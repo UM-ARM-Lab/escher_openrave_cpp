@@ -273,6 +273,34 @@ class environment_handler:
                                                         (wall_min_x,wall_min_y)],
                                                        [0,ground_min_y-0.1,1.2,-90,0,0], surface_transparancy=0.5, surface_type='others')
 
+        elif(surface_source == 'flat_ground_and_one_wall'):
+
+            self.goal_x = 2.0
+            self.goal_y = 0.0
+
+            # add the ground
+            ground_max_x = 2.0
+            ground_min_x = -80
+            ground_max_y = 0.7
+            ground_min_y = -70.0
+
+            self.add_quadrilateral_surface(structures, [(ground_max_x,ground_min_y),
+                                                        (ground_max_x,ground_max_y),
+                                                        (ground_min_x,ground_max_y),
+                                                        (ground_min_x,ground_min_y)], [0,0,0,0,0,0], specify_color=[46,92,110])
+
+            # add the walls
+            wall_max_x = ground_max_x
+            wall_min_x = ground_min_x
+            wall_max_y = 3.0
+            wall_min_y = -3.0
+
+            self.add_quadrilateral_surface(structures, [(wall_max_x,wall_min_y),
+                                                        (wall_max_x,wall_max_y),
+                                                        (wall_min_x,wall_max_y),
+                                                        (wall_min_x,wall_min_y)],
+                                                       [0,ground_max_y+0.1,3.0,90,0,0], surface_transparancy=0.5, specify_color=[255,177,27], surface_type='others')
+
         elif(surface_source == 'flat_ground_env'):
             flat_ground_max_x = 4.0
             flat_ground_min_x = -1.0
@@ -950,80 +978,53 @@ class environment_handler:
 
         elif(surface_source == 'capture_test_env_1'): # a room for the robot to go from one end to the other
 
-            # stepping stones
-            stepping_stone_size = (1.0,1.0)
-            row_num = 3
-            col_num = 3
-            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
-                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
-                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
-                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
-            for row in range(row_num): # rows of stepping stones forward
-                for col in range(col_num): # columns of stepping stones
-
-                    # if row == 1 and col == 1:
-                    #     continue
-
-                    surface_transform = [row*stepping_stone_size[0],
-                                         col*stepping_stone_size[1],
-                                         random.uniform(-0.05,0.05),
-                                         random.uniform(-20,20),
-                                         random.uniform(-20,20),
-                                         0]
-
-                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
-
-
-            # side wall
-            x_wall_length = row_num*stepping_stone_size[0]
-            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] - x_wall_length/2.0 - 0.2, -0.5*stepping_stone_size[1] - 0.25, 0, 0, 0, 0], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
-            self.construct_tilted_rectangle_wall(structures, [0.5*row_num*stepping_stone_size[0] + x_wall_length/2.0 - 0.2, (col_num-0.5)*stepping_stone_size[1] + 0.25, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.3, slope=0)
-
-            y_wall_length = col_num*stepping_stone_size[1]
-            self.construct_tilted_rectangle_wall(structures, [-0.5*stepping_stone_size[0] - 0.25, 0.5*col_num*stepping_stone_size[1] + y_wall_length/2.0 - 0.3, 0, 0, 0, 270], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
-            self.construct_tilted_rectangle_wall(structures, [(row_num-0.5)*stepping_stone_size[0] + 0.25, 0.5*col_num*stepping_stone_size[1] - y_wall_length/2.0 - 0.3, 0, 0, 0, 90], 0.5, 20, y_wall_length, wall_height=1.3, slope=0)
-
-            self.goal_x = (row_num-1) * stepping_stone_size[0]
-            self.goal_y = (col_num-1) * stepping_stone_size[1]
-            # self.goal_y = 0
-
-        elif(surface_source == 'capture_test_env_2'): # a room for the robot to go from one end to the other
-
-            corridor_length = 2.0
-            corridor_start_x = 0.8
-            narrow_corridor_width = 0.3
-            wide_corridor_width = 0.8
-            wide_corridor_y = -1.5
+            corridor_length = 4.0
+            corridor_width = 4.0
 
             # initial platform
-            self.add_quadrilateral_surface(structures, [(-0.2,narrow_corridor_width/2.0),
-                                                        (-0.2,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (corridor_start_x,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (corridor_start_x,narrow_corridor_width/2.0)],
-                                                       [0,0,0,0,0,0])
+            # self.add_quadrilateral_surface(structures, [(-corridor_width/2.0,-0.2),
+            #                                             (corridor_width/2.0,-0.2),
+            #                                             (corridor_width/2.0,corridor_length),
+            #                                             (-corridor_width/2.0,corridor_length)],
+            #                                             [0,0,0,0,0,0])
 
-            # narrow corridor
-            self.add_quadrilateral_surface(structures, [(corridor_start_x,narrow_corridor_width/2.0),
-                                                        (corridor_start_x,-narrow_corridor_width/2.0),
-                                                        (corridor_start_x+corridor_length,-narrow_corridor_width/2.0),
-                                                        (corridor_start_x+corridor_length,narrow_corridor_width/2.0)],
-                                                       [0,0,0,0,0,0])
+            self.add_quadrilateral_surface(structures, [(-4.0,4.0),
+                                                        (-4.0,-4.0),
+                                                        (4.0,-4.0),
+                                                        (4.0,4.0)],
+                                                        [0,0,0,0,0,0])
 
-            # wide corridor
-            self.add_quadrilateral_surface(structures, [(corridor_start_x,wide_corridor_y+wide_corridor_width/2.0),
-                                                        (corridor_start_x,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (corridor_start_x+corridor_length,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (corridor_start_x+corridor_length,wide_corridor_y+wide_corridor_width/2.0)],
-                                                       [0,0,0,0,0,0])
+            self.goal_x = 0
+            self.goal_y = corridor_length - 0.4
+        elif(surface_source == 'capture_test_env_2'): # a room for the robot to go from one end to the other
 
-            # final platform
-            self.add_quadrilateral_surface(structures, [(corridor_start_x+corridor_length,narrow_corridor_width/2.0),
-                                                        (corridor_start_x+corridor_length,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (2*corridor_start_x+corridor_length+0.2,wide_corridor_y-wide_corridor_width/2.0),
-                                                        (2*corridor_start_x+corridor_length+0.2,narrow_corridor_width/2.0)],
-                                                       [0,0,0,0,0,0])
+            corridor_length = 4.0
+            corridor_width = 4.0
 
-            self.goal_x = corridor_start_x * 2 + corridor_length
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+                                                        (-0.2,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            # left wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,corridor_width/2.0+0.1,1.3,90,0,0],
+            #                                             surface_type='others')
+
+            # right wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,-corridor_width/2.0-0.1,1.3,-90,0,0],
+            #                                             surface_type='others')
+
+            self.goal_x = corridor_length - 0.4
             self.goal_y = 0
 
         elif(surface_source == 'capture_test_env_3'): # narrow flat ground
@@ -1064,9 +1065,9 @@ class environment_handler:
             # corridor_width = 1.2
             corridor_width = 1.8
 
-            # random.seed(532) # 9(14,20,25), 3
+            random.seed(532) # 9(14,20,25), 3
             # random.seed(2478) # 10(15,21,26), 4
-            random.seed(8) # 11(16,22,27), 5
+            # random.seed(8) # 11(16,22,27), 5
             # random.seed(78945) # 12(17,23,28), 6
             # random.seed(29854745) # 13(18,24,29), 7
 
@@ -1214,6 +1215,70 @@ class environment_handler:
             self.goal_x = ground_max_x - 0.6
             self.goal_y = ground_max_y - 0.4
 
+        elif(surface_source == 'capture_test_env_5_2'): # oil platform
+            ground_max_x = 3.3
+            ground_min_x = -0.4
+            ground_max_y = 0.3
+            ground_min_y = -3.1
+
+            obstacle_max_x = 1.6
+            obstacle_min_x = 0.8
+            obstacle_max_y = -0.3
+            obstacle_min_y = -2.0
+            # ground platforms
+            self.add_quadrilateral_surface(structures, [(ground_min_x,ground_max_y),
+                                                        (ground_min_x,ground_min_y),
+                                                        (obstacle_min_x,ground_min_y),
+                                                        (obstacle_min_x,ground_max_y)],
+                                                        [0,0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0)],
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_min_y+obstacle_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0)],
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_max_y+obstacle_max_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0)],
+                                                        [(obstacle_max_x+ground_max_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            # Obstacle
+            body = rave.RaveCreateKinBody(self.env,'')
+            body.SetName('obstacle')
+            body.InitFromBoxes(np.array([[(obstacle_max_x+obstacle_min_x)/2.0,(obstacle_max_y+obstacle_min_y)/2.0,0.75,(obstacle_max_x-obstacle_min_x)/2.0 - 0.1,(obstacle_max_y-obstacle_min_y)/2.0 - 0.1,0.75]]),True)
+            self.env.AddKinBody(body)
+
+
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,corridor_width/2.0+0.2,1.2,90,0,0],
+            #                                             surface_type='others')
+
+            # right wall
+            # self.add_quadrilateral_surface(structures, [(-0.2,corridor_width/2.0),
+            #                                             (-0.2,-corridor_width/2.0),
+            #                                             (corridor_length,-corridor_width/2.0),
+            #                                             (corridor_length,corridor_width/2.0)],
+            #                                             [0,-corridor_width/2.0-0.1,1.2,-90,0,0],
+            #                                             surface_type='others')
+
+            self.goal_x = ground_max_x - 0.4
+            self.goal_y = ground_min_y + 0.6
+
         elif(surface_source == 'capture_test_env_6'): # new oil platform
             ground_max_x = 4.0
             ground_min_x = -2.0
@@ -1223,7 +1288,7 @@ class environment_handler:
             obstacle_1_max_x = 1.0
             obstacle_1_min_x = -1.0
             obstacle_1_max_y = 2.8
-            obstacle_1_min_y = 0.8
+            obstacle_1_min_y = 1.2
 
             obstacle_2_max_x = obstacle_1_max_x
             obstacle_2_min_x = obstacle_1_min_x
@@ -1368,8 +1433,114 @@ class environment_handler:
                                                         specify_color=ginsyu,
                                                         surface_transparancy=0.5)
 
-            self.goal_x = 3.0
+            self.goal_x = 3.5
             self.goal_y = 3.3
+
+        elif(surface_source == 'capture_test_env_7'): # corner
+
+            ground_max_x = 4.0
+            ground_min_x = -0.5
+            ground_max_y = 4.0
+            ground_min_y = -0.5
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(ground_max_y-ground_min_y)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            wall_max_z = 2.0
+            wall_min_z = 0.0
+            wall_clearance = 0.2
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,ground_min_y-wall_clearance,(wall_max_z+wall_min_z)/2.0,-90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_y-ground_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_y-ground_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_y-ground_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((ground_max_y-ground_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [ground_max_x+wall_clearance,(ground_max_y+ground_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,-90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_x-ground_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [(ground_max_x+ground_min_x)/2.0,ground_max_y+wall_clearance,(wall_max_z+wall_min_z)/2.0,90,0,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.add_quadrilateral_surface(structures, [((ground_max_y-ground_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_y-ground_min_y)/2.0,(wall_max_z-wall_min_z)/2.0),
+                                                        (-(ground_max_y-ground_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0),
+                                                        ((ground_max_y-ground_min_y)/2.0,-(wall_max_z-wall_min_z)/2.0)],
+                                                        [ground_min_x-wall_clearance,(ground_max_y+ground_min_y)/2.0,(wall_max_z+wall_min_z)/2.0,90,90,0],
+                                                        surface_type='others',
+                                                        specify_color=ginsyu,
+                                                        surface_transparancy=0.5)
+
+            self.goal_x = 3.5
+            self.goal_y = 3.5
+
+        elif(surface_source == 'capture_test_env_8'):
+
+            ground_max_x = 2.5
+            ground_min_x = -0.4
+            ground_max_y = 0.6
+            ground_min_y = -3.4
+
+            obstacle_max_x = 1.2
+            obstacle_min_x = 0.5
+            obstacle_max_y = -0.4
+            obstacle_min_y = -2.1
+            # ground platforms
+            self.add_quadrilateral_surface(structures, [(ground_min_x,ground_max_y),
+                                                        (ground_min_x,ground_min_y),
+                                                        (obstacle_min_x,ground_min_y),
+                                                        (obstacle_min_x,ground_max_y)],
+                                                        [0,0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(obstacle_min_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,(obstacle_min_y-ground_min_y)/2.0)],
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_min_y+obstacle_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0),
+                                                        (-(ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,-(ground_max_y-obstacle_max_y)/2.0),
+                                                        ((ground_max_x-ground_min_x)/2.0,(ground_max_y-obstacle_max_y)/2.0)],
+                                                        [(ground_min_x+ground_max_x)/2.0,(ground_max_y+obstacle_max_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            self.add_quadrilateral_surface(structures, [(-(ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0),
+                                                        (-(ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-obstacle_max_x)/2.0,-(ground_max_y-ground_min_y)/2.0),
+                                                        ((ground_max_x-obstacle_max_x)/2.0,(ground_max_y-ground_min_y)/2.0)],
+                                                        [(obstacle_max_x+ground_max_x)/2.0,(ground_max_y+ground_min_y)/2.0,0,0,0,0],
+                                                        specify_color=ginnezumi)
+
+            # Obstacle
+            body = rave.RaveCreateKinBody(self.env,'')
+            body.SetName('obstacle')
+            body.InitFromBoxes(np.array([[(obstacle_max_x+obstacle_min_x)/2.0,(obstacle_max_y+obstacle_min_y)/2.0,0.75,(obstacle_max_x-obstacle_min_x)/2.0 - 0.1,(obstacle_max_y-obstacle_min_y)/2.0 - 0.1,0.75]]),True)
+            self.env.AddKinBody(body)
+
+            self.goal_x = ground_max_x - 0.7
+            self.goal_y = ground_min_y + 0.7
 
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))

@@ -114,11 +114,21 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
 
-const float OBSTACLE_MIN_X = 0.5;
-const float OBSTACLE_MAX_X = 2.0;
-const float OBSTACLE_MIN_Y = -0.9;
-const float OBSTACLE_MAX_Y = -0.3;
+// const float OBSTACLE_MIN_X = 0.6;
+// const float OBSTACLE_MAX_X = 1.1;
+// const float OBSTACLE_MIN_Y = -2.0;
+// const float OBSTACLE_MAX_Y = -0.5;
+const float OBSTACLE_MIN_X = 0.9;
+const float OBSTACLE_MAX_X = 1.5;
+const float OBSTACLE_MIN_Y = -1.9;
+const float OBSTACLE_MAX_Y = -0.4;
 const float OBSTACLE_CLEARANCE = 0.1;
+
+// const float OBSTACLE_MIN_X = 0.5;
+// const float OBSTACLE_MAX_X = 2.0;
+// const float OBSTACLE_MIN_Y = -0.9;
+// const float OBSTACLE_MAX_Y = -0.3;
+// const float OBSTACLE_CLEARANCE = 0.1;
 
 enum ContactManipulator
 {
