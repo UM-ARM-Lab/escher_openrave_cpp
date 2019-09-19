@@ -17,6 +17,9 @@ EscherMotionPlanning::EscherMotionPlanning(OpenRAVE::EnvironmentBasePtr penv, st
 
     RegisterCommand("StartConstructingContactRegions",boost::bind(&EscherMotionPlanning::constructContactRegions,this,_1,_2),
                     "Start constructing contact regions.");
+
+    RegisterCommand("StartCollectDynamicsOptimizationData",boost::bind(&EscherMotionPlanning::startCollectDynamicsOptimizationData,this,_1,_2),
+                    "Start collecting dynamics optimization results.");
 }
 
 void EscherMotionPlanning::parseStructuresCommand(std::istream& sinput)
@@ -125,12 +128,12 @@ void EscherMotionPlanning::parseStructuresCommand(std::istream& sinput)
     }
 }
 
-void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
+void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,3> >& foot_transition_model)
 {
     int foot_transition_num;
     sinput >> foot_transition_num;
 
-    foot_transition_model_.resize(foot_transition_num);
+    foot_transition_model.resize(foot_transition_num);
 
     if(printing_)
     {
@@ -145,16 +148,26 @@ void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
         sinput >> dy;
         sinput >> dtheta;
 
-        foot_transition_model_[i] = {dx, dy, dtheta};
+        foot_transition_model[i] = {dx, dy, dtheta};
     }
 }
 
 void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
 {
+    parseHandTransitionModelCommand(sinput, hand_transition_model_);
+}
+
+void EscherMotionPlanning::parseFootTransitionModelCommand(std::istream& sinput)
+{
+    parseFootTransitionModelCommand(sinput, foot_transition_model_);
+}
+
+void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,2> >& hand_transition_model)
+{
     int hand_transition_num;
     sinput >> hand_transition_num;
 
-    hand_transition_model_.resize(hand_transition_num);
+    hand_transition_model.resize(hand_transition_num);
 
     if(printing_)
     {
@@ -168,7 +181,7 @@ void EscherMotionPlanning::parseHandTransitionModelCommand(std::istream& sinput)
         sinput >> hand_pitch;
         sinput >> hand_yaw;
 
-        hand_transition_model_[i] = {hand_pitch,hand_yaw};
+        hand_transition_model[i] = {hand_pitch,hand_yaw};
     }
 }
 
@@ -328,7 +341,7 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     std::vector<OpenRAVE::dReal> IK_init_DOF_Values(dof_num);
     std::vector<OpenRAVE::dReal> default_DOF_Values(dof_num);
 
-    float foot_h, foot_w, hand_h, hand_w, robot_z, top_z, shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride;
+    float foot_h, foot_w, hand_h, hand_w, robot_z, top_z, shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride, mass;
 
     for(int i = 0; i < dof_num; i++)
     {
@@ -351,10 +364,39 @@ void EscherMotionPlanning::parseRobotPropertiesCommand(std::istream& sinput)
     sinput >> max_arm_length;
     sinput >> min_arm_length;
     sinput >> max_stride;
+    sinput >> mass;
 
     robot_properties_ = std::make_shared<RobotProperties>(probot_, IK_init_DOF_Values, default_DOF_Values,
                                                           foot_h, foot_w, hand_h, hand_w, robot_z, top_z,
-                                                          shoulder_z, shoulder_w, max_arm_length, min_arm_length, max_stride);
+                                                          shoulder_z, shoulder_w, max_arm_length,
+                                                          min_arm_length, max_stride, mass);
+}
+
+void EscherMotionPlanning::parseDisturbanceSamplesCommand(std::istream& sinput)
+{
+    int disturbance_samples_num;
+    sinput >> disturbance_samples_num;
+
+    disturbance_samples_.resize(disturbance_samples_num);
+
+    if(printing_)
+    {
+        RAVELOG_INFO("Load %d disturbance samples.\n", disturbance_samples_num);
+    }
+
+    float dx, dy, dz, weight;
+
+    for(int i = 0; i < disturbance_samples_num; i++)
+    {
+        Vector6D disturbance;
+        for(int j = 0; j < 6; j++)
+        {
+            sinput >> disturbance[j];
+        }
+        sinput >> weight;
+
+        disturbance_samples_[i] = std::make_pair(disturbance, weight);
+    }
 }
 
 std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std::istream& sinput)
@@ -363,7 +405,7 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
     std::array<bool,ContactManipulator::MANIP_NUM> ee_contact_status;
 
     Translation3D com;
-    Vector3D com_dot;
+    Vector3D com_dot, lmom, amom;
 
     std::string param;
 
@@ -406,8 +448,19 @@ std::shared_ptr<ContactState> EscherMotionPlanning::parseContactStateCommand(std
         sinput >> com_dot(i);
     }
 
-    std::shared_ptr<Stance> stance = std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status);
-    auto state = std::make_shared<ContactState>(stance, com, com_dot, 1);
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> lmom(i);
+    }
+
+    for(int i = 0; i < 3; i++)
+    {
+        sinput >> amom(i);
+    }
+
+    std::vector< std::shared_ptr<Stance> > stance_vector = {std::make_shared<Stance>(ee_poses[0], ee_poses[1], ee_poses[2], ee_poses[3], ee_contact_status)};
+    std::vector<ContactManipulator> empty_future_move_manips;
+    std::shared_ptr<ContactState> state = std::make_shared<ContactState>(stance_vector, com, com_dot, lmom, amom, empty_future_move_manips, true);
 
     return state;
 }
@@ -1649,6 +1702,32 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
         }
     }
 
+    std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt;
+    TransformationMatrix lf_offset_transform, rf_offset_transform, lh_offset_transform, rh_offset_transform;
+    lf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_LEG] = lf_offset_transform;
+
+    rf_offset_transform << 1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_LEG] = rf_offset_transform;
+
+    lh_offset_transform << 0, 0, 1, 0,
+                           1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::L_ARM] = lh_offset_transform;
+
+    rh_offset_transform <<  0,  0, 1, 0,
+                           -1,  0, 0, 0,
+                            0, -1, 0, 0,
+                            0,  0, 0, 1;
+    ee_offset_transform_to_dynopt[ContactManipulator::R_ARM] = rh_offset_transform;
+
     // if(initial_state->stances_vector_[0]->ee_contact_status_[int(ContactManipulator::L_ARM)])
     // {
     //     second_state = std::make_shared<ContactState>(dummy_second_state->stances_vector_[0], initial_state, ContactManipulator::L_ARM, 1, 1.0);
@@ -1717,7 +1796,9 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
     //     }
     // }
 
-    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME, "SL_optim_config_template/cfg_kdopt_demo.yaml");
+    auto dynamics_optimizer_interface = std::make_shared<OptimizationInterface>(STEP_TRANSITION_TIME, SUPPORT_PHASE_TIME,
+                                                                                "SL_optim_config_template/cfg_kdopt_demo.yaml",
+                                                                                ee_offset_transform_to_dynopt);
 
     float dynamics_cost = 0.0;
     bool dynamically_feasible;
@@ -1799,7 +1880,213 @@ bool EscherMotionPlanning::startTestingTransitionDynamicsOptimization(std::ostre
     //     RAVELOG_ERROR("Dynamically infeasible.\n");
     // }
 
+}
 
+bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& sout, std::istream& sinput)
+{
+    penv_ = GetEnv();
+
+    std::string robot_name;
+    std::string param;
+
+    int thread_num = 1;
+    int planning_id = 0;
+    int contact_sampling_iteration = 20;
+
+    bool check_zero_step_capturability = false;
+    bool check_one_step_capturability = false;
+    bool check_contact_transition_feasibility = false;
+    int specified_motion_code = -1;
+
+    bool sample_feet_only_state = false;
+    bool sample_feet_and_one_hand_state = false;
+    bool sample_feet_and_two_hands_state = false;
+
+    BranchingManipMode branching_manip_mode = BranchingManipMode::ALL;
+
+    std::vector< std::array<float,3> > foot_transition_model;
+    std::vector< std::array<float,2> > hand_transition_model;
+    std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model;
+    std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model;
+
+    disturbance_samples_.clear();
+    Vector6D zero_disturbance;
+    zero_disturbance << 0, 0, 0, 0, 0, 0;
+    disturbance_samples_.push_back(std::make_pair(zero_disturbance, 1.0));
+
+    // read the transition models
+    while(!sinput.eof())
+    {
+        sinput >> param;
+        if(!sinput)
+        {
+            break;
+        }
+
+        if(strcmp(param.c_str(), "robot_name") == 0)
+        {
+            sinput >> robot_name;
+            SetActiveRobot(robot_name);
+        }
+
+        else if(strcmp(param.c_str(), "thread_num") == 0)
+        {
+            sinput >> thread_num;
+        }
+
+        else if(strcmp(param.c_str(), "robot_properties") == 0)
+        {
+            parseRobotPropertiesCommand(sinput);
+        }
+
+        else if(strcmp(param.c_str(), "foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput, foot_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput, hand_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput, disturbance_rejection_foot_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput, disturbance_rejection_hand_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "planning_id") == 0)
+        {
+            sinput >> planning_id;
+        }
+
+        else if(strcmp(param.c_str(), "contact_sampling_iteration") == 0)
+        {
+            sinput >> contact_sampling_iteration;
+        }
+
+        else if(strcmp(param.c_str(), "branching_manip_mode") == 0)
+        {
+            sinput >> param;
+
+            if(strcmp(param.c_str(), "feet_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::FEET_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "hand_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::HAND_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "breaking_hand_contacts") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::BREAKING_HAND_CONTACTS;
+            }
+            else if(strcmp(param.c_str(), "all") == 0)
+            {
+                branching_manip_mode = BranchingManipMode::ALL;
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_zero_step_capturability = false;
+                RAVELOG_INFO("Do not check zero step capturability.\n");
+            }
+            else
+            {
+                check_zero_step_capturability = true;
+                RAVELOG_INFO("Check zero step capturability.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_one_step_capturability = false;
+                RAVELOG_INFO("Do not check one step capturability.\n");
+            }
+            else
+            {
+                check_one_step_capturability = true;
+                RAVELOG_INFO("Check one step capturability.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_contact_transition_feasibility = false;
+                RAVELOG_INFO("Do not check contact transition feasibility.\n");
+            }
+            else
+            {
+                check_contact_transition_feasibility = true;
+                RAVELOG_INFO("Check contact transition feasibility.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_only_state") == 0)
+        {
+            sample_feet_only_state = true;
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_and_one_hand_state") == 0)
+        {
+            sample_feet_and_one_hand_state = true;
+        }
+
+        else if(strcmp(param.c_str(), "sample_feet_and_two_hands_state") == 0)
+        {
+            sample_feet_and_two_hands_state = true;
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_samples") == 0)
+        {
+            parseDisturbanceSamplesCommand(sinput);
+        }
+
+        else if(strcmp(param.c_str(), "specified_motion_code") == 0)
+        {
+            sinput >> specified_motion_code;
+        }
+    }
+
+    RAVELOG_INFO("Thread Number = %d.\n",thread_num);
+
+    drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
+
+    RAVELOG_INFO("Command Parsing Done. \n");
+
+    general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
+
+    // enumerate all the initial states
+    ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model, hand_transition_model,
+                                              disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model,
+                                              structures_, structures_dict_, NULL, general_ik_interface_, 1,
+                                              thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
+                                              PlanningApplication::COLLECT_DATA, check_zero_step_capturability,
+                                              check_one_step_capturability, check_contact_transition_feasibility);
+
+    for(int i = 0; i < contact_sampling_iteration; i++)
+    {
+        std::cout << "Sampling Round: " <<  i << std::endl;
+        contact_pose_sampler.collectTrainingData(branching_manip_mode,
+                                                 sample_feet_only_state,
+                                                 sample_feet_and_one_hand_state,
+                                                 sample_feet_and_two_hands_state,
+                                                 specified_motion_code);
+    }
 }
 
 bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::istream& sinput)
@@ -1821,6 +2108,15 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     bool enforce_stop_in_the_end;
     PlanningHeuristicsType heuristics_type;
     BranchingMethod branching_method = BranchingMethod::CONTACT_PROJECTION;
+
+    std::vector< std::array<float,3> > foot_transition_model;
+    std::vector< std::array<float,2> > hand_transition_model;
+    std::vector< std::array<float,3> > disturbance_rejection_foot_transition_model;
+    std::vector< std::array<float,2> > disturbance_rejection_hand_transition_model;
+
+    bool check_zero_step_capturability = false;
+    bool check_one_step_capturability = false;
+    bool check_contact_transition_feasibility = true;
 
     int thread_num = 1;
     int planning_id = 0;
@@ -1872,12 +2168,22 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
         else if(strcmp(param.c_str(), "foot_transition_model") == 0)
         {
-            parseFootTransitionModelCommand(sinput);
+            parseFootTransitionModelCommand(sinput, foot_transition_model);
         }
 
         else if(strcmp(param.c_str(), "hand_transition_model") == 0)
         {
-            parseHandTransitionModelCommand(sinput);
+            parseHandTransitionModelCommand(sinput, hand_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_foot_transition_model") == 0)
+        {
+            parseFootTransitionModelCommand(sinput, disturbance_rejection_foot_transition_model);
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_rejection_hand_transition_model") == 0)
+        {
+            parseHandTransitionModelCommand(sinput, disturbance_rejection_hand_transition_model);
         }
 
         else if(strcmp(param.c_str(), "planning_parameters") == 0)
@@ -1979,6 +2285,56 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
             }
         }
 
+        else if(strcmp(param.c_str(), "check_zero_step_capturability") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_zero_step_capturability = false;
+                RAVELOG_INFO("Do not check zero step capturability.\n");
+            }
+            else
+            {
+                check_zero_step_capturability = true;
+                RAVELOG_INFO("Check zero step capturability.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_one_step_capturability") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_one_step_capturability = false;
+                RAVELOG_INFO("Do not check one step capturability.\n");
+            }
+            else
+            {
+                check_one_step_capturability = true;
+                RAVELOG_INFO("Check one step capturability.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "check_contact_transition_feasibility") == 0)
+        {
+            sinput >> param;
+            if(strcmp(param.c_str(), "0") == 0)
+            {
+                check_contact_transition_feasibility = false;
+                RAVELOG_INFO("Do not check contact transition feasibility.\n");
+            }
+            else
+            {
+                check_contact_transition_feasibility = true;
+                RAVELOG_INFO("Check contact transition feasibility.\n");
+            }
+        }
+
+        else if(strcmp(param.c_str(), "disturbance_samples") == 0)
+        {
+            parseDisturbanceSamplesCommand(sinput);
+        }
+
         else if(strcmp(param.c_str(), "planning_id") == 0)
         {
             sinput >> planning_id;
@@ -2023,21 +2379,40 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     RAVELOG_INFO("Command Parsing Done. \n");
 
-    map_grid_->obstacleAndGapMapping(penv_, structures_);
-    RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
+    // map_grid_->obstacleAndGapMapping(penv_, structures_);
+    // RAVELOG_INFO("Obstacle and ground mapping is Done. \n");
 
-    GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
+    // GridIndices3D goal_cell_indices = map_grid_->positionsToIndices({goal_[0], goal_[1], goal_[2]});
     // std::cout << goal_[0] << " " << goal_[1] << " " << goal_[2] << std::endl;
-    map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
+    // map_grid_->generateDijkstrHeuristics(map_grid_->cell_3D_list_[goal_cell_indices[0]][goal_cell_indices[1]][goal_cell_indices[2]]);
 
     general_ik_interface_ = std::make_shared<GeneralIKInterface>(penv_, probot_);
 
-    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_, structures_, structures_dict_, map_grid_,
-                                               general_ik_interface_, 1, thread_num, drawing_handler_, planning_id, use_dynamics_planning);
+    std::cout << foot_transition_model.size() << std::endl;
+
+    ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model, hand_transition_model,
+                                               disturbance_rejection_foot_transition_model, disturbance_rejection_hand_transition_model,
+                                               structures_, structures_dict_, map_grid_,
+                                               general_ik_interface_, 1, thread_num, drawing_handler_,
+                                               planning_id, use_dynamics_planning, disturbance_samples_,
+                                               PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
+                                               check_one_step_capturability, check_contact_transition_feasibility);
 
     RAVELOG_INFO("Start ANA* Planning \n");
 
-    contact_space_planner.storeSLEnvironment();
+    // contact_space_planner.storeSLEnvironment();
+
+    // TorsoPathPlanning torso_path_planner(penv_, robot_properties_, 0.35, 0.1, {0.2, 0.2, 0.2}, structures_, structures_dict_, thread_num, drawing_handler_, planning_id);
+
+    // RPYTF initial_torso_pose(0, 0, 1.2, 0, 0, 0);
+    // RPYTF goal_torso_pose(1.3, 0, -3.1, 0, 0, 0);
+    // // RPYTF goal_torso_pose(2.6, 0, 1.2, 0, 0, 0);
+    // auto initial_torso_pose_state = std::make_shared<TorsoPoseState>(initial_torso_pose);
+
+    // RPYTF far_away_pose(99.0, 99.0, 99.0, 0, 0, 0);
+    // probot_->SetTransform(far_away_pose.GetRaveTransform());
+
+    // std::vector< std::shared_ptr<TorsoPoseState> > torso_path = torso_path_planner.AStarPlanning(initial_torso_pose_state, goal_torso_pose, time_limit);
 
     // getchar();
 

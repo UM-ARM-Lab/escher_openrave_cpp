@@ -455,6 +455,19 @@ TrimeshSurface::TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _k
     contact_point_grid_->initializeParameters(min_proj_x_, max_proj_x_, min_proj_y_, max_proj_y_, SURFACE_CONTACT_POINT_RESOLUTION);
 }
 
+TrimeshSurface::TrimeshSurface(Translation3D _contact_point, Vector3D _normal, TrimeshType _type):
+                               Structure(NULL, -1),
+                               contact_point_grid_(NULL),
+                               type_(_type),
+                               nx_(_normal[0]),
+                               ny_(_normal[1]),
+                               nz_(_normal[2])
+{
+    c_ = -_contact_point[0] * nx_ -_contact_point[1] * ny_ -_contact_point[2] * nz_;
+
+    // all the vertices and edges are not initialized. This trimesh surface can only be used as a projection surface
+}
+
 // OpenRAVE::TriMesh TrimeshSurface::get_openrave_trimesh() const
 // {
 // 	OpenRAVE::TriMesh ret_tm;
@@ -633,18 +646,35 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
 {
     Translation3D translation = projectionGlobalFrame(origin, ray);
 
+    // if(translation.norm() > 2000)
+    // {
+    //     std::cout << translation << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << origin << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << ray << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << getCenter() << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << getNormal() << std::endl;
+    //     std::cout << "++++++++++" << std::endl;
+    //     std::cout << contact_manipulator << std::endl;
+    //     getchar();
+    // }
+
     if(translation[0] == -99.0)
     {
         valid_contact = false;
         return TransformationMatrix();
     }
 
-    Translation3D cx, cy, cz;
+    Vector3D cx, cy, cz;
+    double roll_rad = roll * DEG2RAD;
 
     if(contact_manipulator == ContactManipulator::L_LEG || contact_manipulator == ContactManipulator::R_LEG)
     {
         cz = getNormal();
-        cx = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
+        cx = Vector3D(std::cos(roll_rad), std::sin(roll_rad), 0);
         cy = cz.cross(cx).normalized();
         cx = cy.cross(cz);
     }
@@ -653,13 +683,22 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
         cx = -getNormal();
         if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
         {
-            cy = Translation3D(std::sin(roll * DEG2RAD), 0, std::cos(roll * DEG2RAD));
+            cy = Vector3D(std::sin(roll_rad), 0, std::cos(roll_rad));
         }
         else
         {
-            cy = Translation3D(std::cos(roll * DEG2RAD), std::sin(roll * DEG2RAD), 0);
+            cy = Vector3D(std::cos(roll_rad), std::sin(roll_rad), 0);
         }
-        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+
+        if(cy.dot(getNormal()) >= 0)
+        {
+            cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        }
+        else
+        {
+            cy = (projectionGlobalFrame(translation+cy, getNormal()) - translation).normalized();
+        }
+
         cz = cx.cross(cy);
 
     }
@@ -668,13 +707,22 @@ TransformationMatrix TrimeshSurface::projection(const Translation3D& origin, con
         cx = -getNormal();
         if(fabs(getNormal().dot(Vector3D(0,0,1))) < 0.9999)
         {
-            cy = Translation3D(-std::sin(roll * DEG2RAD), 0, -std::cos(roll * DEG2RAD));
+            cy = Vector3D(-std::sin(roll_rad), 0, -std::cos(roll_rad));
         }
         else
         {
-            cy = Translation3D(-std::cos(roll * DEG2RAD), -std::sin(roll * DEG2RAD), 0);
+            cy = Vector3D(-std::cos(roll_rad), -std::sin(roll_rad), 0);
         }
-        cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+
+        if(cy.dot(getNormal()) >= 0)
+        {
+            cy = (projectionGlobalFrame(translation+cy, -getNormal()) - translation).normalized();
+        }
+        else
+        {
+            cy = (projectionGlobalFrame(translation+cy, getNormal()) - translation).normalized();
+        }
+
         cz = cx.cross(cy);
     }
 

@@ -11,14 +11,46 @@
  * (a contact sequence) to a momentumopt ContactSequence for dynamics
  * optimization.
  */
+// class ContactPlanFromOneStepCaptureCandidate : public momentumopt::ContactPlanInterface
+// {
+//     public:
+//         ContactPlanFromOneStepCaptureCandidate(std::shared_ptr<ContactState> _capture_contact_state,
+//                                                float _step_transition_time,  float _support_phase_time):
+//         capture_contact_state_(_capture_contact_state),
+//         step_transition_time_(_step_transition_time),
+//         support_phase_time_(_support_phase_time),
+//         timer_(0.0) {};
+
+//         ContactPlanFromOneStepCaptureCandidate() {}
+//         ~ContactPlanFromOneStepCaptureCandidate(){}
+
+//         void customSaveToFile(){}
+//         void customInitialization(){}
+//         solver::ExitCode customContactsOptimization(const momentumopt::DynamicsState& ini_state, momentumopt::DynamicsSequence& dyn_seq);
+
+//         void addContact(int eff_id, RPYTF& eff_pose, bool prev_in_contact);
+//         // void addViapoint(int eff_id, RPYTF& prev_eff_pose, RPYTF& eff_pose);
+
+//         std::shared_ptr<ContactState> capture_contact_state_;
+//         momentumopt::DynamicsState dummy_ini_state_;
+//         momentumopt::DynamicsSequence dummy_dyn_seq_;
+//         float step_transition_time_;
+//         float support_phase_time_;
+//         float timer_;
+//         Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> contacts_per_endeff_;
+// };
+
 class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
 {
     public:
-        ContactPlanFromContactSequence(std::vector< std::shared_ptr<ContactState> > _input_contact_state_sequence, float _step_transition_time,  float _support_phase_time):
+        ContactPlanFromContactSequence(std::vector< std::shared_ptr<ContactState> > _input_contact_state_sequence,
+                                       float _step_transition_time,  float _support_phase_time,
+                                       DynOptApplication _dynamics_optimizer_application = DynOptApplication::CONTACT_TRANSITION_DYNOPT):
         input_contact_state_sequence_(_input_contact_state_sequence),
         step_transition_time_(_step_transition_time),
         support_phase_time_(_support_phase_time),
-        timer_(0.0) {};
+        timer_(0.0),
+        dynamics_optimizer_application_(_dynamics_optimizer_application) {};
 
         ContactPlanFromContactSequence() {}
         ~ContactPlanFromContactSequence(){}
@@ -37,6 +69,9 @@ class ContactPlanFromContactSequence : public momentumopt::ContactPlanInterface
         float support_phase_time_;
         float timer_;
         Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> contacts_per_endeff_;
+        Eigen::Matrix<int, momentumopt::Problem::n_endeffs_, 1> viapoints_per_endeff_;
+
+        DynOptApplication dynamics_optimizer_application_;
 };
 
 class DummyKinematicsInterface : public virtual momentumopt::KinematicsInterface
@@ -58,7 +93,10 @@ class DummyKinematicsInterface : public virtual momentumopt::KinematicsInterface
 class OptimizationInterface
 {
     public:
-        OptimizationInterface(float _step_transition_time, float _support_phase_time, std::string _cfg_file);
+        OptimizationInterface(float _step_transition_time, float _support_phase_time,
+                              std::string _cfg_file,
+                              std::array<TransformationMatrix,ContactManipulator::MANIP_NUM> _ee_offset_transform_to_dynopt,
+                              DynOptApplication _dynamics_optimizer_application = DynOptApplication::CONTACT_TRANSITION_DYNOPT);
 
         // initialization functions
         // void initializeKinematicsInterface();
@@ -69,10 +107,11 @@ class OptimizationInterface
         void loadDynamicsOptimizerSetting(std::string _cfg_file);
 
         // helper functions to load parameters from planner information (Input: Planner --> Optimizer)
-        void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence);
-        void updateContactSequenceRelatedDynamicsOptimizerSetting();
+        void updateContactSequence(std::vector< std::shared_ptr<ContactState> > new_contact_state_sequence, float initial_time=0.0);
+        void updateContactSequenceRelatedDynamicsOptimizerSetting(float initial_time=0.0);
+        void updateReferenceDynamicsSequence(Translation3D com_translation, float desired_speed);
         void fillInitialRobotState();
-        void fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence);
+        void fillContactSequence(momentumopt::DynamicsSequence& dynamics_sequence, float initial_time=0.0);
 
         // methods to generate kinematics sequence
         bool simplifiedKinematicsOptimization();
@@ -89,10 +128,31 @@ class OptimizationInterface
         void storeResultDigest(solver::ExitCode solver_exitcode, std::ofstream& file_stream);
 
         void storeDynamicsOptimizationResult(std::shared_ptr<ContactState> input_current_state, float& dynamics_cost, bool dynamically_feasible, int planning_id);
+        void storeDynamicsOptimizationFeature(std::shared_ptr<ContactState> input_current_state, std::string config_file_folder, int file_index);
 
         void drawCoMTrajectory(std::shared_ptr<DrawingHandler> drawing_handler, Vector3D color);
 
         void recordDynamicsMetrics();
+
+        // export cfg_kdopt_demo.yaml and Objects.cf for kinematics optimization
+        void exportConfigFiles(std::string optimization_config_template_path, std::string optimization_config_output_path,
+                               std::string objects_config_output_path,
+                               std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                               std::shared_ptr<RobotProperties> robot_properties,
+                               float initial_time=0.0);
+        void exportOptimizationConfigFile(std::string template_path, std::string output_path,
+                                          std::map<ContactManipulator, RPYTF> floating_initial_contact_poses,
+                                          std::shared_ptr<RobotProperties> robot_properties);
+        void exportSLObjectsFile(std::string output_path, std::shared_ptr<RobotProperties> robot_properties);
+
+        // std::vector<Translation3D> getCoMTrajectory();
+        // std::vector<Vector3D> getLinearMomentumTrajectory();
+        // std::vector<Vector3D> getAngularMomentumTrajectory();
+
+        Translation3D getCoM(int time_id);
+        Vector3D getLinearMomentum(int time_id);
+        Vector3D getAngularMomentum(int time_id);
+        momentumopt::DynamicsSequence getDynamicsSequence();
 
         float step_transition_time_;
         float support_phase_time_;
@@ -118,6 +178,8 @@ class OptimizationInterface
         momentumopt::DynamicsSequence           reference_dynamics_sequence_;
 
         std::vector< std::shared_ptr<ContactState> > contact_state_sequence_;
+
+        DynOptApplication dynamics_optimizer_application_;
 
         // std::ofstream dynopt_result_digest_;
         // std::ofstream simplified_dynopt_result_digest_;

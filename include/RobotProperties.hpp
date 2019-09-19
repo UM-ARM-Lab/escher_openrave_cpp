@@ -8,7 +8,7 @@ class RobotProperties
     public:
         RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<OpenRAVE::dReal> _IK_init_DOF_Values, std::vector<OpenRAVE::dReal> _default_DOF_Values,
                         float _foot_h, float _foot_w, float _hand_h, float _hand_w, float _robot_z, float _top_z,
-                        float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride);
+                        float _shoulder_z, float _shoulder_w, float _max_arm_length, float _min_arm_length, float _max_stride, float _mass);
 
         const std::string name_;
 
@@ -19,6 +19,8 @@ class RobotProperties
         std::vector<OpenRAVE::dReal> higher_joint_limits_;
 
         std::map<ContactManipulator, std::string> manipulator_name_map_;
+
+        std::map<int, int> DOFindex_SLindex_map_;
 
         const std::vector<OpenRAVE::dReal> IK_init_DOF_Values_; // the OriginalDOFValues
         const std::vector<OpenRAVE::dReal> default_DOF_Values_; // the GazeboOriginalDOFValues
@@ -39,6 +41,10 @@ class RobotProperties
         const float min_arm_length_;
 
         const float max_stride_;
+
+        const float mass_;
+
+        std::array<TransformationMatrix, ContactManipulator::MANIP_NUM> ee_offset_transform_to_dynopt_;
 
     private:
 

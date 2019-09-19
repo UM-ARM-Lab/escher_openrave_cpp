@@ -183,28 +183,28 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
                 }
                 else
                 {
-                    // std::cout << "1 ";
-                    for(int itheta = 0; itheta < dim_theta_; itheta++)
-                    {
-                        GridPositions3D cell_3d_position = cell_3D_list_[ix][iy][itheta].getPositions();
-                        RPYTF body_collision_box_transform(cell_3d_position[0], cell_3d_position[1], height, 0, 0, cell_3d_position[2]);
-                        body_collision_box->SetTransform(body_collision_box_transform.GetRaveTransform());
-                        bool in_collision = false;
+                    // // std::cout << "1 ";
+                    // for(int itheta = 0; itheta < dim_theta_; itheta++)
+                    // {
+                    //     GridPositions3D cell_3d_position = cell_3D_list_[ix][iy][itheta].getPositions();
+                    //     RPYTF body_collision_box_transform(cell_3d_position[0], cell_3d_position[1], height, 0, 0, cell_3d_position[2]);
+                    //     body_collision_box->SetTransform(body_collision_box_transform.GetRaveTransform());
+                    //     bool in_collision = false;
 
-                        for(auto structure : structures)
-                        {
-                            if(env->CheckCollision(body_collision_box, structure->getKinbody()))
-                            {
-                                in_collision = true;
-                                break;
-                            }
-                        }
+                    //     for(auto structure : structures)
+                    //     {
+                    //         if(env->CheckCollision(body_collision_box, structure->getKinbody()))
+                    //         {
+                    //             in_collision = true;
+                    //             break;
+                    //         }
+                    //     }
 
-                        if(in_collision)
-                        {
-                            cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::OBSTACLE;
-                        }
-                    }
+                    //     if(in_collision)
+                    //     {
+                    //         cell_3D_list_[ix][iy][itheta].terrain_type_ = TerrainType::OBSTACLE;
+                    //     }
+                    // }
                 }
             }
             // std::cout << std::endl;
@@ -214,7 +214,7 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
 
 void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
 {
-    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, MapCell3D::pointer_less > open_heap;
+    std::priority_queue< MapCell3D*, std::vector< MapCell3D* >, pointer_less > open_heap;
     goal_cell.g_ = 0;
 
     open_heap.push(&goal_cell);
@@ -239,8 +239,8 @@ void MapGrid::generateDijkstrHeuristics(MapCell3D goal_cell)
                         if(insideGrid(new_cell_indices))
                         {
                             MapCell3D* cell_ptr = &cell_3D_list_[new_cell_indices[0]][new_cell_indices[1]][new_cell_indices[2]];
-                            // if(cell_ptr->terrain_type_ == TerrainType::SOLID)
-                            if(true)
+                            if(cell_ptr->terrain_type_ == TerrainType::SOLID)
+                            // if(true)
                             {
                                 float edge_cost = std::sqrt(ix*ix*1.0 + iy*iy*1.0) * xy_resolution_;
                                 if(current_cell->getF() + edge_cost < cell_ptr->getF())

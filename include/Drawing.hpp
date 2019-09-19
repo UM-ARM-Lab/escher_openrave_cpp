@@ -6,6 +6,7 @@
 
 class ContactState;
 class RobotProperties;
+class TorsoPoseState;
 
 class DrawingHandler{
 	std::vector< OpenRAVE::GraphHandlePtr > graphptrs;
@@ -20,6 +21,7 @@ public:
 	// void DrawBodyPath(Node* current); // Draw the upperbody path in thr door planning, postpone this implementation.(DrawPaths)
 	void DrawGridPath(); // Draw the Dijkstra grid path, postpone implementation.
 	void DrawContactPath(std::shared_ptr<ContactState> current_state); // Draw the contact path given the final state(DrawStances)
+	void DrawTorsoPath(std::shared_ptr<TorsoPoseState> current_state);
 	void DrawContacts(std::shared_ptr<ContactState> current_state); // Draw the contacts of one node(DrawStance)
 	// void DrawContact(enum contact_type,contact_transform); // Draw one contact.(DrawContact)
 	void DrawLocation(OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform, OpenRAVE::RaveVector<float> color); // Draw a point at the location(DrawLocation)

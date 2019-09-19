@@ -68,14 +68,14 @@ class MapCell3D : MapCell2D
         inline const float getF() const {return (g_ + h_);}
         inline bool operator<(const MapCell3D& other) const {return (this->getF() < other.getF());}
 
-        struct pointer_less
-        {
-            template <typename T>
-            bool operator()(const T& lhs, const T& rhs) const
-            {
-                return *lhs < *rhs;
-            }
-        };
+        // struct pointer_less
+        // {
+        //     template <typename T>
+        //     bool operator()(const T& lhs, const T& rhs) const
+        //     {
+        //         return *lhs < *rhs;
+        //     }
+        // };
 
         int getTravelDirection(MapCell3D goal_cell);
 

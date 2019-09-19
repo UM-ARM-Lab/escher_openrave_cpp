@@ -11,6 +11,25 @@ float euclideanDistance3D(const Translation3D& q, const Translation3D& p)
 	return (q-p).norm();
 }
 
+float orientationDistance(const Vector3D& q, const Vector3D& p)
+{
+	RPYTF q_rpytf = RPYTF(0, 0, 0, q[0], q[1], q[2]);
+	RPYTF p_rpytf = RPYTF(0, 0, 0, p[0], p[1], p[2]);
+	return orientationDistance(q_rpytf, p_rpytf);
+}
+
+float orientationDistance(const RPYTF& q, const RPYTF& p)
+{
+	Quaternion q_quat = RPYToQuaternion(q);
+	Quaternion p_quat = RPYToQuaternion(p);
+	return orientationDistance(q_quat, p_quat);
+}
+
+float orientationDistance(const Quaternion& q, const Quaternion& p)
+{
+	return (1 - q.w()*p.w() - q.x()*p.x() - q.y()*p.y() - q.z()*p.z());
+}
+
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23)
 {
     TransformationMatrix T;
@@ -23,7 +42,21 @@ TransformationMatrix constructTransformationMatrix(float m00, float m01, float m
     return T;
 }
 
-TransformationMatrix inverseTransformationMatrix(TransformationMatrix T)
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform& transform)
+{
+	OpenRAVE::RaveTransformMatrix<OpenRAVE::dReal> transform_matrix(transform);
+
+	TransformationMatrix T;
+
+	T(0,0) = transform_matrix.m[0]; T(0,1) = transform_matrix.m[1]; T(0,2) = transform_matrix.m[2]; T(0,3) = transform_matrix.trans.x;
+    T(1,0) = transform_matrix.m[4]; T(1,1) = transform_matrix.m[5]; T(1,2) = transform_matrix.m[6]; T(1,3) = transform_matrix.trans.y;
+    T(2,0) = transform_matrix.m[8]; T(2,1) = transform_matrix.m[9]; T(2,2) = transform_matrix.m[10]; T(2,3) = transform_matrix.trans.z;
+    T(3,0) = 0;   T(3,1) = 0;   T(3,2) = 0;   T(3,3) = 1;
+
+    return T;
+}
+
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix& T)
 {
 	RotationMatrix R = T.block<3,3>(0,0);
 	Translation3D t = T.block<3,1>(0,3);
@@ -369,8 +402,12 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e)
     RotationMatrix SL_openrave_rotation;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
     SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
 
     Translation3D transformed_position = (SL_openrave_transform * Translation3D(transformed_e.x_, transformed_e.y_, transformed_e.z_).homogeneous()).block(0,0,3,1);
@@ -399,8 +436,12 @@ RPYTF transformPoseFromOpenraveToSL(RPYTF& e, TransformationMatrix& offset_trans
     RotationMatrix SL_openrave_rotation;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
     SL_openrave_rotation = SL_openrave_transform.block(0,0,3,3);
 
     Translation3D transformed_position = (SL_openrave_transform * (R*t_offset+t).homogeneous()).block(0,0,3,1);
@@ -476,8 +517,12 @@ Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t)
     TransformationMatrix SL_openrave_transform;
     SL_openrave_transform << 0, -1, 0, 0,
                              1,  0, 0, 0,
-                             0,  0, 1, -1.05,
+                             0,  0, 1, -0.75,
                              0, 0, 0, 1;
+	// SL_openrave_transform << 0, -1, 0, 0,
+    //                          1,  0, 0, 0,
+    //                          0,  0, 1, -1.05,
+    //                          0, 0, 0, 1;
 
     Eigen::Vector3d transformed_position = (SL_openrave_transform * t.homogeneous()).block(0,0,3,1).cast<double>();
 
@@ -489,10 +534,26 @@ Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t)
     TransformationMatrix openrave_SL_transform;
     openrave_SL_transform <<  0, 1, 0, 0,
                              -1, 0, 0, 0,
-                              0, 0, 1, 1.05,
+                              0, 0, 1, 0.75,
                               0, 0, 0, 1;
+	// openrave_SL_transform <<  0, 1, 0, 0,
+    //                          -1, 0, 0, 0,
+    //                           0, 0, 1, 1.05,
+    //                           0, 0, 0, 1;
 
     Translation3D transformed_position = (openrave_SL_transform * t.cast<float>().homogeneous()).block(0,0,3,1);
 
     return transformed_position;
+}
+
+bool directory_exist(const std::string& directory_path)
+{
+    struct stat info;
+
+    if(stat( directory_path.c_str(), &info ) != 0)
+        return false;
+    else if(info.st_mode & S_IFDIR) // for windows?
+        return true;
+    else
+        return false;
 }

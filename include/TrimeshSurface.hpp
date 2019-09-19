@@ -16,6 +16,7 @@ public:
 				   std::vector< std::pair<int, int> > _edges, std::vector<Translation3D> _vertices, TrimeshType _type, int _id);
 	TrimeshSurface(OpenRAVE::EnvironmentBasePtr _env, std::string _kinbody_name, Eigen::Vector4f _plane_parameters,
 			       std::vector< std::pair<int, int> > _edges, std::vector<Translation3D> _vertices, TrimeshType _type, int _id);
+	TrimeshSurface(Translation3D _contact_point, Vector3D _normal, TrimeshType _type); // virtual surface
 
 	// OpenRAVE::TriMesh get_openrave_trimesh() const;
 

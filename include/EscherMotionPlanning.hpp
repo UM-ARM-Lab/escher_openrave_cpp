@@ -22,6 +22,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         bool startPlanningFromScratch(std::ostream& sout, std::istream& sinput);
 
+        bool startCollectDynamicsOptimizationData(std::ostream& sout, std::istream& sinput);
+
     private:
         void constructContactPointGrid();
         void constructGroundContactPointGrid();
@@ -29,11 +31,14 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         void SetActiveRobot(std::string robot_name);
 
         void parseStructuresCommand(std::istream& sinput);
+        void parseFootTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,3> >& foot_transition_model);
+        void parseHandTransitionModelCommand(std::istream& sinput, std::vector< std::array<float,2> >& hand_transition_model);
         void parseFootTransitionModelCommand(std::istream& sinput);
         void parseHandTransitionModelCommand(std::istream& sinput);
         void parseMapGridDimCommand(std::istream& sinput);
         void parseMapGridCommand(std::istream& sinput);
         void parseRobotPropertiesCommand(std::istream& sinput);
+        void parseDisturbanceSamplesCommand(std::istream& sinput);
         std::shared_ptr<ContactState> parseContactStateCommand(std::istream& sinput);
 
         std::map<std::array<int,5>,std::array<float,3> > calculateFootstepTransitionTraversability(std::vector<std::array<int,5>> torso_transitions, std::string motion_mode);
@@ -66,6 +71,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         // the general_ik interface
         std::shared_ptr<GeneralIKInterface> general_ik_interface_;
+
+        std::vector< std::pair<Vector6D, float> > disturbance_samples_;
 
         bool is_parallel_ = false; // a flag to turn or off parallelization. (just for example)
         bool printing_ = false;

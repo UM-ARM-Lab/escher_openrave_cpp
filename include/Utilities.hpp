@@ -23,6 +23,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 // Eigen
 #include <Eigen/Core>
@@ -42,18 +44,40 @@
 // frugally deep
 #include <fdeep/fdeep.hpp>
 
+#define FDEEP_FLOAT_TYPE double
+
 // cddlib
 #define GMPRATIONAL 1
 #include <cdd/setoper.h>
 #include <cdd/cdd.h>
 
-typedef Eigen::Matrix4f          TransformationMatrix;
-typedef Eigen::Matrix3f          RotationMatrix;
-typedef Eigen::Vector2f          Translation2D;
-typedef Eigen::Vector3f          Translation3D;
-typedef Eigen::Vector2f          Vector2D;
-typedef Eigen::Vector3f          Vector3D;
-typedef Eigen::Quaternion<float> Quaternion;
+// tensorflow
+#include "tensorflow/core/framework/graph.pb.h"
+#include "tensorflow/core/framework/tensor.h"
+#include "tensorflow/core/graph/default_device.h"
+#include "tensorflow/core/graph/graph_def_builder.h"
+#include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/lib/core/stringpiece.h"
+#include "tensorflow/core/lib/strings/str_util.h"
+#include "tensorflow/core/lib/core/threadpool.h"
+#include "tensorflow/core/lib/io/path.h"
+#include "tensorflow/core/lib/strings/stringprintf.h"
+#include "tensorflow/core/platform/env.h"
+#include "tensorflow/core/platform/init_main.h"
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/platform/types.h"
+#include "tensorflow/core/public/session.h"
+#include "tensorflow/core/util/command_line_flags.h"
+
+
+typedef Eigen::Matrix4f            TransformationMatrix;
+typedef Eigen::Matrix3f            RotationMatrix;
+typedef Eigen::Vector2f            Translation2D;
+typedef Eigen::Vector3f            Translation3D;
+typedef Eigen::Vector2f            Vector2D;
+typedef Eigen::Vector3f            Vector3D;
+typedef Eigen::Matrix<float, 6, 1> Vector6D;
+typedef Eigen::Quaternion<float>   Quaternion;
 
 typedef std::array<int,2> GridIndices2D;
 typedef std::array<float,2> GridPositions2D;
@@ -77,8 +101,10 @@ const Translation3D GLOBAL_NEGATIVE_Z = Translation3D(0,0,-1);
 
 const float MU = 0.5;
 const float MAX_ANGULAR_DEVIATION = atan(MU) * RAD2DEG;
-const float STEP_TRANSITION_TIME = 1.0;
-const float SUPPORT_PHASE_TIME = 1.0;
+// const float STEP_TRANSITION_TIME = 1.0;
+// const float SUPPORT_PHASE_TIME = 1.0;
+const float STEP_TRANSITION_TIME = 0.5;
+const float SUPPORT_PHASE_TIME = 0.5;
 
 const float SURFACE_CONTACT_POINT_RESOLUTION = 0.05; // meters
 
@@ -87,6 +113,22 @@ const int TORSO_GRID_ANGULAR_RESOLUTION = 30;
 
 const float SHOULDER_W = 0.6;
 const float SHOULDER_Z = 1.45;
+
+// const float OBSTACLE_MIN_X = 0.6;
+// const float OBSTACLE_MAX_X = 1.1;
+// const float OBSTACLE_MIN_Y = -2.0;
+// const float OBSTACLE_MAX_Y = -0.5;
+const float OBSTACLE_MIN_X = 0.9;
+const float OBSTACLE_MAX_X = 1.5;
+const float OBSTACLE_MIN_Y = -1.9;
+const float OBSTACLE_MAX_Y = -0.4;
+const float OBSTACLE_CLEARANCE = 0.1;
+
+// const float OBSTACLE_MIN_X = 0.5;
+// const float OBSTACLE_MAX_X = 2.0;
+// const float OBSTACLE_MIN_Y = -0.9;
+// const float OBSTACLE_MAX_Y = -0.3;
+// const float OBSTACLE_CLEARANCE = 0.1;
 
 enum ContactManipulator
 {
@@ -150,12 +192,96 @@ enum ContactTransitionCode
     FEET_AND_TWO_HANDS_MOVE_HAND         // 9
 };
 
+enum ZeroStepCaptureCode
+{
+    ONE_FOOT,                   // 0
+    TWO_FEET,                   // 1
+    ONE_FOOT_AND_INNER_HAND,    // 2
+    ONE_FOOT_AND_OUTER_HAND,    // 3
+    ONE_FOOT_AND_TWO_HANDS,     // 4
+    FEET_AND_ONE_HAND           // 5
+};
+
+enum OneStepCaptureCode
+{
+    ONE_FOOT_ADD_FOOT,                  // 0
+    ONE_FOOT_ADD_INNER_HAND,            // 1
+    ONE_FOOT_ADD_OUTER_HAND,            // 2
+    TWO_FEET_ADD_HAND,                  // 3
+    ONE_FOOT_AND_INNER_HAND_ADD_FOOT,   // 4
+    ONE_FOOT_AND_INNER_HAND_ADD_HAND,   // 5
+    ONE_FOOT_AND_OUTER_HAND_ADD_FOOT,   // 6
+    ONE_FOOT_AND_OUTER_HAND_ADD_HAND,   // 7
+    ONE_FOOT_AND_TWO_HANDS_ADD_FOOT,    // 8
+    TWO_FEET_AND_ONE_HAND_ADD_HAND      // 9
+};
+
+enum DynOptApplication
+{
+    CONTACT_TRANSITION_DYNOPT,
+    ZERO_STEP_CAPTURABILITY_DYNOPT,
+    ONE_STEP_CAPTURABILITY_DYNOPT
+};
+
+enum PlanningApplication
+{
+    COLLECT_DATA,
+    PLAN_IN_ENV
+};
+
+enum BranchingManipMode
+{
+    FEET_CONTACTS,
+    HAND_CONTACTS,
+    BREAKING_HAND_CONTACTS,
+    ALL
+};
+
+enum NeuralNetworkModelType
+{
+    FRUGALLY_DEEP,
+    TENSORFLOW
+};
+
 struct EnumClassHash
 {
     template <typename T>
     std::size_t operator()(T t) const
     {
         return static_cast<std::size_t>(t);
+    }
+};
+
+struct EigenVectorHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        std::size_t hash_number = 0;
+        for(int i = 0; i < t.rows(); i++)
+        {
+            hash_number ^= hash<float>()(t[i]) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+        }
+
+        return hash_number;
+    }
+};
+
+struct PairHash
+{
+	template <class T1, class T2>
+	std::size_t operator() (const std::pair<T1, T2> &pair) const
+	{
+		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+	}
+};
+
+struct pointer_less
+{
+    template <typename T>
+    bool operator()(const T& lhs, const T& rhs) const
+    {
+        return *lhs < *rhs;
     }
 };
 
@@ -194,6 +320,8 @@ class RPYTF
 
         inline std::array<float,6> getXYZRPY() const {return std::array<float,6>({x_, y_, z_, roll_, pitch_, yaw_});}
         inline Translation3D getXYZ() const {return Translation3D(x_, y_, z_);}
+        inline Translation2D getXY() const {return Translation2D(x_, y_);}
+        inline Vector3D getRPY() const {return Vector3D(roll_, pitch_, yaw_);}
 
         inline void printPose() const {std::cout << x_ << " " << y_ << " " << z_ << " " << roll_ << " " << pitch_ << " " << yaw_ << std::endl;}
 
@@ -235,17 +363,41 @@ class RPYTF
 
             return transform;
         }
-
-
 };
+
+namespace std
+{
+    template <>
+    class hash<RPYTF>{
+        public:
+            size_t operator()(const RPYTF &tf) const
+            {
+                size_t hash_number = 0;
+
+                hash_number ^= hash<float>()(tf.x_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.y_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.z_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.roll_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.pitch_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+                hash_number ^= hash<float>()(tf.yaw_) + 0x9e3779b9 + (hash_number<<6) + (hash_number>>2);
+
+                return hash_number;
+            }
+    };
+}
 
 // Distance
 float euclideanDistance2D(const Translation2D& q, const Translation2D& p); // euclidean distance btwn two points in a 2D coordinate system
 float euclideanDistance3D(const Translation3D& q, const Translation3D& p); // euclidean distance btwn two points in a 3D coordinate system
 
+float orientationDistance(const Vector3D& q, const Vector3D& p);
+float orientationDistance(const RPYTF& q, const RPYTF& p);
+float orientationDistance(const Quaternion& q, const Quaternion& p);
+
 // Transformation Matrix
 TransformationMatrix constructTransformationMatrix(float m00, float m01, float m02, float m03, float m10, float m11, float m12, float m13, float m20, float m21, float m22, float m23);
-TransformationMatrix inverseTransformationMatrix(TransformationMatrix T);
+TransformationMatrix constructTransformationMatrix(OpenRAVE::Transform& transform);
+TransformationMatrix inverseTransformationMatrix(TransformationMatrix& T);
 RotationMatrix RPYToSO3(const RPYTF& e);
 TransformationMatrix XYZRPYToSE3(const RPYTF& e);
 RPYTF SE3ToXYZRPY(const TransformationMatrix& T);
@@ -275,6 +427,10 @@ Vector3D rotateVectorFromSLToOpenrave(Eigen::Vector3d& t);
 Eigen::Vector3d transformPositionFromOpenraveToSL(Translation3D& t);
 Translation3D transformPositionFromSLToOpenrave(Eigen::Vector3d& t);
 
+// check if file exist
+bool directory_exist(const std::string& directory_path);
+inline bool file_exist(const std::string& file_path) {ifstream f(file_path.c_str()); return f.good();}
+
 // Color
 std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 
@@ -290,6 +446,7 @@ std::array<float,4> HSVToRGB(std::array<float,4> hsv);
 #include "GroundContactPointGrid.hpp"
 #include "TrimeshSurface.hpp"
 #include "MapGrid.hpp"
+#include "TorsoPathPlanning.hpp"
 #include "ContactState.hpp"
 #include "OptimizationInterface.hpp"
 #include "NeuralNetworkInterface.hpp"
