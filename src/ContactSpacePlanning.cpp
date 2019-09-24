@@ -344,6 +344,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     // drawing_handler_->DrawContactPath(current_state);
                     if(drawing_counter == 10)
                     {
+                        // will see a seg fault if I call contacts_drawing_handler_->ClearHandler()
                         drawing_handler_->ClearHandler();
                         drawing_handler_->DrawContactPath(current_state);
                         drawing_counter = 0;
