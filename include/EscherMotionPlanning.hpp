@@ -64,6 +64,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
         std::vector< std::array<float,2> > hand_transition_model_;
 
         std::shared_ptr< DrawingHandler > drawing_handler_;
+        // !!!!!!!!!!!!!!!!!!!!
+        std::shared_ptr< DrawingHandler > contacts_drawing_handler_;
 
         std::shared_ptr< RobotProperties > robot_properties_;
 

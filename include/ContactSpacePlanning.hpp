@@ -17,6 +17,7 @@ class ContactSpacePlanning
                              int _num_stance_in_state,
                              int _thread_num,
                              std::shared_ptr<DrawingHandler> _drawing_handler,
+                             std::shared_ptr<DrawingHandler> _contacts_drawing_handler, // !!!!!!!!!!!!!!!!!!!!
                              int _planning_id,
                              bool _use_dynamics_planning,
                              std::vector<std::pair<Vector6D, float> > _disturbance_samples,
@@ -101,6 +102,9 @@ class ContactSpacePlanning
 
         // the drawing handler
         std::shared_ptr<DrawingHandler> drawing_handler_;
+        // !!!!!!!!!!!!!!!!!!!!
+        std::shared_ptr<DrawingHandler> contacts_drawing_handler_;
+
 
         // the dynamics optimizer interface
         std::vector< std::shared_ptr<OptimizationInterface> > dynamics_optimizer_interface_vector_;

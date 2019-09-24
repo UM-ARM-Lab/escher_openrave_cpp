@@ -86,6 +86,8 @@ def main():
         from model_B_11 import Model
     elif args.model == 'B_12':
         from model_B_12 import Model
+    elif args.model == 'B_17':
+        from model_B_17 import Model
     else:
         print('invalid model')
         exit(1)
@@ -100,10 +102,10 @@ def main():
 
     model_version = args.depth_map_type + '_' + args.model + '_' + args.loss + '_' + str(args.lr)
     
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/p2_ddyn', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall_old/ground_truth_p1p2/p2_ddyn', 'r') as file:
         p2_ddyn = pickle.load(file)
 
-    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall_old/ground_truth_p1p2/partition', 'r') as file:
         partition = pickle.load(file)
     print('number of training examples: {}'.format(len(partition['training'])))
     print('number of validation examples: {}'.format(len(partition['validation'])))

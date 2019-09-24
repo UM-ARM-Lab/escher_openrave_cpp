@@ -2048,6 +2048,8 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     RAVELOG_INFO("Thread Number = %d.\n",thread_num);
 
     drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
+    // !!!!!!!!!!!!!!!!!!!!
+    contacts_drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
 
     RAVELOG_INFO("Command Parsing Done. \n");
 
@@ -2056,7 +2058,7 @@ bool EscherMotionPlanning::startCollectDynamicsOptimizationData(std::ostream& so
     // enumerate all the initial states
     ContactSpacePlanning contact_pose_sampler(robot_properties_, foot_transition_model_, hand_transition_model_,
                                               structures_, structures_dict_, NULL, general_ik_interface_, 1,
-                                              thread_num, drawing_handler_, planning_id, true, disturbance_samples_,
+                                              thread_num, drawing_handler_, contacts_drawing_handler_, planning_id, true, disturbance_samples_,
                                               PlanningApplication::COLLECT_DATA, check_zero_step_capturability,
                                               check_one_step_capturability, check_contact_transition_feasibility);
 
@@ -2451,10 +2453,22 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     MapCell3DPtr initial_cell = map_grid_->get3DCell(initial_cell_indices);
     MapCell3DPtr goal_cell = map_grid_->get3DCell(goal_cell_indices);
 
+    RPYTF goal_transform(goal_[0], goal_[1], 0.1, 0, 0, goal_[2]);
+    drawing_handler_->DrawGoalRegion(goal_transform.GetRaveTransformMatrix(), goal_radius);
     std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
-    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
-    // std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 5.0, 180);
+    // std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 5.0, 180);
     map_grid_->generateDijkstraHeuristics(goal_cell, reverse_transition_model, region_mask);
+
+    // ifstream heuristic_ifs("env_8_dijkstra.txt");
+    // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
+    //     for (int ix = map_grid_->dim_x_-1; ix >= 0; ix--) {
+    //         for (int iy = map_grid_->dim_y_-1; iy >= 0; iy--) {
+    //             heuristic_ifs >> map_grid_->cell_3D_list_[ix][iy][itheta]->g_;
+    //         }
+    //     }
+    // }
+  
 
     // getchar();
 
@@ -2466,6 +2480,7 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     ContactSpacePlanning contact_space_planner(robot_properties_, foot_transition_model_, hand_transition_model_,
                                                structures_, structures_dict_, map_grid_,
                                                general_ik_interface_, 1, thread_num, drawing_handler_,
+                                               contacts_drawing_handler_, // !!!!!!!!!!!!!!!!!!!!
                                                planning_id, use_dynamics_planning, disturbance_samples_,
                                                PlanningApplication::PLAN_IN_ENV, check_zero_step_capturability,
                                                check_one_step_capturability, check_contact_transition_feasibility);

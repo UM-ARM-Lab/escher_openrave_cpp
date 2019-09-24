@@ -39,7 +39,7 @@ def main():
         print('usage: -e: [environment_type]')
         exit(1)
 
-    for environment_index in range(10, 20):
+    for environment_index in range(56, 200):
         # load sampled transitions
         transitions = None
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_' + environment_type + '_' + str(environment_index), 'r') as file:

@@ -11,6 +11,7 @@ ContactSpacePlanning::ContactSpacePlanning(std::shared_ptr<RobotProperties> _rob
                                            int _num_stance_in_state,
                                            int _thread_num,
                                            std::shared_ptr< DrawingHandler > _drawing_handler,
+                                           std::shared_ptr< DrawingHandler > _contacts_drawing_handler, // !!!!!!!!!!!!!!!!!!!!
                                            int _planning_id,
                                            bool _use_dynamics_planning,
                                            std::vector<std::pair<Vector6D, float> > _disturbance_samples,
@@ -27,6 +28,7 @@ map_grid_(_map_grid),
 num_stance_in_state_(_num_stance_in_state),
 thread_num_(_thread_num),
 drawing_handler_(_drawing_handler),
+contacts_drawing_handler_(_contacts_drawing_handler), // !!!!!!!!!!!!!!!!!!!!
 planning_id_(_planning_id),
 use_dynamics_planning_(_use_dynamics_planning),
 general_ik_interface_(_general_ik_interface),
@@ -264,6 +266,13 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                 if(double_unif(rng_) >= epsilon_) // explore the top of the heap
                 {
                     current_state = open_heap_.top();
+                    // !!!!!!!!!!!!!!!!!!!!
+                    // RPYTF temp_pose = current_state->getVirtualBodyPose();
+                    // GridIndices3D cell_indices = map_grid_->positionsToIndices({temp_pose.x_, temp_pose.y_, temp_pose.yaw_});
+                    // MapCell3DPtr cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
+                    // std::cout << "(" << cell_indices[0] << "," << cell_indices[1] << "," << cell_indices[2] << "): " << cell->g_ << std::endl; 
+                    // !!!!!!!!!!!!!!!!!!!!
+
                     open_heap_.pop();
                 }
                 else // randomly explore (* uniform random in the heap, not uniform random over the search space)
@@ -271,7 +280,6 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     std::uniform_int_distribution<> int_unif(0, contact_states_map_.size()-1);
                     auto random_it = std::next(std::begin(contact_states_map_), int_unif(rng_));
                     current_state = random_it->second;
-                    std::cout << "epsilon work" << std::endl;
                 }
 
                 // current_state = open_heap_.top();
@@ -393,12 +401,17 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
                         // !!!!!!!!!!!!!!!!!!!!
                         for(unsigned int i = 0; i < solution_contact_path.size(); i++) {
-                            std::cout << "position: " << i << " h: " << solution_contact_path[i]->h_
+                            RPYTF temp_virtual_body_pose = solution_contact_path[i]->getVirtualBodyPose();
+                            GridIndices3D temp_cell_indices = map_grid_->positionsToIndices({temp_virtual_body_pose.x_, temp_virtual_body_pose.y_, temp_virtual_body_pose.yaw_});
+
+                            std::cout << "position: " << i
+                                      << " real h: " << solution_contact_path[i]->h_
+                                      << " pred h: " << map_grid_->cell_3D_list_[temp_cell_indices[0]][temp_cell_indices[1]][temp_cell_indices[2]]->g_
                                       << " g: " << solution_contact_path[i]->g_ << std::endl;
                         }
                         std::cout << "end" << std::endl;
 
-                        getchar();
+                        // getchar();
 
                         planning_result.push_back(std::make_tuple(planning_id_, planning_time, G_, current_state->accumulated_dynamics_cost_, step_count));
 
@@ -505,7 +518,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         int num_contact_sequence_tried = 0;
 
         auto time_before_dynopt = std::chrono::high_resolution_clock::now();
-
+        
         for(int i = all_solution_contact_paths.size()-1; i >= 0; i--)
         {
             final_plan_planning_time = all_solution_planning_times[i];
@@ -2081,6 +2094,9 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         // if(pass_state_feasibility_check && (branching_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::L_ARM] || branching_state->stances_vector_[0]->ee_contact_status_[ContactManipulator::R_ARM]))
         {
             // std::cout << "disturbance cost: " << disturbance_cost << std::endl;
+            // if (branching_state->getVirtualBodyPose().yaw_ > 179.8) {
+            //     std::cout << "line 2091" << std::endl;
+            // }
             insertState(branching_state, dynamics_cost, disturbance_cost);
         }
     }
@@ -2625,6 +2641,10 @@ void ContactSpacePlanning::insertState(std::shared_ptr<ContactState> current_sta
     current_state->prev_disturbance_cost_ = disturbance_cost;
 
     // calculate the heuristics (cost to go)
+    // if (current_state->getVirtualBodyPose().yaw_ > 179.8) {
+    //     std::cout << "line 2635" << std::endl;
+    // }
+
     current_state->h_ = getHeuristics(current_state);
 
     // find if there already exists this state
@@ -2743,8 +2763,13 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
     else if(heuristics_type_ == PlanningHeuristicsType::DIJKSTRA_WITH_DYNCOST)
     {
         RPYTF current_virtual_body_pose = current_state->getVirtualBodyPose();
+        // if (current_virtual_body_pose.yaw_ > 179.8) {
+        //     std::cout << "line 2753" << std::endl;
+        // }
         GridIndices3D cell_indices = map_grid_->positionsToIndices({current_virtual_body_pose.x_, current_virtual_body_pose.y_, current_virtual_body_pose.yaw_});
         MapCell3DPtr cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
+
+        // std::cout << "(" << cell_indices[0] << "," << cell_indices[1] << "," << cell_indices[2] << "): " << cell->g_ << std::endl; 
 
         if(cell->terrain_type_ == TerrainType::SOLID)
         {

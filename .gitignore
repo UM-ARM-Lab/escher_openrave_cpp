@@ -1,4 +1,5 @@
 data/
+scripts/depth_and_boundary_maps/
 backup_data/
 example-app/
 *.pyc

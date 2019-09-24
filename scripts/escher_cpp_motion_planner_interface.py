@@ -35,7 +35,7 @@ def main(meta_path_generation_method='all_planning',
          traversability_select_criterion='mean',
          traversability_threshold = 0.3,
          environment_path='environment',
-         surface_source='torso_path_planning_test_env_0',
+         surface_source='torso_path_planning_test_env_5',
          log_file_name='exp_result.txt',
          start_env_id=0,
          end_env_id=9999,
@@ -141,11 +141,8 @@ def main(meta_path_generation_method='all_planning',
         rave.raveLogInfo('Start running C++ interface.')
         # Construct the initial node
 
-        # initial_left_leg = [0.025,0.1,0.0,0,0,0]
-        # initial_right_leg = [0.025,-0.1,0.0,0,0,0]
-        # wrong
-        initial_left_leg = [0.025,0.0,0.0,0,0,0]
-        initial_right_leg = [0.025,-0.2,0.0,0,0,0]
+        initial_left_leg = [0.025,0.1,0.0,0,0,0]
+        initial_right_leg = [0.025,-0.1,0.0,0,0,0]
         initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
         initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
 
@@ -197,16 +194,17 @@ def main(meta_path_generation_method='all_planning',
                                                 escher=escher,
                                                 initial_state=initial_node,
                                                 goal=goal,
-                                                epsilon=0.2,
+                                                # epsilon=0.2,
                                                 # epsilon=0.1,
-                                                # epsilon=0,
+                                                epsilon=0,
                                                 foot_transition_model=step_transition_model,
                                                 hand_transition_model=hand_transition_model,
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=6000.0,
+                                                time_limit=200.0,
                                                 # planning_heuristics='euclidean',
+                                                # planning_heuristics='dijkstra'???,
                                                 planning_heuristics='dijkstra_with_dyncost',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,

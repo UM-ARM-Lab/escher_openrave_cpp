@@ -65,7 +65,12 @@ void DrawingHandler::DrawGridPath(std::shared_ptr<MapCell3D> current_state) // D
         Translation3D current_position(current_grid_position[0], current_grid_position[1], 0.2);
         Translation3D parent_position(parent_grid_position[0], parent_grid_position[1], 0.2);
 
+        double orientation = c->parent_->theta_ * DEG2RAD;
+        Vector3D orientation_vec(std::cos(orientation), std::sin(orientation), 0);
+
         DrawLineSegment(current_position, parent_position, {1,0,0,1});
+        DrawLocation(OpenRAVE::RaveVector<float>(parent_position[0], parent_position[1], parent_position[2]), OpenRAVE::RaveVector<float>(1,0,0,1));
+        DrawArrow(parent_position, 0.1 * orientation_vec, Vector3D(1,0,0));
 
         c = c->parent_;
     }
