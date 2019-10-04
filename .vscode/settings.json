@@ -61,6 +61,13 @@
         "string_view": "cpp",
         "slist": "cpp",
         "cfenv": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "memory_resource": "cpp",
+        "random": "cpp",
+        "set": "cpp",
+        "string": "cpp",
+        "variant": "cpp"
     }
 }

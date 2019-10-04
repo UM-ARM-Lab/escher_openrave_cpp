@@ -436,7 +436,7 @@ def main(robot_name='athena'): # for test
     robot_obj.robot.SetDOFValues(robot_obj.GazeboOriginalDOFValues)
 
     # sample environments and contact transitions
-    for i in range(0, 50):
+    for i in range(0, 200):
         print('environment index: {}'.format(i))
         structures = sample_env(env_handler, robot_obj, 'one_step_env_' + environment_type)
     
@@ -448,24 +448,26 @@ def main(robot_name='athena'): # for test
         # env['others_normals'] = []
         for s in structures:
             if s.type == 'ground':
-                env['ground_structures'].append((s.plane_parameters, s.vertices, s.boundaries))
+                env['ground_structures'].append(([s.nx, s.ny, s.nz, s.c], s.vertices, s.boundaries))
                 # env['ground_normals'].append(s.get_normal())
             elif s.type == 'others':
-                env['others_structures'].append((s.plane_parameters, s.vertices, s.boundaries))
+                env['others_structures'].append(([s.nx, s.ny, s.nz, s.c], s.vertices, s.boundaries))
                 # env['others_normals'].append(s.get_normal())
             else:
                 print('invalid structure type')
                 exit(1)
+
+        # IPython.embed()
         with open('../data/dataset_225/complete_' + environment_file + '_' + str(i), 'w') as file:
             pickle.dump(env, file)
 
         # save all transitions to this list
-        transitions = []
+        # transitions = []
         # import time; time.sleep(3)
-        sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i, transitions)
-        with open('../data/dataset_225/' + transition_file + '_' + str(i), 'w') as file:
-            pickle.dump(transitions, file)
-        print('environment {} index {} is finished'.format(environment_type, i))
+        # sample_contact_transitions(env_handler, robot_obj, hand_transition_model1, hand_transition_model2, foot_transition_model1, foot_transition_model2, structures, GRID_RESOLUTION, i, transitions)
+        # with open('../data/dataset_225/' + transition_file + '_' + str(i), 'w') as file:
+        #     pickle.dump(transitions, file)
+        # print('environment {} index {} is finished'.format(environment_type, i))
         # IPython.embed()
 
     # IPython.embed()

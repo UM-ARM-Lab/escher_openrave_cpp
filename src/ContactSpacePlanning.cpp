@@ -344,9 +344,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                     // drawing_handler_->DrawContactPath(current_state);
                     if(drawing_counter == 10)
                     {
-                        // will see a seg fault if I call contacts_drawing_handler_->ClearHandler()
-                        drawing_handler_->ClearHandler();
-                        drawing_handler_->DrawContactPath(current_state);
+                        contacts_drawing_handler_->ClearHandler();
+                        contacts_drawing_handler_->DrawContactPath(current_state);
                         drawing_counter = 0;
                     }
 
@@ -397,19 +396,22 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         all_solution_planning_times.push_back(planning_time);
 
                         RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
-                        drawing_handler_->ClearHandler();
-                        drawing_handler_->DrawContactPath(solution_contact_path[solution_contact_path.size()-1]);
+                        contacts_drawing_handler_->ClearHandler();
+                        contacts_drawing_handler_->DrawContactPath(solution_contact_path[solution_contact_path.size()-1]);
 
                         // !!!!!!!!!!!!!!!!!!!!
-                        for(unsigned int i = 0; i < solution_contact_path.size(); i++) {
-                            RPYTF temp_virtual_body_pose = solution_contact_path[i]->getVirtualBodyPose();
-                            GridIndices3D temp_cell_indices = map_grid_->positionsToIndices({temp_virtual_body_pose.x_, temp_virtual_body_pose.y_, temp_virtual_body_pose.yaw_});
-
+                        for(unsigned int i = 0; i < solution_contact_path.size() - 1; i++) {
+                            RPYTF current_virtual_body_pose = solution_contact_path[i]->getVirtualBodyPose();
+                            GridIndices3D current_indices = map_grid_->positionsToIndices({current_virtual_body_pose.x_, current_virtual_body_pose.y_, current_virtual_body_pose.yaw_});
+                            RPYTF next_virtual_body_pose = solution_contact_path[i+1]->getVirtualBodyPose();
+                            GridIndices3D next_indices = map_grid_->positionsToIndices({next_virtual_body_pose.x_, next_virtual_body_pose.y_, next_virtual_body_pose.yaw_});
+                            
                             std::cout << "position: " << i
-                                      << " real h: " << solution_contact_path[i]->h_
-                                      << " pred h: " << map_grid_->cell_3D_list_[temp_cell_indices[0]][temp_cell_indices[1]][temp_cell_indices[2]]->g_
-                                      << " g: " << solution_contact_path[i]->g_ << std::endl;
+                                      << " real edge cost: " << (solution_contact_path[i+1]->g_ - solution_contact_path[i]->g_)
+                                      << " pred edge cost: " << (std::hypot(abs(next_indices[0] - current_indices[0])*1.0, abs(next_indices[1] - current_indices[1])*1.0) * 0.15 + 3.0 /*step_cost_weight_*/ + 0.1 /*dynamics_cost_weight_*/ * map_grid_->heuristic_helper_.dynamic_cost_map_[current_indices][next_indices])
+                                      << std::endl;
                         }
+
                         std::cout << "end" << std::endl;
 
                         // getchar();
@@ -477,8 +479,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
             RAVELOG_WARN("Exhausted the search tree. Output the optimal solution.\n");
         }
         std::shared_ptr<ContactState> final_path_state = goal_state;
-        drawing_handler_->ClearHandler();
-        drawing_handler_->DrawContactPath(final_path_state);
+        contacts_drawing_handler_->ClearHandler();
+        contacts_drawing_handler_->DrawContactPath(final_path_state);
         while(true)
         {
             contact_state_path.push_back(final_path_state);
@@ -524,8 +526,8 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
         {
             final_plan_planning_time = all_solution_planning_times[i];
 
-            drawing_handler_->ClearHandler();
-            drawing_handler_->DrawContactPath(all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]);
+            contacts_drawing_handler_->ClearHandler();
+            contacts_drawing_handler_->DrawContactPath(all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]);
             std::cout << "Solution Path " << i << ": " << std::endl;
 
             total_learned_dynamics_cost = all_solution_contact_paths[i][all_solution_contact_paths[i].size()-1]->accumulated_dynamics_cost_;
@@ -754,7 +756,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
 
     // getchar();
 
-    drawing_handler_->ClearHandler();
+    contacts_drawing_handler_->ClearHandler();
 
     return contact_state_path;
 }
@@ -2764,10 +2766,8 @@ float ContactSpacePlanning::getHeuristics(std::shared_ptr<ContactState> current_
     else if(heuristics_type_ == PlanningHeuristicsType::DIJKSTRA_WITH_DYNCOST)
     {
         RPYTF current_virtual_body_pose = current_state->getVirtualBodyPose();
-        // if (current_virtual_body_pose.yaw_ > 179.8) {
-        //     std::cout << "line 2753" << std::endl;
-        // }
         GridIndices3D cell_indices = map_grid_->positionsToIndices({current_virtual_body_pose.x_, current_virtual_body_pose.y_, current_virtual_body_pose.yaw_});
+        // std::cout << cell_indices[0] << ", " << cell_indices[1] << ", " << cell_indices[2] << std::endl;
         MapCell3DPtr cell = map_grid_->cell_3D_list_[cell_indices[0]][cell_indices[1]][cell_indices[2]];
 
         // std::cout << "(" << cell_indices[0] << "," << cell_indices[1] << "," << cell_indices[2] << "): " << cell->g_ << std::endl; 

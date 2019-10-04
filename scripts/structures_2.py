@@ -24,7 +24,6 @@ class trimesh_surface(structure):
 
 		self.vertices = vertices
 		self.boundaries = boundaries
-		self.plane_parameters = plane_parameters
 
 		self.xo = 0.0; self.yo = 0.0; self.zo = 0.0
 

@@ -2125,6 +2125,8 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
         {
             parseRobotPropertiesCommand(sinput);
             drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
+            // !!!!!!!!!!!!!!!!!!!!
+            contacts_drawing_handler_ = std::make_shared<DrawingHandler>(penv_, robot_properties_);
         }
 
         else if(strcmp(param.c_str(), "initial_state") == 0)
@@ -2363,19 +2365,20 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     // {
     //     for(int iy = -1; iy <= 1; iy++)
     //     {
-    //         // for(int itheta = -1; itheta <= 1; itheta++)
-    //         // {
+    //         for(int itheta = -1; itheta <= 1; itheta++)
+    //         {
     //             if(ix != 0 || iy != 0)
     //             {
-    //                 transition.push_back({ix,iy,0});
+    //                 transition.push_back({ix,iy,itheta});
     //             }
-    //         // }
+    //         }
     //     }
     // }
     // for(int itheta = 0; itheta < map_grid_->dim_theta_; itheta++)
     // {
     //     transition_model.insert(std::make_pair(itheta, transition));
     // }
+    // std::map< int,std::vector<GridIndices3D> > reverse_transition_model = transition_model;
 
     std::map< int,std::vector<GridIndices3D> > transition_model;
     std::ifstream ifs("torso_pose_transition_model_15.txt");
@@ -2452,15 +2455,17 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
 
     MapCell3DPtr initial_cell = map_grid_->get3DCell(initial_cell_indices);
     MapCell3DPtr goal_cell = map_grid_->get3DCell(goal_cell_indices);
-
+    RPYTF init_transform(0, 0, 0.1, 0, 0, 0);
+    drawing_handler_->DrawGoalRegion(init_transform.GetRaveTransformMatrix(), goal_radius);
     RPYTF goal_transform(goal_[0], goal_[1], 0.1, 0, 0, goal_[2]);
     drawing_handler_->DrawGoalRegion(goal_transform.GetRaveTransformMatrix(), goal_radius);
+    map_grid_->read_transition_model(transition_model);
     std::vector<MapCell3DPtr> torso_guiding_path = map_grid_->generateTorsoGuidingPath(initial_cell, goal_cell, transition_model);
     // std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 0.5, 35);
-    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 5.0, 180);
+    std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask = map_grid_->getRegionMask(torso_guiding_path, 10.0, 180);
     map_grid_->generateDijkstraHeuristics(goal_cell, reverse_transition_model, region_mask);
 
-    // ifstream heuristic_ifs("env_8_dijkstra.txt");
+    // ifstream heuristic_ifs("env_11_dijkstra_once.txt");
     // for (int itheta = 0; itheta < map_grid_->dim_theta_; itheta++) {
     //     for (int ix = map_grid_->dim_x_-1; ix >= 0; ix--) {
     //         for (int iy = map_grid_->dim_y_-1; iy >= 0; iy--) {
@@ -2468,7 +2473,13 @@ bool EscherMotionPlanning::startPlanningFromScratch(std::ostream& sout, std::ist
     //         }
     //     }
     // }
-  
+
+    // ifstream pred_cost_ifs("env_11_pred_cost.txt");
+    // int x1, y1, theta1, x2, y2, theta2;
+    // double temp_cost;
+    // while (pred_cost_ifs >> x1 >> y1 >> theta1 >> x2 >> y2 >> theta2 >> temp_cost) {
+    //     map_grid_->heuristic_helper_.dynamic_cost_map_[{x1,y1,theta1}][{x2,y2,theta2}] = temp_cost;
+    // }
 
     // getchar();
 

@@ -126,6 +126,7 @@ class MapGrid
         inline MapCell3DPtr get3DCell(GridPositions3D positions) {return get3DCell(positionsToIndices(positions));}
 
         void obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vector< std::shared_ptr<TrimeshSurface> > structures);
+        void read_transition_model(std::map< int,std::vector<GridIndices3D> > transition_model);
         void generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > reverse_transition_model, std::unordered_set<GridIndices3D, hash<GridIndices3D> > region_mask=std::unordered_set<GridIndices3D, hash<GridIndices3D> >());
         std::vector<MapCell3DPtr> generateTorsoGuidingPath(MapCell3DPtr& initial_cell, MapCell3DPtr& goal_cell, std::map< int,std::vector<GridIndices3D> > transition_model);
         std::unordered_set<GridIndices3D, hash<GridIndices3D> > getRegionMask(std::vector<MapCell3DPtr> torso_path, float neighbor_distance_range, float neighbor_orientation_range);
@@ -135,6 +136,8 @@ class MapGrid
         float euclideanHeuristic(MapCell3DPtr& current_cell, MapCell3DPtr& goal_cell);
 
         void resetCellCostsAndParent();
+
+        std::map< int,std::vector<GridIndices3D> > transition_model;
 
         const float xy_resolution_;
         const float theta_resolution_;
@@ -175,7 +178,7 @@ class MapGrid
         // the drawing handler
         std::shared_ptr<DrawingHandler> drawing_handler_;
 
-    private:
+    public:
         class HeuristicHelper {
             public:
                 HeuristicHelper();
@@ -214,6 +217,7 @@ class MapGrid
                 // return a vector of {x_min, x_max, y_min, y_max}
                 std::vector<float> getBoundary(const std::vector<std::vector<Translation3D> >& structure_vertices);
                 torch::Tensor getBoundaryMap(const std::vector<std::vector<int>>& structure_id_map, torch::Tensor initialized_boundary_map, int dx, int dy, int edge);
+                void predict_dynamic_costs_of_all_transitions(MapGrid* map_grid_ptr);
         };
 
         HeuristicHelper heuristic_helper_;
