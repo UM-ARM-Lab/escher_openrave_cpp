@@ -1653,6 +1653,36 @@ class environment_handler:
                     self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
 
 
+        elif surface_source == 'torso_path_planning_test_env_12':
+
+            self.goal_x = 2.3
+            self.goal_y = 0.0
+
+            stepping_stone_size = (0.4, 0.4)
+            row_num = 11
+            col_num = 6
+
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 1.2,
+                                         (col - col_num // 2)*stepping_stone_size[1] - 0.35,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+            # # side wall
+            # x_wall_length = row_num*stepping_stone_size[0]
+            self.construct_tilted_rectangle_wall(structures, [-1.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 4.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [-1.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 4.0, wall_height=1.75, slope=0)
+            # self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] + x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (col_num-0.5-1)*stepping_stone_size[1] - stepping_stone_size[1] * 2 + y_random, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.65, slope=0)
+
 
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))

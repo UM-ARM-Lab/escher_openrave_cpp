@@ -17,14 +17,14 @@ p1_theta: 3
 at most 49 p2
 
 for each model:
-ground map around p1, wall map around p1, p2 -> 25 percentile
+ground map around p1, wall map around p1, p2 -> 10 percentile
 
 Data will be saved in a dict.
 key is example id
 map_id (string), p2, environment wall type (0: no wall, 1: one wall only, 2: two walls), 25 percentile ddyn (float)
 """
 
-import pickle, IPython, os, math, shutil, getopt, sys, random
+import pickle, IPython, os, math, shutil, getopt, sys, random, pprint
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -34,7 +34,7 @@ GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 22.5
 ANGLE_DIM = int(round(360 / ANGLE_RESOLUTION))
 NUM_MODELS = int(round(90 / ANGLE_RESOLUTION))
-PERCENTILE = 25
+PERCENTILE = 10
 MAX_TRANSITIONS_CHOSEN = 200
 
 MAP_RESOLUTION = 0.025
@@ -46,7 +46,8 @@ WALL_DEPTH_AND_BOUNDARY_MAP_RADIUS = 1.0
 WALL_MIN_HEIGHT_RELATIVE = 1.1
 WALL_MAX_HEIGHT_RELATIVE = 1.7
 WALL_MAP_LENGTH = int(math.ceil(2 * math.pi * WALL_DEPTH_AND_BOUNDARY_MAP_RADIUS / MAP_RESOLUTION))
-WALL_MAP_WIDTH = int((WALL_MAX_HEIGHT_RELATIVE - WALL_MIN_HEIGHT_RELATIVE) / MAP_RESOLUTION) + 1
+WALL_MAP_LENGTH_ONE_THIRD = WALL_MAP_LENGTH / 3
+WALL_MAP_WIDTH = int(round((WALL_MAX_HEIGHT_RELATIVE - WALL_MIN_HEIGHT_RELATIVE) / MAP_RESOLUTION)) + 1
 WALL_DEFAULT_DEPTH = 2.0
 
 
@@ -81,28 +82,122 @@ def main():
 
     # total_transition = 0
     # large_transition = 0
-    transition_model = {}
-    transition_model[0] = {(0,0,0),(0,1,1),(2,-1,0),(3,0,-1),(-2,1,-1),(1,-1,-1),(-2,-1,-1),(1,0,1),(2,1,-1),(1,-1,0),
-                           (-1,1,-1),(2,-1,-1),(-2,1,1),(-2,-1,0),(1,1,-1),(0,0,-1),(3,-1,-1),(0,-1,-1),(1,0,0),(-1,0,1),
-                           (2,0,1),(-1,0,0),(-2,0,-1),(2,0,0),(-2,1,0),(-1,0,-1),(3,1,1),(2,0,-1),(3,1,0),(0,0,1),
-                           (0,-1,1),(0,-1,0),(-2,0,0),(2,-1,1),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-2,0,1),(3,-1,0),
-                           (-1,1,1),(-1,-1,1),(2,1,1),(1,0,-1),(-1,-1,0),(-2,-1,1),(3,0,0),(1,-1,1),(3,0,1),(0,1,0),
-                           (0,1,-1),(-1,-1,-1)}
-    transition_model[1] = {(0,0,0),(0,1,1),(3,0,-1),(1,-1,-1),(-1,-1,-1),(1,0,1),(2,1,-1),(1,-1,0),(-1,1,-1),(-1,-1,0),
-                           (-2,-1,0),(1,1,-1),(0,0,-1),(-2,0,0),(-2,0,1),(0,-1,-1),(1,0,0),(-1,0,1),(2,0,1),(3,1,-1),
-                           (1,2,0),(2,0,0),(-2,-1,1),(1,2,1),(-1,0,-1),(3,1,1),(2,0,-1),(3,1,0),(0,0,1),(0,-1,1),
-                           (0,-1,0),(-2,0,-1),(-1,0,0),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-1,1,1),(2,2,1),(2,1,1),
-                           (1,0,-1),(2,2,0),(-1,-1,1),(3,0,0),(1,-1,1),(0,1,0),(0,1,-1),(-2,-1,-1),(2,2,-1)}
-    transition_model[2] = {(0,0,0),(0,1,1),(0,-1,0),(1,0,0),(2,2,-1),(1,0,1),(2,1,-1),(1,-1,0),(-1,1,-1),(-1,-1,0),
-                           (0,2,1),(-2,-1,0),(0,2,0),(-1,-2,0),(1,1,-1),(0,-1,-1),(0,0,-1),(-1,0,1),(-2,0,0),(1,2,0),
-                           (1,2,-1),(2,0,0),(-1,-2,1),(1,2,1),(1,-1,-1),(-1,0,-1),(-1,-1,-1),(2,0,-1),(-2,0,-1),(0,0,1),
-                           (0,-1,1),(-1,-1,1),(0,-2,1),(-1,0,0),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-1,1,1),(2,2,1),
-                           (2,1,1),(1,0,-1),(2,2,0),(-1,-2,-1),(-2,-1,1),(1,-1,1),(0,1,0),(0,1,-1),(-2,-1,-1),(0,-2,0)}
-    transition_model[3] = {(0,0,0),(0,1,1),(1,0,0),(1,3,1),(1,0,1),(2,1,-1),(1,3,0),(1,-1,0),(-1,1,-1),(0,2,1),
-                           (0,-1,-1),(0,2,0),(1,1,-1),(0,-2,-1),(0,0,-1),(-1,0,1),(-1,0,0),(1,2,0),(1,2,-1),(2,2,1),
-                           (-1,-2,1),(1,2,1),(1,-1,-1),(-1,-1,-1),(-1,-1,0),(0,3,0),(-1,0,-1),(0,0,1),(0,-1,1),(0,3,1),
-                           (-1,-1,1),(0,-1,0),(-1,-2,0),(1,1,1),(-1,1,0),(1,1,0),(0,2,-1),(2,1,0),(-1,1,1),(0,-2,1),
-                           (1,0,-1),(2,2,0),(-1,-2,-1),(1,3,-1),(1,-1,1),(0,1,0),(0,1,-1),(2,2,-1),(0,-2,0)}
+    # transition_model = {}
+    # transition_model[0] = {(0,0,0),(0,1,1),(2,-1,0),(3,0,-1),(-2,1,-1),(1,-1,-1),(-2,-1,-1),(1,0,1),(2,1,-1),(1,-1,0),
+    #                        (-1,1,-1),(2,-1,-1),(-2,1,1),(-2,-1,0),(1,1,-1),(0,0,-1),(3,-1,-1),(0,-1,-1),(1,0,0),(-1,0,1),
+    #                        (2,0,1),(-1,0,0),(-2,0,-1),(2,0,0),(-2,1,0),(-1,0,-1),(3,1,1),(2,0,-1),(3,1,0),(0,0,1),
+    #                        (0,-1,1),(0,-1,0),(-2,0,0),(2,-1,1),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-2,0,1),(3,-1,0),
+    #                        (-1,1,1),(-1,-1,1),(2,1,1),(1,0,-1),(-1,-1,0),(-2,-1,1),(3,0,0),(1,-1,1),(3,0,1),(0,1,0),
+    #                        (0,1,-1),(-1,-1,-1)}
+    # transition_model[1] = {(0,0,0),(0,1,1),(3,0,-1),(1,-1,-1),(-1,-1,-1),(1,0,1),(2,1,-1),(1,-1,0),(-1,1,-1),(-1,-1,0),
+    #                        (-2,-1,0),(1,1,-1),(0,0,-1),(-2,0,0),(-2,0,1),(0,-1,-1),(1,0,0),(-1,0,1),(2,0,1),(3,1,-1),
+    #                        (1,2,0),(2,0,0),(-2,-1,1),(1,2,1),(-1,0,-1),(3,1,1),(2,0,-1),(3,1,0),(0,0,1),(0,-1,1),
+    #                        (0,-1,0),(-2,0,-1),(-1,0,0),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-1,1,1),(2,2,1),(2,1,1),
+    #                        (1,0,-1),(2,2,0),(-1,-1,1),(3,0,0),(1,-1,1),(0,1,0),(0,1,-1),(-2,-1,-1),(2,2,-1)}
+    # transition_model[2] = {(0,0,0),(0,1,1),(0,-1,0),(1,0,0),(2,2,-1),(1,0,1),(2,1,-1),(1,-1,0),(-1,1,-1),(-1,-1,0),
+    #                        (0,2,1),(-2,-1,0),(0,2,0),(-1,-2,0),(1,1,-1),(0,-1,-1),(0,0,-1),(-1,0,1),(-2,0,0),(1,2,0),
+    #                        (1,2,-1),(2,0,0),(-1,-2,1),(1,2,1),(1,-1,-1),(-1,0,-1),(-1,-1,-1),(2,0,-1),(-2,0,-1),(0,0,1),
+    #                        (0,-1,1),(-1,-1,1),(0,-2,1),(-1,0,0),(1,1,1),(-1,1,0),(1,1,0),(2,1,0),(-1,1,1),(2,2,1),
+    #                        (2,1,1),(1,0,-1),(2,2,0),(-1,-2,-1),(-2,-1,1),(1,-1,1),(0,1,0),(0,1,-1),(-2,-1,-1),(0,-2,0)}
+    # transition_model[3] = {(0,0,0),(0,1,1),(1,0,0),(1,3,1),(1,0,1),(2,1,-1),(1,3,0),(1,-1,0),(-1,1,-1),(0,2,1),
+    #                        (0,-1,-1),(0,2,0),(1,1,-1),(0,-2,-1),(0,0,-1),(-1,0,1),(-1,0,0),(1,2,0),(1,2,-1),(2,2,1),
+    #                        (-1,-2,1),(1,2,1),(1,-1,-1),(-1,-1,-1),(-1,-1,0),(0,3,0),(-1,0,-1),(0,0,1),(0,-1,1),(0,3,1),
+    #                        (-1,-1,1),(0,-1,0),(-1,-2,0),(1,1,1),(-1,1,0),(1,1,0),(0,2,-1),(2,1,0),(-1,1,1),(0,-2,1),
+    #                        (1,0,-1),(2,2,0),(-1,-2,-1),(1,3,-1),(1,-1,1),(0,1,0),(0,1,-1),(2,2,-1),(0,-2,0)}
+
+    # transition_model ={}
+    # transition_model[-8] = {(-3, -1, 0), (-3, 0, -1), (-3, 0, 0), (-3, 0, 1), (-3, 1, 0), (-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0)
+    #                         (-2, 0, 1), (-2, 1, -1), (-2, 1, 0), (-2, 1, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+    #                         (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1),
+    #                         (0, 1, 0), (0, 1, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0),
+    #                         (1, 1, 1), (2, -1, -1), (2, -1, 0), (2, -1, 1), (2, 0, -1), (2, 0, 0), (2, 0, 1), (2, 1, -1), (2, 1, 0), (2, 1, 1)}
+    # transition_model[-7] = {(-3, -1, -1), (-3, -1, 0), (-3, 0, -1), (-3, 0, 0), (-2, -2, 0), (-2, -2, 1), (-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1),
+    #                         (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-1, -2, 0), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0),
+    #                         (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0),
+    #                         (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1),
+    #                         (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, 1), (2, -1, -1), (2, 0, -1), (2, 0, 0), (2, 0, 1), (2, 1, -1), (2, 1, 0),
+    #                         (2, 1, 1)}
+    # transition_model[-6] = {(-2, -2, -1), (-2, -2, 0), (-2, -2, 1), (-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-1, -2, -1),
+    #                         (-1, -2, 0), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0),
+    #                         (-1, 1, 1), (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1),
+    #                         (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1),
+    #                         (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1), (2, 0, -1), (2, 0, 0),
+    #                         (2, 0, 1), (2, 1, -1), (2, 1, 0), (2, 1, 1)}
+    # transition_model[-5] = {(-2, -2, -1), (-2, -2, 0), (-2, -1, -1), (-2, -1, 0), (-2, 0, -1), (-1, -3, 0), (-1, -3, 1), (-1, -2, -1), (-1, -2, 0), (-1, -2, 1),
+    #                         (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, 1),
+    #                         (0, -3, 0), (0, -3, 1), (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0),
+    #                         (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -2, 1), (1, -1, -1), (1, -1, 0),
+    #                         (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1),
+    #                         (2, 0, -1), (2, 1, -1)}
+    # transition_model[-4] = {(-1, -3, 0), (-1, -2, -1), (-1, -2, 0), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+    #                         (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (-1, 2, 1), (0, -3, -1), (0, -3, 0), (0, -3, 1), (0, -2, -1),
+    #                         (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0),
+    #                         (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -3, 0), (1, -2, -1), (1, -2, 0), (1, -2, 1), (1, -1, -1), (1, -1, 0),
+    #                         (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1)}
+    # transition_model[-3] = {(-2, 0, 1), (-2, 1, 1), (-1, -2, -1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1),
+    #                         (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (-1, 2, 1), (0, -3, -1), (0, -3, 0), (0, -2, -1), (0, -2, 0), (0, -2, 1),
+    #                         (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1),
+    #                         (0, 2, 0), (0, 2, 1), (1, -3, -1), (1, -3, 0), (1, -2, -1), (1, -2, 0), (1, -2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1),
+    #                         (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1), (2, -2, 0), (2, -2, 1), (2, -1, 0),
+    #                         (2, -1, 1), (2, 0, 1)}
+    # transition_model[-2] = {(-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-2, 1, 0), (-2, 1, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1),
+    #                         (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (-1, 2, 1), (0, -2, -1), (0, -2, 0),
+    #                         (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1),
+    #                         (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -2, -1), (1, -2, 0), (1, -2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1),
+    #                         (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (2, -2, -1), (2, -2, 0), (2, -2, 1), (2, -1, -1), (2, -1, 0),
+    #                         (2, -1, 1), (2, 0, -1), (2, 0, 0), (2, 0, 1)}
+    # transition_model[-1] = {(-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-2, 1, 0), (-2, 1, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+    #                         (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (0, -2, -1), (0, -1, -1), (0, -1, 0),
+    #                         (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (1, -2, -1), (1, -2, 0),
+    #                         (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (2, -2, -1),
+    #                         (2, -2, 0), (2, -1, -1), (2, -1, 0), (2, -1, 1), (2, 0, -1), (2, 0, 0), (2, 0, 1), (2, 1, 1), (3, -1, 0), (3, -1, 1),
+    #                         (3, 0, 0), (3, 0, 1)}
+    # transition_model[0] = {(-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-2, 1, 0), (-2, 1, 1), (-1, -1, -1),
+    #                        (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (0, -1, -1), (0, -1, 0),
+    #                        (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1),
+    #                        (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (2, -1, -1), (2, -1, 0), (2, -1, 1), (2, 0, -1),
+    #                        (2, 0, 0), (2, 0, 1), (2, 1, -1), (2, 1, 0), (2, 1, 1), (3, -1, 0), (3, 0, -1), (3, 0, 0), (3, 0, 1), (3, 1, 0)}
+    # transition_model[1] = {(-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0),
+    #                        (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1),
+    #                        (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1),
+    #                        (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, 0), (1, 2, 1), (2, -1, -1), (2, 0, -1),
+    #                        (2, 0, 0), (2, 0, 1), (2, 1, -1), (2, 1, 0), (2, 1, 1), (2, 2, 0), (2, 2, 1), (3, 0, -1), (3, 0, 0), (3, 1, -1),
+    #                        (3, 1, 0)}
+    # transition_model[2] = {(-2, -1, -1), (-2, -1, 0), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-1, -2, -1), (-1, -2, 0), (-1, -2, 1), (-1, -1, -1),
+    #                        (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (0, -2, -1), (0, -2, 0),
+    #                        (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1),
+    #                        (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1),
+    #                        (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1), (2, 0, -1), (2, 0, 0), (2, 0, 1), (2, 1, -1), (2, 1, 0),
+    #                        (2, 1, 1), (2, 2, -1), (2, 2, 0), (2, 2, 1)}
+    # transition_model[3] = {(-2, -1, -1), (-2, 0, -1), (-1, -2, -1), (-1, -2, 0), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0),
+    #                        (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, 1), (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0),
+    #                        (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1),
+    #                        (0, 3, 0), (0, 3, 1), (1, -2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1),
+    #                        (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1), (1, 3, 0), (1, 3, 1), (2, 0, -1), (2, 1, -1), (2, 1, 0),
+    #                        (2, 2, -1), (2, 2, 0)}
+    # transition_model[4] = {(-1, -2, -1), (-1, -2, 0), (-1, -2, 1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1),
+    #                        (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (-1, 2, 1), (-1, 3, 0), (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1),
+    #                        (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0),
+    #                        (0, 2, 1), (0, 3, -1), (0, 3, 0), (0, 3, 1), (1, -2, -1), (1, -2, 0), (1, -2, 1), (1, -1, -1), (1, -1, 0), (1, -1, 1),
+    #                        (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1), (1, 2, 0), (1, 2, 1), (1, 3, 0)}
+    # transition_model[5] = {(-2, 0, 1), (-2, 1, 0), (-2, 1, 1), (-2, 2, 0), (-2, 2, 1), (-1, -2, -1), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1),
+    #                        (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (-1, 2, 1), (-1, 3, -1), (-1, 3, 0),
+    #                        (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1), (0, 1, -1),
+    #                        (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1), (0, 3, -1), (0, 3, 0), (1, -2, -1), (1, -2, 0), (1, -2, 1),
+    #                        (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (1, 2, -1),
+    #                        (2, -1, 1), (2, 0, 1)}
+    # transition_model[6] = {(-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-2, 1, 0), (-2, 1, 1), (-2, 2, -1), (-2, 2, 0), (-2, 2, 1), (-1, -1, -1),
+    #                        (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1), (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0),
+    #                        (-1, 2, 1), (0, -2, -1), (0, -2, 0), (0, -2, 1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0), (0, 0, 1),
+    #                        (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (0, 2, 0), (0, 2, 1), (1, -2, -1), (1, -2, 0), (1, -2, 1), (1, -1, -1),
+    #                        (1, -1, 0), (1, -1, 1), (1, 0, -1), (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (2, -1, -1), (2, -1, 0),
+    #                        (2, -1, 1), (2, 0, 0), (2, 0, 1)}
+    # transition_model[7] = {(-3, 0, 0), (-3, 0, 1), (-3, 1, 0), (-3, 1, 1), (-2, -1, 1), (-2, 0, -1), (-2, 0, 0), (-2, 0, 1), (-2, 1, -1), (-2, 1, 0),
+    #                        (-2, 1, 1), (-2, 2, -1), (-2, 2, 0), (-1, -1, -1), (-1, -1, 0), (-1, -1, 1), (-1, 0, -1), (-1, 0, 0), (-1, 0, 1), (-1, 1, -1),
+    #                        (-1, 1, 0), (-1, 1, 1), (-1, 2, -1), (-1, 2, 0), (0, -2, -1), (0, -1, -1), (0, -1, 0), (0, -1, 1), (0, 0, -1), (0, 0, 0),
+    #                        (0, 0, 1), (0, 1, -1), (0, 1, 0), (0, 1, 1), (0, 2, -1), (1, -2, -1), (1, -1, -1), (1, -1, 0), (1, -1, 1), (1, 0, -1),
+    #                        (1, 0, 0), (1, 0, 1), (1, 1, -1), (1, 1, 0), (1, 1, 1), (2, -1, -1), (2, -1, 0), (2, -1, 1), (2, 0, -1), (2, 0, 0),
+    #                        (2, 0, 1), (2, 1, 1)}
 
     orientation_dict = {4: 'N',
                         0: 'E',
@@ -114,62 +209,60 @@ def main():
         if os.path.exists('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_' + str(environment_type) + '_' + str(environment_index)):
             print('process data for environment type {} index {}'.format(environment_type, environment_index))
         else:
-            continue
-        # with open('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_' + str(environment_type) + '_' + str(environment_index), 'r') as env_file:
-        #     environment = pickle.load(env_file)
-        #     ground_structures_parameters = environment['ground_structures']
-        #     others_structures_parameters = environment['others_structures']
+            print('environment type {} index {} does not exist'.format(environment_type, environment_index))
+        with open('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_' + str(environment_type) + '_' + str(environment_index), 'r') as env_file:
+            environment = pickle.load(env_file)
+            ground_structures_parameters = environment['ground_structures']
+            others_structures_parameters = environment['others_structures']
         
-        # ground_depth_and_boundary_maps = {}
-        # ground_depth_and_boundary_maps[0] = generateGroundDepthBoundaryMap(ground_structures_parameters, 0.0, 0.0)
-        # ground_depth_and_boundary_maps[-4] = np.rot90(ground_depth_and_boundary_maps[0])
-        # # plt.imshow(ground_depth_and_boundary_maps[-4], cmap='gray')
-        # # plt.show()
-        # ground_depth_and_boundary_maps[-8] = np.rot90(ground_depth_and_boundary_maps[-4])
-        # # plt.imshow(ground_depth_and_boundary_maps[-8], cmap='gray')
-        # # plt.show()
-        # ground_depth_and_boundary_maps[4] = np.rot90(ground_depth_and_boundary_maps[-8])
+        ground_depth_and_boundary_maps = {}
+        ground_depth_and_boundary_maps[0] = generateGroundDepthBoundaryMap(ground_structures_parameters, 0.0, 0.0)
+        ground_depth_and_boundary_maps[-4] = np.rot90(ground_depth_and_boundary_maps[0], 1, (1,2))
+        # plt.imshow(ground_depth_and_boundary_maps[-4], cmap='gray')
+        # plt.show()
+        ground_depth_and_boundary_maps[-8] = np.rot90(ground_depth_and_boundary_maps[-4], 1, (1,2))
+        # plt.imshow(ground_depth_and_boundary_maps[-8], cmap='gray')
+        # plt.show()
+        ground_depth_and_boundary_maps[4] = np.rot90(ground_depth_and_boundary_maps[-8], 1, (1,2))
         # plt.imshow(ground_depth_and_boundary_maps[4], cmap='gray')
         # plt.show()
 
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'N', 'w') as depth_map_file:
-        #     pickle.dump(np.expand_dims(ground_depth_and_boundary_maps[4], axis=0).astype(np.float32), depth_map_file)
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'N', 'w') as depth_map_file:
+            pickle.dump(ground_depth_and_boundary_maps[4].astype(np.float32), depth_map_file)
 
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'E', 'w') as depth_map_file:
-        #     pickle.dump(np.expand_dims(ground_depth_and_boundary_maps[0], axis=0).astype(np.float32), depth_map_file)
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'E', 'w') as depth_map_file:
+            pickle.dump(ground_depth_and_boundary_maps[0].astype(np.float32), depth_map_file)
 
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'S', 'w') as depth_map_file:
-        #     pickle.dump(np.expand_dims(ground_depth_and_boundary_maps[-4], axis=0).astype(np.float32), depth_map_file)
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'S', 'w') as depth_map_file:
+            pickle.dump(ground_depth_and_boundary_maps[-4].astype(np.float32), depth_map_file)
 
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'W', 'w') as depth_map_file:
-        #     pickle.dump(np.expand_dims(ground_depth_and_boundary_maps[-8], axis=0).astype(np.float32), depth_map_file)
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/ground_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + 'W', 'w') as depth_map_file:
+            pickle.dump(ground_depth_and_boundary_maps[-8].astype(np.float32), depth_map_file)
 
-        # altitude = calculate_altitude(np.array([ground_depth_and_boundary_maps[0][27,27], ground_depth_and_boundary_maps[0][27,33], ground_depth_and_boundary_maps[0][27,39],
-        #                                         ground_depth_and_boundary_maps[0][33,27], ground_depth_and_boundary_maps[0][33,33], ground_depth_and_boundary_maps[0][33,39],
-        #                                         ground_depth_and_boundary_maps[0][39,27], ground_depth_and_boundary_maps[0][39,33], ground_depth_and_boundary_maps[0][39,39]]))
+        altitude = calculate_altitude(np.array([ground_depth_and_boundary_maps[0][0,27,27], ground_depth_and_boundary_maps[0][0,27,33], ground_depth_and_boundary_maps[0][0,27,39],
+                                                ground_depth_and_boundary_maps[0][0,33,27], ground_depth_and_boundary_maps[0][0,33,33], ground_depth_and_boundary_maps[0][0,33,39],
+                                                ground_depth_and_boundary_maps[0][0,39,27], ground_depth_and_boundary_maps[0][0,39,33], ground_depth_and_boundary_maps[0][0,39,39]]))
         
-        # altitude = round(altitude / MAP_RESOLUTION) * MAP_RESOLUTION
-        # whole_wall_depth_and_boundary_map = generateWallDepthBoundaryMap(others_structures_parameters, 0.0, 0.0, altitude)
-        # triple_whole_wall_depth_and_boundary_map = np.tile(whole_wall_depth_and_boundary_map, (1, 3))
-        # wall_depth_and_boundary_maps = {}
+        altitude = round(altitude / MAP_RESOLUTION) * MAP_RESOLUTION
+        whole_wall_depth_and_boundary_map = generateWallDepthBoundaryMap(others_structures_parameters, 0.0, 0.0, altitude)
+        triple_whole_wall_depth_and_boundary_map = np.tile(whole_wall_depth_and_boundary_map, (1,1,3))
+        wall_depth_and_boundary_maps = {}
 
-        # for i in range(-8, 8):
-        #     edge1 = WALL_MAP_LENGTH / 12 - WALL_MAP_LENGTH * i / 16 + WALL_MAP_LENGTH
-        #     edge2 = WALL_MAP_LENGTH * 5 / 12 - WALL_MAP_LENGTH * i / 16 + WALL_MAP_LENGTH
-        #     edge3 = WALL_MAP_LENGTH * 7 / 12 - WALL_MAP_LENGTH * i / 16 + WALL_MAP_LENGTH
-        #     edge4 = WALL_MAP_LENGTH * 11 / 12 - WALL_MAP_LENGTH * i / 16 + WALL_MAP_LENGTH
-        #     wall_depth_and_boundary_maps[i] = (triple_whole_wall_depth_and_boundary_map[:, edge1:edge2], triple_whole_wall_depth_and_boundary_map[:, edge3:edge4])
-        #     # plt.imshow(triple_whole_wall_depth_and_boundary_map[:, edge1:edge2], cmap='gray')
-        #     # plt.title(str(i) + ' L')
-        #     # plt.show()
-        #     # plt.imshow(triple_whole_wall_depth_and_boundary_map[:, edge3:edge4], cmap='gray')
-        #     # plt.title(str(i) + ' R')
-        #     # plt.show()
+        for i in range(-8, 8):
+            edge1 = int(WALL_MAP_LENGTH / 12.0 - WALL_MAP_LENGTH * i / 16.0 + WALL_MAP_LENGTH)
+            edge3 = int(WALL_MAP_LENGTH * 7 / 12.0 - WALL_MAP_LENGTH * i / 16.0 + WALL_MAP_LENGTH)
+            wall_depth_and_boundary_maps[i] = (triple_whole_wall_depth_and_boundary_map[:,:,edge1:edge1+WALL_MAP_LENGTH_ONE_THIRD], triple_whole_wall_depth_and_boundary_map[:,:,edge3:edge3+WALL_MAP_LENGTH_ONE_THIRD])
+            # plt.imshow(triple_whole_wall_depth_and_boundary_map[:, edge1:edge2], cmap='gray')
+            # plt.title(str(i) + ' L')
+            # plt.show()
+            # plt.imshow(triple_whole_wall_depth_and_boundary_map[:, edge3:edge4], cmap='gray')
+            # plt.title(str(i) + ' R')
+            # plt.show()
             
-        #     # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + str(i) + '_L', 'w') as depth_map_file:
-        #     #     pickle.dump(np.expand_dims(wall_depth_and_boundary_maps[i][0], axis=0).astype(np.float32), depth_map_file)
-        #     # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + str(i) + '_R', 'w') as depth_map_file:
-        #     #     pickle.dump(np.expand_dims(wall_depth_and_boundary_maps[i][1], axis=0).astype(np.float32), depth_map_file)
+            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + str(i) + '_L', 'w') as depth_map_file:
+                pickle.dump(wall_depth_and_boundary_maps[i][0].astype(np.float32), depth_map_file)
+            with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + str(i) + '_R', 'w') as depth_map_file:
+                pickle.dump(wall_depth_and_boundary_maps[i][1].astype(np.float32), depth_map_file)
 
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
             data = pickle.load(file)
@@ -203,7 +296,7 @@ def main():
                 if not ddyn_list:
                     continue
 
-                example_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p2[0]) + str(p2[1]) + str(p2[2])
+                example_id = str(environment_type) + '_' + str(environment_index) + '_' + str(p1[0]) + str(p1[1]) + str(p1[2]) + '_' + str(p2[0]) + str(p2[1]) + str(p2[2])
                 if environment_index < 160:
                     training[model_index].append(example_id)
                 elif environment_index < 180:
@@ -223,24 +316,29 @@ def main():
                     print('error')
                     exit(1)
 
-                if converted_p2 not in transition_model[model_index]:
-                    print('converted p2', converted_p2, 'transition type', data[p1][p2].keys())
-                    transition_model[model_index].add(converted_p2)
+                # if p2 not in transition_model[p1[2]]:
+                #     print('p1', p1, 'p2', p2)
+                #     transition_model[p1[2]].add(p2)
                    
                 # assert(converted_p2 in transition_model[model_index])
                 data_dict[model_index][example_id] = (ground_map_id, wall_map_id, np.array(converted_p2).astype(np.float32), environment_wall_type, np.percentile(np.array(ddyn_list), PERCENTILE).astype(np.float32))
         # print(total_transition, large_transition)
 
     for i in range(NUM_MODELS):
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_' + str(environment_type) + '_model_' + str(i), 'w') as file:
-        #     pickle.dump(data_dict[i], file)
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_' + str(environment_type) + '_model_' + str(i), 'w') as file:
+            pickle.dump(data_dict[i], file)
 
         partition = {'training': training[i],
                     'validation': validation[i],
                     'test': test[i]}
-        # with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_' + str(environment_type) + '_model_' + str(i), 'w') as file:
-        #     pickle.dump(partition, file)
-     
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_' + str(environment_type) + '_model_' + str(i), 'w') as file:
+            pickle.dump(partition, file)
+
+    # for i in range(-8, 8):
+    #     print(i)
+    #     temp_list = sorted(transition_model[i], key=lambda element: (element[0], element[1], element[2]))
+    #     print(temp_list)
+    
 
 if __name__ == '__main__':
     main()

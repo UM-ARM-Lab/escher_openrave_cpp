@@ -54,7 +54,7 @@ def main(meta_path_generation_method='all_planning',
     env_handler = environment_handler()
     env = env_handler.env
     structures = env_handler.structures
-    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 15.0)
+    env_map_grid_dim = map_grid_dim(0, 0, 0, 0, 0.15, 22.5)
 
     ### Construct the hand transition model
     hand_transition_model = []
@@ -194,7 +194,7 @@ def main(meta_path_generation_method='all_planning',
                                                 escher=escher,
                                                 initial_state=initial_node,
                                                 goal=goal,
-                                                epsilon=0.15,
+                                                epsilon=0.5,
                                                 # epsilon=0.1,
                                                 # epsilon=0,
                                                 foot_transition_model=step_transition_model,
@@ -202,7 +202,7 @@ def main(meta_path_generation_method='all_planning',
                                                 structures=structures,
                                                 map_grid_dim=env_map_grid_dim,
                                                 goal_radius=0.2,
-                                                time_limit=300.0,
+                                                time_limit=1000.0,
                                                 # planning_heuristics='euclidean',
                                                 # planning_heuristics='dijkstra'???,
                                                 planning_heuristics='dijkstra_with_dyncost',

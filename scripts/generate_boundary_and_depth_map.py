@@ -16,6 +16,7 @@ WALL_MAX_HEIGHT_RELATIVE = 1.7
 WALL_MAP_LENGTH = int(math.ceil(2 * math.pi * WALL_DEPTH_AND_BOUNDARY_MAP_RADIUS / MAP_RESOLUTION))
 WALL_MAP_WIDTH = int((WALL_MAX_HEIGHT_RELATIVE - WALL_MIN_HEIGHT_RELATIVE) / MAP_RESOLUTION) + 1
 WALL_DEFAULT_DEPTH = 2.0
+BOUNDARY_WIDTH = 6
 
 
 def generateBoundaryMap(structure_id_map):
@@ -25,6 +26,12 @@ def generateBoundaryMap(structure_id_map):
     boundary_map = np.zeros((dy, dx), dtype=int)
 
     level_zero_positions = set()
+
+    for idy in range(dy):
+        for idx in range(dx):
+            if structure_id_map[idy][idx] == -1:
+                boundary_map[idy][idx] = 1
+                level_zero_positions.add((idx, idy))
     
     for idy in range(dy):
         for idx in range(dx):
@@ -78,14 +85,14 @@ def generateGroundDepthBoundaryMap(ground_structures_parameters, x_position, y_p
     for index, parameters in enumerate(ground_structures_parameters):
         ground_structures.append(trimesh_surface(index, parameters[0], parameters[1], parameters[2]))
    
-    ground_depth_map = np.ones((GROUND_MAP_SIDE, GROUND_MAP_SIDE), dtype=float) * GROUND_DEFAULT_DEPTH
-    structure_id_map = np.ones((GROUND_MAP_SIDE, GROUND_MAP_SIDE), dtype=int) * -1
+    ground_depth_map = np.ones((GROUND_MAP_SIDE + 2 * BOUNDARY_WIDTH, GROUND_MAP_SIDE + 2 * BOUNDARY_WIDTH), dtype=float) * GROUND_DEFAULT_DEPTH
+    structure_id_map = np.ones((GROUND_MAP_SIDE + 2 * BOUNDARY_WIDTH, GROUND_MAP_SIDE + 2 * BOUNDARY_WIDTH), dtype=int) * -1
 
     projection_ray = np.array([[0], [0], [-1.0]])
-    for iy in range(GROUND_MAP_SIDE):
-        for ix in range(GROUND_MAP_SIDE):
-            projection_start_point = np.array([[x_position + (ix - GROUND_MAP_EDGE) * MAP_RESOLUTION],
-                                               [y_position + (GROUND_MAP_EDGE - iy) * MAP_RESOLUTION],
+    for iy in range(ground_depth_map.shape[0]):
+        for ix in range(ground_depth_map.shape[1]):
+            projection_start_point = np.array([[x_position + (ix - GROUND_MAP_EDGE - BOUNDARY_WIDTH) * MAP_RESOLUTION],
+                                               [y_position + (GROUND_MAP_EDGE + BOUNDARY_WIDTH - iy) * MAP_RESOLUTION],
                                                [99.0]])
 
             for structure in ground_structures:
@@ -102,7 +109,10 @@ def generateGroundDepthBoundaryMap(ground_structures_parameters, x_position, y_p
     # plt.show()
 
     ground_boundary_map = generateBoundaryMap(structure_id_map)
-    return np.clip(ground_depth_map + ground_boundary_map * -2, -1, 1)
+    # return np.clip(ground_depth_map + ground_boundary_map * -2, -1, 1)
+    return np.stack((ground_depth_map[BOUNDARY_WIDTH:GROUND_MAP_SIDE+BOUNDARY_WIDTH, BOUNDARY_WIDTH:GROUND_MAP_SIDE+BOUNDARY_WIDTH], 
+                     ground_boundary_map[BOUNDARY_WIDTH:GROUND_MAP_SIDE+BOUNDARY_WIDTH, BOUNDARY_WIDTH:GROUND_MAP_SIDE+BOUNDARY_WIDTH]),
+                     axis=0)
 
 
 def generateWallDepthBoundaryMap(others_structures_parameters, x_position, y_position, altitude):
@@ -137,20 +147,27 @@ def generateWallDepthBoundaryMap(others_structures_parameters, x_position, y_pos
     # plt.imshow(wall_depth_map, cmap='gray')
     # plt.show()
     wall_boundary_map = generateBoundaryMap(structure_id_map)
-    return np.clip(wall_depth_map + wall_boundary_map * 2, 0, 2)
+    # return np.clip(wall_depth_map + wall_boundary_map * 2, 0, 2)
+    return np.stack((wall_depth_map, wall_boundary_map), axis=0)
 
 
 def main():
-    for environment_index in range(200):
+    for environment_index in range(20):
         print(environment_index)
-        with open('../data/dataset_225/complete_environments_3_' + str(environment_index), 'r') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_3_' + str(environment_index), 'r') as file:
             envs = pickle.load(file)
-        # ground_map = generateGroundDepthBoundaryMap(envs['ground_structures'], 0.0, 0.0)
-        # with open('../data/test/ground_0_' + str(environment_index), 'w') as depth_map_file:
-        #     pickle.dump(np.expand_dims(ground_map, axis=0).astype(np.float32), depth_map_file)
-        wall_map = generateWallDepthBoundaryMap(envs['others_structures'], 0.0, 0.0, 0.0)
-        with open('../data/test/wall_3_' + str(environment_index), 'w') as depth_map_file:
-            pickle.dump(np.expand_dims(wall_map, axis=0).astype(np.float32), depth_map_file)
+        # ground_depth_map, ground_boundary_map = generateGroundDepthBoundaryMap(envs['ground_structures'], 0.0, 0.0)
+        # with open('../data/test/ground_depth_3_' + str(environment_index) + '_new', 'w') as file:
+        #     pickle.dump(np.expand_dims(ground_depth_map, axis=0).astype(np.float32), file)
+        # with open('../data/test/ground_boundary_3_' + str(environment_index) + '_new', 'w') as file:
+        #     pickle.dump(np.expand_dims(ground_boundary_map, axis=0).astype(np.float32), file)
+        
+        wall_depth_map, wall_boundary_map = generateWallDepthBoundaryMap(envs['others_structures'], 0.0, 0.0, 0.0)
+        # with open('../data/test/wall_depth_3_' + str(environment_index), 'w') as file:
+        #     pickle.dump(np.expand_dims(wall_depth_map, axis=0).astype(np.float32), file)
+        with open('../data/test/wall_boundary_3_' + str(environment_index) + '_new', 'w') as file:
+            pickle.dump(np.expand_dims(wall_boundary_map, axis=0).astype(np.float32), file)
+        
 
     
 if __name__ == '__main__':
