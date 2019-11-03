@@ -26,15 +26,15 @@ map_id (string), p2, environment wall type (0: no wall, 1: one wall only, 2: two
 
 import pickle, IPython, os, math, shutil, getopt, sys, random, pprint
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-from generate_boundary_and_depth_map import generateGroundDepthBoundaryMap, generateWallDepthBoundaryMap
+# from generate_boundary_and_depth_map import generateGroundDepthBoundaryMap, generateWallDepthBoundaryMap
 
 GRID_RESOLUTION = 0.15
 ANGLE_RESOLUTION = 22.5
 ANGLE_DIM = int(round(360 / ANGLE_RESOLUTION))
 NUM_MODELS = int(round(90 / ANGLE_RESOLUTION))
-PERCENTILE = 10
+PERCENTILE = 15
 MAX_TRANSITIONS_CHOSEN = 200
 
 MAP_RESOLUTION = 0.025
@@ -206,10 +206,12 @@ def main():
 
 
     for environment_index in range(0, 200):
+        """
         if os.path.exists('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_' + str(environment_type) + '_' + str(environment_index)):
             print('process data for environment type {} index {}'.format(environment_type, environment_index))
         else:
             print('environment type {} index {} does not exist'.format(environment_type, environment_index))
+            continue
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/complete_environments_' + str(environment_type) + '_' + str(environment_index), 'r') as env_file:
             environment = pickle.load(env_file)
             ground_structures_parameters = environment['ground_structures']
@@ -263,7 +265,12 @@ def main():
                 pickle.dump(wall_depth_and_boundary_maps[i][0].astype(np.float32), depth_map_file)
             with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/wall_depth_and_boundary_maps/' + str(environment_type) + '_' + str(environment_index) + '_' + str(i) + '_R', 'w') as depth_map_file:
                 pickle.dump(wall_depth_and_boundary_maps[i][1].astype(np.float32), depth_map_file)
-
+        """
+        if os.path.exists('/mnt/big_narstie_data/chenxi/data/dataset_225/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index)):
+            print('process data for ' + str(environment_type) + '_' + str(environment_index))
+        else:
+            print(str(environment_type) + '_' + str(environment_index) + ' does not exist')
+            continue
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/dynamic_cost_plus_type_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
             data = pickle.load(file)
 
@@ -325,13 +332,13 @@ def main():
         # print(total_transition, large_transition)
 
     for i in range(NUM_MODELS):
-        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_' + str(environment_type) + '_model_' + str(i), 'w') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/percentile_15/data_' + str(environment_type) + '_model_' + str(i), 'w') as file:
             pickle.dump(data_dict[i], file)
 
         partition = {'training': training[i],
                     'validation': validation[i],
                     'test': test[i]}
-        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_' + str(environment_type) + '_model_' + str(i), 'w') as file:
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/percentile_15/partition_' + str(environment_type) + '_model_' + str(i), 'w') as file:
             pickle.dump(partition, file)
 
     # for i in range(-8, 8):

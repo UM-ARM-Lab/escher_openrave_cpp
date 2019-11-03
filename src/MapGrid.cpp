@@ -287,43 +287,54 @@ void MapGrid::obstacleAndGapMapping(OpenRAVE::EnvironmentBasePtr env, std::vecto
         }
 
         // !!!!!!!!!!!!!!!!!!!!
-        // int edge_width = 6;
-        // for (int iy = 0; iy < dim_y_; iy++) {
-        //     for (int ix = 0; ix < edge_width; ix++) {
-        //         for (int itheta = 0; itheta < dim_theta_; itheta++) {
-        //             cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
-        //             GridPositions3D temp = indicesToPositions({ix, iy, 0});
-        //             drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
-        //         }
-        //     }
-        //     for (int ix = dim_x_ - edge_width; ix < dim_x_; ix++) {
-        //         for (int itheta = 0; itheta < dim_theta_; itheta++) {
-        //             cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
-        //             GridPositions3D temp = indicesToPositions({ix, iy, 0});
-        //             drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
-        //         }
-        //     }
-        // }
+        int edge_width = 6;
+        for (int iy = 0; iy < dim_y_; iy++) {
+            for (int ix = 0; ix < edge_width; ix++) {
+                for (int itheta = 0; itheta < dim_theta_; itheta++) {
+                    cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
+                    GridPositions3D temp = indicesToPositions({ix, iy, 0});
+                    drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
+                }
+            }
+            for (int ix = dim_x_ - edge_width; ix < dim_x_; ix++) {
+                for (int itheta = 0; itheta < dim_theta_; itheta++) {
+                    cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
+                    GridPositions3D temp = indicesToPositions({ix, iy, 0});
+                    drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
+                }
+            }
+        }
 
-        // for (int ix = edge_width; ix < dim_x_ - edge_width; ix++) {
-        //     for (int iy = 0; iy < edge_width; iy++) {
-        //         for (int itheta = 0; itheta < dim_theta_; itheta++) {
-        //             cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
-        //             GridPositions3D temp = indicesToPositions({ix, iy, 0});
-        //             drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
-        //         }
-        //     }
-        //     for (int iy = dim_y_ - edge_width; iy < dim_y_; iy++) {
-        //         for (int itheta = 0; itheta < dim_theta_; itheta++) {
-        //             cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
-        //             GridPositions3D temp = indicesToPositions({ix, iy, 0});
-        //             drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
-        //         }
-        //     }
-        // }
+        for (int ix = edge_width; ix < dim_x_ - edge_width; ix++) {
+            for (int iy = 0; iy < edge_width; iy++) {
+                for (int itheta = 0; itheta < dim_theta_; itheta++) {
+                    cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
+                    GridPositions3D temp = indicesToPositions({ix, iy, 0});
+                    drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
+                }
+            }
+            for (int iy = dim_y_ - edge_width; iy < dim_y_; iy++) {
+                for (int itheta = 0; itheta < dim_theta_; itheta++) {
+                    cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
+                    GridPositions3D temp = indicesToPositions({ix, iy, 0});
+                    drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
+                }
+            }
+        }
 
-        // for (int iy = edge_width; iy < 35; iy++) {
-        //     for (int ix = 22; ix < 60; ix++) {
+        // !!!!!!!!!!!!!!!!!!!!
+        for (int iy = edge_width; iy < 32; iy++) {
+            for (int ix = 17; ix < 67; ix++) {
+                for (int itheta = 0; itheta < dim_theta_; itheta++) {
+                    cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
+                    GridPositions3D temp = indicesToPositions({ix, iy, 0});
+                    drawing_handler_->DrawLocation(Translation3D(temp[0], temp[1], 0.2), Vector3D(0,1,0));
+                }
+            }
+        }
+
+        // for (int iy = edge_width; iy < 34; iy++) {
+        //     for (int ix = 21; ix < 59; ix++) {
         //         for (int itheta = 0; itheta < dim_theta_; itheta++) {
         //             cell_3D_list_[ix][iy][itheta]->terrain_type_ = TerrainType::GAP;
         //             GridPositions3D temp = indicesToPositions({ix, iy, 0});
@@ -413,10 +424,14 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
                 if(child_cell->terrain_type_ == TerrainType::SOLID)
                 // if(true)
                 {
+                    // !!!!!!!!!!!!!!!!!!!!
                     auto child_it = heuristic_helper_.dynamic_cost_map_.find(child_cell_indices);
                     auto current_it = child_it->second.find(current_cell_indices);
                     float dynamic_cost = current_it->second;
+                    // float dynamic_cost = 0;
+                    // !!!!!!!!!!!!!!!!!!!!
                     float edge_cost = euclideanDistBetweenCells(current_cell, child_cell) + step_cost_weight_ + dynamics_cost_weight_ * dynamic_cost; // modify this to include the estimate dynamic cost
+                    // float edge_cost = dynamics_cost_weight_ * dynamic_cost; // modify this to include the estimate dynamic cost
                     if(current_cell->g_ + edge_cost < child_cell->g_)
                     {
                         child_cell->g_ = current_cell->g_ + edge_cost;
@@ -514,22 +529,23 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
     //     }
     // }
 
-    // ofstream ofs("env_11_dijkstra_once.txt");
+    // ofstream ofs("env_14_dijkstra_with_dynamics.txt");
     // ofs << std::fixed;
     // ofs << std::setprecision(2);
     // for (int itheta = 0; itheta < dim_theta_; itheta++) {
     //     for (int ix = dim_x_-1; ix >= 0; ix--) {
     //         for (int iy = dim_y_-1; iy >= 0; iy--) {
-    //             bool inside_mask = false;
+    //             // !!!!!!!!!!!!!!!!!!!!
+    //             // bool inside_mask = false;
     //             bool solid_ground = false;
 
-    //             if (region_mask.find({ix,iy,itheta}) != region_mask.end())
-    //                 inside_mask = true;
+    //             // if (region_mask.find({ix,iy,itheta}) != region_mask.end())
+    //             //     inside_mask = true;
 
     //             if (cell_3D_list_[ix][iy][itheta]->terrain_type_ == TerrainType::SOLID)
     //                 solid_ground = true;
 
-    //             if (inside_mask && solid_ground) {
+    //             if (/*inside_mask &&*/ solid_ground) {
     //                 ofs << cell_3D_list_[ix][iy][itheta]->g_ << " ";
     //             } else {
     //                 ofs << "9999.0 ";
@@ -538,16 +554,6 @@ void MapGrid::generateDijkstraHeuristics(MapCell3DPtr& goal_cell, std::map< int,
     //         ofs << std::endl;
     //     }
     // }
-    
-    // ofstream g_ofs("env_5_log_dijkstra.txt", std::ios_base::app);
-
-    // for (auto p1_cell_it = heuristic_helper_.dynamic_cost_map_.begin(); p1_cell_it != heuristic_helper_.dynamic_cost_map_.end(); p1_cell_it++) {
-    //     for (auto p2_cell_it = p1_cell_it->second.begin(); p2_cell_it != p1_cell_it->second.end(); p2_cell_it++) {
-    //         g_ofs << "(" << p1_cell_it->first[0] << "," << p1_cell_it->first[1] << "," << p1_cell_it->first[2] << ")->("
-    //                 << p2_cell_it->first[0] << "," << p2_cell_it->first[1] << "," << p2_cell_it->first[2] << "): " << p2_cell_it->second << std::endl;
-    //     }
-    // }
-
     RAVELOG_INFO("Finish Generation of Dijkstra Heuristic.");
 }
 
@@ -618,13 +624,11 @@ std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initia
             {
                 torso_path.push_back(path_cell);
 
-                std::cout << "Cell " << path_cell_index << ": (" << path_cell->getPositions()[0] << "," << path_cell->getPositions()[1] << "," << path_cell->getPositions()[2] << ")" << 
-                                                           ", (" << path_cell->getIndices()[0] << "," << path_cell->getIndices()[1] << "," << path_cell->getIndices()[2] << ")" << " g: " << path_cell->g_ << std::endl;
+                std::cout << "Cell " << path_cell_index << ": (" << path_cell->getPositions()[0] << "," << path_cell->getPositions()[1] << "," << path_cell->getPositions()[2]
+                          << "), (" << path_cell->getIndices()[0] << "," << path_cell->getIndices()[1] << "," << path_cell->getIndices()[2]
+                          << "), g: " << path_cell->g_ << std::endl;
                 
-                // g_ofs << "Cell " << path_cell_index << ": (" << path_cell->getPositions()[0] << "," << path_cell->getPositions()[1] << "," << path_cell->getPositions()[2] << ")" << 
-                //                                        ", (" << path_cell->getIndices()[0] << "," << path_cell->getIndices()[1] << "," << path_cell->getIndices()[2] << ")" << " g: " << path_cell->g_ << std::endl;
-
-
+          
                 if(path_cell->is_root_)
                 {
                     break;
@@ -699,7 +703,7 @@ std::vector<MapCell3DPtr> MapGrid::generateTorsoGuidingPath(MapCell3DPtr& initia
                     float dynamic_cost = child_it->second;
                     // dynamic_cost = 0;
                     float edge_cost = euclideanDistBetweenCells(current_cell, child_cell) + step_cost_weight_ + dynamics_cost_weight_ * dynamic_cost; // modify this to include the estimate dynamic cost
-                    // float edge_cost = euclideanDistBetweenCells(current_cell, child_cell); // modify this to include the estimate dynamic cost
+                    // float edge_cost = dynamic_cost;
                     child_cell->h_ = euclideanHeuristic(child_cell, goal_cell);
 
                     if(current_cell->g_ + edge_cost < child_cell->g_)
@@ -855,17 +859,20 @@ void MapGrid::read_transition_model(std::map< int,std::vector<GridIndices3D> > t
 MapGrid::HeuristicHelper::HeuristicHelper() {
     try {
         // Deserialize the ScriptModule from a file using torch::jit::load().
-        // module = torch::jit::load("model.pt");
-        torch::jit::script::Module module_0 = torch::jit::load("depth_and_boundary_combined_B_17_weighted_0.001_checkpoint.pt");
+        torch::jit::script::Module module_0 = torch::jit::load("/mnt/big_narstie_data/chenxi/data/models_percentile_10/model_0_v0_weighted_0.001.pt");
+        // torch::jit::script::Module module_0 = torch::jit::load("model_0_v0_weighted_0.001.pt");
         module_0.to(torch::Device(torch::kCUDA, 0));
         modules.push_back(module_0);
-        torch::jit::script::Module module_1 = torch::jit::load("depth_and_boundary_combined_B_17_weighted_0.001_checkpoint.pt");
+        torch::jit::script::Module module_1 = torch::jit::load("/mnt/big_narstie_data/chenxi/data/models_percentile_10/model_1_v0_weighted_0.001.pt");
+        // torch::jit::script::Module module_1 = torch::jit::load("model_1_v0_weighted_0.001.pt");
         module_1.to(torch::Device(torch::kCUDA, 0));
         modules.push_back(module_1);
-        torch::jit::script::Module module_2 = torch::jit::load("depth_and_boundary_combined_B_17_weighted_0.001_checkpoint.pt");
+        torch::jit::script::Module module_2 = torch::jit::load("/mnt/big_narstie_data/chenxi/data/models_percentile_10/model_2_v0_weighted_0.001.pt");
+        // torch::jit::script::Module module_2 = torch::jit::load("model_2_v0_weighted_0.001.pt");
         module_2.to(torch::Device(torch::kCUDA, 0));
         modules.push_back(module_2);
-        torch::jit::script::Module module_3 = torch::jit::load("depth_and_boundary_combined_B_17_weighted_0.001_checkpoint.pt");
+        torch::jit::script::Module module_3 = torch::jit::load("/mnt/big_narstie_data/chenxi/data/models_percentile_10/model_3_v0_weighted_0.001.pt");
+        // torch::jit::script::Module module_3 = torch::jit::load("model_3_v0_weighted_0.001.pt");
         module_3.to(torch::Device(torch::kCUDA, 0));
         modules.push_back(module_3);
     } catch (const c10::Error& e) {
@@ -1101,6 +1108,11 @@ std::vector<torch::Tensor> MapGrid::HeuristicHelper::getWallDepthBoundaryMap(Map
 
 
 void MapGrid::HeuristicHelper::predict_dynamic_costs_of_all_transitions(MapGrid* map_grid_ptr) {
+    
+    auto time_before = std::chrono::high_resolution_clock::now();
+    at::init_num_threads();
+    at::set_num_threads(8);
+    #pragma omp target teams distribute parallel for collapse(3)
     for (int ix = 0; ix < map_grid_ptr->dim_x_; ix++) {
         for (int iy = 0; iy < map_grid_ptr->dim_y_; iy++) {
             for (int itheta = 0; itheta < map_grid_ptr->dim_theta_; itheta++) {
@@ -1156,23 +1168,23 @@ void MapGrid::HeuristicHelper::predict_dynamic_costs_of_all_transitions(MapGrid*
                     //     ofs_wall_boundary << std::endl;
                     // }
                     // ofs_wall_boundary.close();
-                    auto right_wall_map_a = wall_maps[1].accessor<float, 3>();
-                    ofstream ofs_wall_depth("depth_and_boundary_maps/right_wall_depth_map_" + std::to_string(ix) + "_" + std::to_string(iy) + "_" + std::to_string(itheta) + ".txt");
-                    for (int idy = 0; idy < WALL_MAP_WIDTH; idy++) {
-                        for (int idx = 0; idx < WALL_MAP_LENGTH_ONE_THIRD; idx++) {
-                            ofs_wall_depth << right_wall_map_a[0][idy][idx] << " ";
-                        }
-                        ofs_wall_depth << std::endl;
-                    }
-                    ofs_wall_depth.close();
-                    ofstream ofs_wall_boundary("depth_and_boundary_maps/right_wall_boundary_map_" + std::to_string(ix) + "_" + std::to_string(iy) + "_" + std::to_string(itheta) + ".txt");
-                    for (int idy = 0; idy < WALL_MAP_WIDTH; idy++) {
-                        for (int idx = 0; idx < WALL_MAP_LENGTH_ONE_THIRD; idx++) {
-                            ofs_wall_boundary << right_wall_map_a[1][idy][idx] << " ";
-                        }
-                        ofs_wall_boundary << std::endl;
-                    }
-                    ofs_wall_boundary.close();
+                    // auto right_wall_map_a = wall_maps[1].accessor<float, 3>();
+                    // ofstream ofs_wall_depth("depth_and_boundary_maps/right_wall_depth_map_" + std::to_string(ix) + "_" + std::to_string(iy) + "_" + std::to_string(itheta) + ".txt");
+                    // for (int idy = 0; idy < WALL_MAP_WIDTH; idy++) {
+                    //     for (int idx = 0; idx < WALL_MAP_LENGTH_ONE_THIRD; idx++) {
+                    //         ofs_wall_depth << right_wall_map_a[0][idy][idx] << " ";
+                    //     }
+                    //     ofs_wall_depth << std::endl;
+                    // }
+                    // ofs_wall_depth.close();
+                    // ofstream ofs_wall_boundary("depth_and_boundary_maps/right_wall_boundary_map_" + std::to_string(ix) + "_" + std::to_string(iy) + "_" + std::to_string(itheta) + ".txt");
+                    // for (int idy = 0; idy < WALL_MAP_WIDTH; idy++) {
+                    //     for (int idx = 0; idx < WALL_MAP_LENGTH_ONE_THIRD; idx++) {
+                    //         ofs_wall_boundary << right_wall_map_a[1][idy][idx] << " ";
+                    //     }
+                    //     ofs_wall_boundary << std::endl;
+                    // }
+                    // ofs_wall_boundary.close();
                     inputs.push_back(wall_maps[0].unsqueeze(0).repeat({pending_transitions.size(),1,1,1}).cuda());
                     inputs.push_back(wall_maps[1].unsqueeze(0).repeat({pending_transitions.size(),1,1,1}).cuda());
                     float* p2_arr = new float[pending_transitions.size() * 3];
@@ -1208,34 +1220,50 @@ void MapGrid::HeuristicHelper::predict_dynamic_costs_of_all_transitions(MapGrid*
                     }
                     inputs.push_back(torch::from_blob(p2_arr, {pending_transitions.size(),3}).cuda());
                     // !!!!!!!!!!!!!!!!!!!!
-                    // at::Tensor output = modules[model_index].forward(inputs).toTensor().cpu();
-                    // auto output_a = output.accessor<float, 2>();
+                    at::Tensor output = modules[model_index].forward(inputs).toTensor().cpu();
+                    auto output_a = output.accessor<float, 2>();
+
+                    float current_face_direction = model_index * ANGLE_RESOLUTION / 180.0 * M_PI;
+                    float current_face_direction_x = cos(current_face_direction);
+                    float current_face_direction_y = sin(current_face_direction);
                     
                     for (unsigned int i = 0; i < pending_transitions.size(); i++) {
                         GridIndices3D child_cell_indices = {ix + pending_transitions[i][0],
                                                             iy + pending_transitions[i][1],
                                                             (itheta + pending_transitions[i][2] + map_grid_ptr->dim_theta_) % map_grid_ptr->dim_theta_};
-                        // float dynamic_cost = output_a[i][0];
+                        float dynamic_cost = output_a[i][0];
+                        float moving_direction_x = p2_arr[3 * i];
+                        float moving_direction_y = p2_arr[3 * i + 1];
+                        float direction_weight = 1;
+                        if (current_face_direction_x * moving_direction_x + current_face_direction_y * moving_direction_y < 0) {
+                            float temp = (current_face_direction_x * moving_direction_x + current_face_direction_y * moving_direction_y) / std::sqrt(moving_direction_x * moving_direction_x + moving_direction_y * moving_direction_y);
+                            direction_weight = 1000 * temp * temp + 1;
+                        }
+                        dynamic_cost *= direction_weight;
                         // !!!!!!!!!!!!!!!!!!!!
-                        float dynamic_cost = 0;
+                        // float dynamic_cost = 0;
                         dynamic_cost_map_[{ix, iy, itheta}][child_cell_indices] = dynamic_cost;
                     }
                 }
             }
         }
     }
+    auto time_after = std::chrono::high_resolution_clock::now();
+    float time_used = std::chrono::duration_cast<std::chrono::milliseconds>(time_after - time_before).count() /1000.0;
+    std::cout << "time to predict the cost: " << time_used << std::endl;
 
-    // ofstream ofs("env_11_pred_cost.txt");
-    // ofs << std::fixed;
-    // ofs << std::setprecision(2);
-    // for (auto current_it = dynamic_cost_map_.begin(); current_it != dynamic_cost_map_.end(); current_it++) {
-    //     auto temp = dynamic_cost_map_[current_it->first];
-    //     for (auto child_it = temp.begin(); child_it != temp.end(); child_it++) {
-    //         ofs << current_it->first[0] << " " << current_it->first[1] << " " << current_it->first[2] << " "
-    //         << child_it->first[0] << " " << child_it->first[1] << " " << child_it->first[2] << " "
-    //         << child_it->second << std::endl;
-    //     }
-    // }
+
+    ofstream ofs("env_13_pred_cost_boundary_changed.txt");
+    ofs << std::fixed;
+    ofs << std::setprecision(4);
+    for (auto current_it = dynamic_cost_map_.begin(); current_it != dynamic_cost_map_.end(); current_it++) {
+        auto temp = dynamic_cost_map_[current_it->first];
+        for (auto child_it = temp.begin(); child_it != temp.end(); child_it++) {
+            ofs << current_it->first[0] << " " << current_it->first[1] << " " << current_it->first[2] << " "
+            << child_it->first[0] << " " << child_it->first[1] << " " << child_it->first[2] << " "
+            << child_it->second << std::endl;
+        }
+    }
 
     // for (auto p1_cell_it = ground_depth_and_boundary_map_map_.begin(); p1_cell_it != ground_depth_and_boundary_map_map_.end(); p1_cell_it++) {
     //     // std::cout << "one ground map: " << p1_cell_it->first[0] << "," << p1_cell_it->first[1] << "," << p1_cell_it->first[2] << std::endl;
@@ -1265,3 +1293,5 @@ void MapGrid::HeuristicHelper::predict_dynamic_costs_of_all_transitions(MapGrid*
     //     }
     // }
 }
+
+

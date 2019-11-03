@@ -1,30 +1,30 @@
 import pickle, os, IPython
 import numpy as np
-
+MODEL_INDEX = 3
 
 def main():
-    p2_ddyn = {}
-    for environment_type in range(3):
-        with open('../data/ground_truth_p1p2/p2_ddyn_' + str(environment_type), 'r') as file:
+    ground_truth_dict = {}
+    for environment_type in range(0, 22, 3):
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_' + str(environment_type) + '_model_' + str(MODEL_INDEX), 'r') as file:
             data = pickle.load(file)
-            p2_ddyn.update(data)
+            ground_truth_dict.update(data)
 
     partition = {'training': [],
                  'validation': [],
                  'test': []}
-    for environment_type in range(3):
-        with open('../data/ground_truth_p1p2/partition_' + str(environment_type), 'r') as file:
+    for environment_type in range(0, 22, 3):
+        with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_' + str(environment_type) + '_model_' + str(MODEL_INDEX), 'r') as file:
             data = pickle.load(file)
             partition['training'] += data['training']
             partition['validation'] += data['validation']
             partition['test'] += data['test']
 
-    assert(len(p2_ddyn.keys()) == len(partition['training']) + len(partition['validation']) + len(partition['test']))
+    assert(len(ground_truth_dict.keys()) == len(partition['training']) + len(partition['validation']) + len(partition['test']))
     # IPython.embed()
-    with open('../data/ground_truth_p1p2/p2_ddyn_no_wall_subset', 'w') as file:
-        pickle.dump(p2_ddyn, file)
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_model_' + str(MODEL_INDEX), 'w') as file:
+        pickle.dump(ground_truth_dict, file)
 
-    with open('../data/ground_truth_p1p2/partition_no_wall_subset', 'w') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_model_' + str(MODEL_INDEX), 'w') as file:
         pickle.dump(partition, file)
 
 

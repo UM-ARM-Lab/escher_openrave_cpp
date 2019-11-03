@@ -1,4 +1,4 @@
-import pickle, IPython, math, sys, getopt, keras
+import pickle, IPython, os, math, sys, getopt, keras
 import numpy as np
 # import mkl
 # mkl.get_max_threads()
@@ -87,7 +87,11 @@ def main():
     for i in range(10):
         regression_models.append(load_model('../data/dynopt_result/objective_regression_nn_models/nn_model_' + str(i) + '_0.0005_256_0.0.h5'))
 
-    for environment_index in range(56, 200):
+    for environment_index in range(189, 190):
+        if not os.path.exists('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_dict_' + str(environment_type) + '_' + str(environment_index)):
+            print('not exist ' + str(environment_type) + '_' + str(environment_index))
+            continue
+
         with open('/mnt/big_narstie_data/chenxi/data/dataset_225/transitions_dict_' + str(environment_type) + '_' + str(environment_index), 'r') as file:
             data = pickle.load(file)
 

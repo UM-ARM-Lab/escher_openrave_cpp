@@ -1,0 +1,590 @@
+time with forward: 314.178
+Found Torso Path.
+Path Length: 44
+Cell 0: (7.95,7.45058e-08,0), (67,12,8) g: 268.182
+Cell 1: (7.95,0.15,22.5), (67,13,9) g: 260.855
+Cell 2: (8.1,0.45,45), (68,15,10) g: 255.11
+Cell 3: (7.95,0.45,67.5), (67,15,11) g: 248.642
+Cell 4: (7.95,0.75,90), (67,17,12) g: 238.71
+Cell 5: (7.95,1.05,112.5), (67,19,13) g: 231.357
+Cell 6: (7.8,1.35,135), (66,21,14) g: 225.686
+Cell 7: (7.65,1.5,135), (65,22,14) g: 221.143
+Cell 8: (7.5,1.8,135), (64,24,14) g: 212.28
+Cell 9: (7.2,1.95,135), (62,25,14) g: 203.607
+Cell 10: (6.9,2.1,135), (60,26,14) g: 193.864
+Cell 11: (6.6,2.25,135), (58,27,14) g: 186.809
+Cell 12: (6.3,2.4,157.5), (56,28,15) g: 182.767
+Cell 13: (6.3,2.55,157.5), (56,29,15) g: 178.892
+Cell 14: (6,2.7,-180), (54,30,0) g: 175.342
+Cell 15: (5.85,2.85,-157.5), (53,31,1) g: 169.222
+Cell 16: (5.55,3,-180), (51,32,0) g: 165.833
+Cell 17: (5.25,2.85,-180), (49,31,0) g: 162.497
+Cell 18: (4.95,3,-180), (47,32,0) g: 157.604
+Cell 19: (4.65,2.85,-157.5), (45,31,1) g: 153.184
+Cell 20: (4.35,3,-180), (43,32,0) g: 149.848
+Cell 21: (4.05,2.85,-180), (41,31,0) g: 146.513
+Cell 22: (3.75,3,-180), (39,32,0) g: 141.624
+Cell 23: (3.45,2.85,-157.5), (37,31,1) g: 137.604
+Cell 24: (3.15,3,-180), (35,32,0) g: 134.269
+Cell 25: (2.85,2.85,-180), (33,31,0) g: 130.687
+Cell 26: (2.55,3,-180), (31,32,0) g: 126.275
+Cell 27: (2.25,2.85,-157.5), (29,31,1) g: 122.038
+Cell 28: (1.95,2.7,-135), (27,30,2) g: 115.521
+Cell 29: (1.8,2.7,-112.5), (26,30,3) g: 111.884
+Cell 30: (1.65,2.4,-90), (25,28,4) g: 108.036
+Cell 31: (1.5,2.25,-67.5), (24,27,5) g: 103.258
+Cell 32: (1.5,1.95,-90), (24,25,4) g: 98.8059
+Cell 33: (1.35,1.65,-90), (23,23,4) g: 95.351
+Cell 34: (1.35,1.5,-90), (23,22,4) g: 91.9597
+Cell 35: (1.35,1.2,-90), (23,20,4) g: 88.6597
+Cell 36: (1.35,0.9,-90), (23,18,4) g: 85.3597
+Cell 37: (1.35,0.75,-90), (23,17,4) g: 81.698
+Cell 38: (1.2,0.45,-90), (22,15,4) g: 75.3884
+Cell 39: (1.2,0.3,-67.5), (22,14,5) g: 70.885
+Cell 40: (1.2,0.15,-45), (22,13,6) g: 66.2992
+Cell 41: (0.9,0.15,-22.5), (20,13,7) g: 54.7244
+Cell 42: (0.45,0.15,0), (17,13,8) g: 36.3925
+Cell 43: (1.3411e-07,0.15,22.5), (14,13,9) g: 13.9706
+Cell 44: (1.3411e-07,7.45058e-08,0), (14,12,8) g: 0
+Path Length: 44
+
+global smallest cost: 0 global highest cost: 296.666
+[MapGrid.cpp:554 generateDijkstraHeuristics] Finish Generation of Dijkstra Heuristic.[GeneralIK.cpp:64 Init] Initializing GeneralIK Solver
+[ContactSpacePlanning.cpp:53 ContactSpacePlanning] Initialize neural network interface.
+[EscherMotionPlanning.cpp:2504 startPlanningFromScratch] Start ANA* Planning 
+[ContactSpacePlanning.cpp:194 ANAStarPlanning] Start ANA* planning.
+[ContactSpacePlanning.cpp:238 ANAStarPlanning] Enter the exploration loop.
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 0.514, G = 2301.563, E = 3928.357, DynCost: 21135.682, # of Steps: 55. 
+position: 0 real edge cost: 9.71339 pred edge cost: 22.1342
+position: 1 real edge cost: 43.8599 pred edge cost: 15.1292
+position: 2 real edge cost: 6.13065 pred edge cost: 16.2442
+position: 3 real edge cost: 52.3798 pred edge cost: 3
+position: 4 real edge cost: 10.7585 pred edge cost: 11.4696
+position: 5 real edge cost: 9.34003 pred edge cost: 10.0841
+position: 6 real edge cost: 12.7601 pred edge cost: 16.6847
+position: 7 real edge cost: 26.9033 pred edge cost: 10.6669
+position: 8 real edge cost: 37.8289 pred edge cost: 21.6621
+position: 9 real edge cost: 268.775 pred edge cost: 21.995
+position: 10 real edge cost: 254.831 pred edge cost: 20.2705
+position: 11 real edge cost: 6.14459 pred edge cost: 9.47141
+position: 12 real edge cost: 50.1905 pred edge cost: 7.86809
+position: 13 real edge cost: 18.8127 pred edge cost: 4.31989
+position: 14 real edge cost: 7.76727 pred edge cost: 3.42426
+position: 15 real edge cost: 52.5375 pred edge cost: 17.9675
+position: 16 real edge cost: 32.7262 pred edge cost: 6.08937
+position: 17 real edge cost: 19.6939 pred edge cost: 6.28803
+position: 18 real edge cost: 39.2996 pred edge cost: 5.06657
+position: 19 real edge cost: 24.9241 pred edge cost: 3.3
+position: 20 real edge cost: 98.7079 pred edge cost: 5.63721
+position: 21 real edge cost: 8.35583 pred edge cost: 6.982
+position: 22 real edge cost: 49.5356 pred edge cost: 4.22517
+position: 23 real edge cost: 14.1399 pred edge cost: 7.70317
+position: 24 real edge cost: 38.916 pred edge cost: 4.18759
+position: 25 real edge cost: 28.7264 pred edge cost: 3.3
+position: 26 real edge cost: 26.4153 pred edge cost: 3.45
+position: 27 real edge cost: 28.2754 pred edge cost: 5.38808
+position: 28 real edge cost: 37.9907 pred edge cost: 3.5699
+position: 29 real edge cost: 40.2198 pred edge cost: 3.3
+position: 30 real edge cost: 21.467 pred edge cost: 3.47434
+position: 31 real edge cost: 40.0551 pred edge cost: 5.79468
+position: 32 real edge cost: 23.4449 pred edge cost: 3.48005
+position: 33 real edge cost: 30.2448 pred edge cost: 3.45
+position: 34 real edge cost: 36.3459 pred edge cost: 3.3
+position: 35 real edge cost: 41.9637 pred edge cost: 3.45
+position: 36 real edge cost: 26.3624 pred edge cost: 4.75337
+position: 37 real edge cost: 39.2749 pred edge cost: 11.9485
+position: 38 real edge cost: 28.858 pred edge cost: 4.38024
+position: 39 real edge cost: 3.75891 pred edge cost: 4.41683
+position: 40 real edge cost: 54.5649 pred edge cost: 4.15793
+position: 41 real edge cost: 29.6959 pred edge cost: 3.63536
+position: 42 real edge cost: 17.0486 pred edge cost: 3.45
+position: 43 real edge cost: 36.3116 pred edge cost: 6.94798
+position: 44 real edge cost: 12.2318 pred edge cost: 8.22726
+position: 45 real edge cost: 20.2662 pred edge cost: 3.42426
+position: 46 real edge cost: 45.6284 pred edge cost: 6.12766
+position: 47 real edge cost: 37.5828 pred edge cost: 8.63594
+position: 48 real edge cost: 47.0443 pred edge cost: 9.35702
+position: 49 real edge cost: 19.2629 pred edge cost: 3.47434
+position: 50 real edge cost: 41.0104 pred edge cost: 7.87312
+position: 51 real edge cost: 29.077 pred edge cost: 17.0476
+position: 52 real edge cost: 48.0747 pred edge cost: 12.8707
+position: 53 real edge cost: 121.05 pred edge cost: 20.0348
+position: 54 real edge cost: 94.2778 pred edge cost: 5.38472
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 0.561, G = 2192.630, E = 9.871, DynCost: 20046.398, # of Steps: 55. 
+position: 0 real edge cost: 9.71339 pred edge cost: 22.1342
+position: 1 real edge cost: 43.8599 pred edge cost: 15.1292
+position: 2 real edge cost: 6.13065 pred edge cost: 16.2442
+position: 3 real edge cost: 52.3798 pred edge cost: 3
+position: 4 real edge cost: 10.7585 pred edge cost: 11.4696
+position: 5 real edge cost: 9.34003 pred edge cost: 10.0841
+position: 6 real edge cost: 12.7601 pred edge cost: 16.6847
+position: 7 real edge cost: 26.9033 pred edge cost: 10.6669
+position: 8 real edge cost: 37.8289 pred edge cost: 21.6621
+position: 9 real edge cost: 268.775 pred edge cost: 21.995
+position: 10 real edge cost: 254.831 pred edge cost: 20.2705
+position: 11 real edge cost: 6.14459 pred edge cost: 9.47141
+position: 12 real edge cost: 50.1905 pred edge cost: 7.86809
+position: 13 real edge cost: 18.8127 pred edge cost: 4.31989
+position: 14 real edge cost: 7.76727 pred edge cost: 3.42426
+position: 15 real edge cost: 52.5375 pred edge cost: 17.9675
+position: 16 real edge cost: 32.7262 pred edge cost: 6.08937
+position: 17 real edge cost: 19.6939 pred edge cost: 6.28803
+position: 18 real edge cost: 39.2996 pred edge cost: 5.06657
+position: 19 real edge cost: 24.9241 pred edge cost: 3.3
+position: 20 real edge cost: 98.7079 pred edge cost: 5.63721
+position: 21 real edge cost: 8.35583 pred edge cost: 6.982
+position: 22 real edge cost: 49.5356 pred edge cost: 4.22517
+position: 23 real edge cost: 14.1399 pred edge cost: 7.70317
+position: 24 real edge cost: 38.916 pred edge cost: 4.18759
+position: 25 real edge cost: 28.7264 pred edge cost: 3.3
+position: 26 real edge cost: 26.4153 pred edge cost: 3.45
+position: 27 real edge cost: 28.2754 pred edge cost: 5.38808
+position: 28 real edge cost: 37.9907 pred edge cost: 3.5699
+position: 29 real edge cost: 40.2198 pred edge cost: 3.3
+position: 30 real edge cost: 21.467 pred edge cost: 3.47434
+position: 31 real edge cost: 40.0551 pred edge cost: 5.79468
+position: 32 real edge cost: 23.4449 pred edge cost: 3.48005
+position: 33 real edge cost: 30.2448 pred edge cost: 3.45
+position: 34 real edge cost: 36.3459 pred edge cost: 3.3
+position: 35 real edge cost: 41.9637 pred edge cost: 3.45
+position: 36 real edge cost: 26.3624 pred edge cost: 4.75337
+position: 37 real edge cost: 39.2749 pred edge cost: 11.9485
+position: 38 real edge cost: 28.858 pred edge cost: 4.38024
+position: 39 real edge cost: 3.75891 pred edge cost: 4.41683
+position: 40 real edge cost: 54.5649 pred edge cost: 4.15793
+position: 41 real edge cost: 29.6959 pred edge cost: 3.63536
+position: 42 real edge cost: 17.0486 pred edge cost: 3.45
+position: 43 real edge cost: 36.3116 pred edge cost: 6.94798
+position: 44 real edge cost: 12.2318 pred edge cost: 8.22726
+position: 45 real edge cost: 20.2662 pred edge cost: 3.42426
+position: 46 real edge cost: 45.6284 pred edge cost: 6.12766
+position: 47 real edge cost: 37.5828 pred edge cost: 8.63594
+position: 48 real edge cost: 47.0443 pred edge cost: 9.35702
+position: 49 real edge cost: 19.2629 pred edge cost: 3.47434
+position: 50 real edge cost: 41.0104 pred edge cost: 7.87312
+position: 51 real edge cost: 29.077 pred edge cost: 17.0476
+position: 52 real edge cost: 16.656 pred edge cost: 9.38357
+position: 53 real edge cost: 61.272 pred edge cost: 18.0435
+position: 54 real edge cost: 76.5413 pred edge cost: 4.75593
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 1.240, G = 1496.754, E = 9.117, DynCost: 13206.824, # of Steps: 50. 
+position: 0 real edge cost: 9.71339 pred edge cost: 22.1342
+position: 1 real edge cost: 43.8599 pred edge cost: 15.1292
+position: 2 real edge cost: 6.13065 pred edge cost: 16.2442
+position: 3 real edge cost: 52.3798 pred edge cost: 3
+position: 4 real edge cost: 10.7585 pred edge cost: 11.4696
+position: 5 real edge cost: 9.34003 pred edge cost: 10.0841
+position: 6 real edge cost: 12.7601 pred edge cost: 16.6847
+position: 7 real edge cost: 23.9179 pred edge cost: 8.51535
+position: 8 real edge cost: 46.6791 pred edge cost: 9.23219
+position: 9 real edge cost: 12.7605 pred edge cost: 3.15
+position: 10 real edge cost: 20.7079 pred edge cost: 6.73135
+position: 11 real edge cost: 21.2408 pred edge cost: 11.5099
+position: 12 real edge cost: 69.1173 pred edge cost: 9.79134
+position: 13 real edge cost: 20.4681 pred edge cost: 6.28478
+position: 14 real edge cost: 39.8709 pred edge cost: 6.87136
+position: 15 real edge cost: 19.5849 pred edge cost: 9.63424
+position: 16 real edge cost: 38.7829 pred edge cost: 4.33915
+position: 17 real edge cost: 57.1564 pred edge cost: 6.32769
+position: 18 real edge cost: 42.8525 pred edge cost: 3.42426
+position: 19 real edge cost: 26.1602 pred edge cost: 4.86293
+position: 20 real edge cost: 21.4308 pred edge cost: 3.39417
+position: 21 real edge cost: 23.2893 pred edge cost: 4.23663
+position: 22 real edge cost: 32.6394 pred edge cost: 4.09199
+position: 23 real edge cost: 42.5071 pred edge cost: 4.19091
+position: 24 real edge cost: 35.488 pred edge cost: 3.33541
+position: 25 real edge cost: 38.8708 pred edge cost: 3.45
+position: 26 real edge cost: 19.5902 pred edge cost: 3.3
+position: 27 real edge cost: 52.6788 pred edge cost: 3.45
+position: 28 real edge cost: 12.8969 pred edge cost: 3.15
+position: 29 real edge cost: 21.8276 pred edge cost: 5.63288
+position: 30 real edge cost: 34.9404 pred edge cost: 3.3
+position: 31 real edge cost: 27.1082 pred edge cost: 4.08722
+position: 32 real edge cost: 44.5297 pred edge cost: 3.56453
+position: 33 real edge cost: 31.9047 pred edge cost: 3.45
+position: 34 real edge cost: 26.6929 pred edge cost: 3.3
+position: 35 real edge cost: 34.387 pred edge cost: 6.09226
+position: 36 real edge cost: 35.8231 pred edge cost: 3.65978
+position: 37 real edge cost: 26.106 pred edge cost: 9.75036
+position: 38 real edge cost: 28.7761 pred edge cost: 8.04102
+position: 39 real edge cost: 23.5872 pred edge cost: 9.43344
+position: 40 real edge cost: 30.2943 pred edge cost: 5.15226
+position: 41 real edge cost: 11.4734 pred edge cost: 10.5589
+position: 42 real edge cost: 35.2047 pred edge cost: 6.9842
+position: 43 real edge cost: 33.1945 pred edge cost: 7.62774
+position: 44 real edge cost: 42.4143 pred edge cost: 3.21213
+position: 45 real edge cost: 13.2863 pred edge cost: 16.0751
+position: 46 real edge cost: 52.4139 pred edge cost: 3.69475
+position: 47 real edge cost: 16.2407 pred edge cost: 3
+position: 48 real edge cost: 32.2941 pred edge cost: 5.74557
+position: 49 real edge cost: 30.6215 pred edge cost: 3
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 2.036, G = 1267.575, E = 6.222, DynCost: 11141.601, # of Steps: 45. 
+position: 0 real edge cost: 9.71339 pred edge cost: 22.1342
+position: 1 real edge cost: 43.8599 pred edge cost: 15.1292
+position: 2 real edge cost: 6.13065 pred edge cost: 16.2442
+position: 3 real edge cost: 52.3798 pred edge cost: 3
+position: 4 real edge cost: 10.7585 pred edge cost: 11.4696
+position: 5 real edge cost: 9.34003 pred edge cost: 10.0841
+position: 6 real edge cost: 12.7601 pred edge cost: 16.6847
+position: 7 real edge cost: 23.9179 pred edge cost: 8.51535
+position: 8 real edge cost: 46.6791 pred edge cost: 9.23219
+position: 9 real edge cost: 12.7605 pred edge cost: 3.15
+position: 10 real edge cost: 20.7079 pred edge cost: 6.73135
+position: 11 real edge cost: 21.2408 pred edge cost: 11.5099
+position: 12 real edge cost: 69.1173 pred edge cost: 9.79134
+position: 13 real edge cost: 20.4681 pred edge cost: 6.28478
+position: 14 real edge cost: 39.8709 pred edge cost: 6.87136
+position: 15 real edge cost: 24.8589 pred edge cost: 7.35249
+position: 16 real edge cost: 35.5181 pred edge cost: 6.51466
+position: 17 real edge cost: 43.4239 pred edge cost: 3.42426
+position: 18 real edge cost: 14.0146 pred edge cost: 3.89793
+position: 19 real edge cost: 27.792 pred edge cost: 5.86568
+position: 20 real edge cost: 27.4252 pred edge cost: 4.63508
+position: 21 real edge cost: 13.5905 pred edge cost: 3.45
+position: 22 real edge cost: 32.0408 pred edge cost: 4.71875
+position: 23 real edge cost: 28.3054 pred edge cost: 3.58154
+position: 24 real edge cost: 30.5909 pred edge cost: 3.47434
+position: 25 real edge cost: 15.3591 pred edge cost: 3.62783
+position: 26 real edge cost: 8.1203 pred edge cost: 6.96998
+position: 27 real edge cost: 25.6717 pred edge cost: 3.45
+position: 28 real edge cost: 41.7369 pred edge cost: 3.47434
+position: 29 real edge cost: 22.2962 pred edge cost: 7.54058
+position: 30 real edge cost: 34.8047 pred edge cost: 3.45
+position: 31 real edge cost: 43.5098 pred edge cost: 6.73989
+position: 32 real edge cost: 24.9829 pred edge cost: 10.8087
+position: 33 real edge cost: 22.9058 pred edge cost: 4.66588
+position: 34 real edge cost: 22.3412 pred edge cost: 4.21787
+position: 35 real edge cost: 37.4236 pred edge cost: 3.42426
+position: 36 real edge cost: 15.5071 pred edge cost: 10.6366
+position: 37 real edge cost: 36.9665 pred edge cost: 12.2522
+position: 38 real edge cost: 12.4288 pred edge cost: 9.39522
+position: 39 real edge cost: 44.5748 pred edge cost: 3.33541
+position: 40 real edge cost: 32.608 pred edge cost: 3.42426
+position: 41 real edge cost: 29.548 pred edge cost: 7.61457
+position: 42 real edge cost: 43.2546 pred edge cost: 3
+position: 43 real edge cost: 39.8289 pred edge cost: 18.6537
+position: 44 real edge cost: 36.4412 pred edge cost: 5.96013
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 4.271, G = 1091.502, E = 4.932, DynCost: 9239.330, # of Steps: 47. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.9905 pred edge cost: 18.3215
+position: 2 real edge cost: 27.3919 pred edge cost: 6.2753
+position: 3 real edge cost: 10.7281 pred edge cost: 22.2444
+position: 4 real edge cost: 48.3097 pred edge cost: 9.39163
+position: 5 real edge cost: 45.1534 pred edge cost: 3.47434
+position: 6 real edge cost: 3.51465 pred edge cost: 3.3
+position: 7 real edge cost: 39.7408 pred edge cost: 11.3781
+position: 8 real edge cost: 16.4942 pred edge cost: 3.42426
+position: 9 real edge cost: 24.0505 pred edge cost: 4.48187
+position: 10 real edge cost: 25.1301 pred edge cost: 6.49631
+position: 11 real edge cost: 37.6163 pred edge cost: 14.8838
+position: 12 real edge cost: 18.7411 pred edge cost: 3.8197
+position: 13 real edge cost: 19.0973 pred edge cost: 4.33915
+position: 14 real edge cost: 14.8065 pred edge cost: 6.32769
+position: 15 real edge cost: 26.3296 pred edge cost: 3.89793
+position: 16 real edge cost: 29.2383 pred edge cost: 5.86568
+position: 17 real edge cost: 15.6267 pred edge cost: 4.63508
+position: 18 real edge cost: 13.9431 pred edge cost: 3.45
+position: 19 real edge cost: 36.9571 pred edge cost: 7.88032
+position: 20 real edge cost: 20.0172 pred edge cost: 6.22825
+position: 21 real edge cost: 11.5977 pred edge cost: 3.31325
+position: 22 real edge cost: 29.6395 pred edge cost: 3.45
+position: 23 real edge cost: 3.40002 pred edge cost: 6.96998
+position: 24 real edge cost: 3.40326 pred edge cost: 3.45
+position: 25 real edge cost: 29.8064 pred edge cost: 3.47434
+position: 26 real edge cost: 3.25507 pred edge cost: 4.08722
+position: 27 real edge cost: 37.3965 pred edge cost: 3.56453
+position: 28 real edge cost: 40.7042 pred edge cost: 3.45
+position: 29 real edge cost: 7.81812 pred edge cost: 3.3
+position: 30 real edge cost: 32.9616 pred edge cost: 6.09226
+position: 31 real edge cost: 28.4468 pred edge cost: 5.75671
+position: 32 real edge cost: 45.0513 pred edge cost: 9.77096
+position: 33 real edge cost: 14.8242 pred edge cost: 3.42426
+position: 34 real edge cost: 10.6836 pred edge cost: 15.1193
+position: 35 real edge cost: 3.45038 pred edge cost: 10.2554
+position: 36 real edge cost: 42.1265 pred edge cost: 6.9842
+position: 37 real edge cost: 38.2278 pred edge cost: 7.62774
+position: 38 real edge cost: 9.32428 pred edge cost: 3.33541
+position: 39 real edge cost: 38.7153 pred edge cost: 10.5252
+position: 40 real edge cost: 9.20679 pred edge cost: 3
+position: 41 real edge cost: 23.4874 pred edge cost: 9.44782
+position: 42 real edge cost: 23.4194 pred edge cost: 3
+position: 43 real edge cost: 34.8451 pred edge cost: 11.4972
+position: 44 real edge cost: 17.6971 pred edge cost: 3.69475
+position: 45 real edge cost: 24.4792 pred edge cost: 5.72855
+position: 46 real edge cost: 19.5708 pred edge cost: 5.96013
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 4.466, G = 1000.143, E = 4.932, DynCost: 8452.959, # of Steps: 43. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.9905 pred edge cost: 18.3215
+position: 2 real edge cost: 27.3919 pred edge cost: 6.2753
+position: 3 real edge cost: 10.7281 pred edge cost: 22.2444
+position: 4 real edge cost: 48.3097 pred edge cost: 9.39163
+position: 5 real edge cost: 45.1534 pred edge cost: 3.47434
+position: 6 real edge cost: 3.51465 pred edge cost: 3.3
+position: 7 real edge cost: 39.7408 pred edge cost: 11.3781
+position: 8 real edge cost: 16.4942 pred edge cost: 3.42426
+position: 9 real edge cost: 24.0505 pred edge cost: 4.48187
+position: 10 real edge cost: 25.1301 pred edge cost: 6.49631
+position: 11 real edge cost: 37.6163 pred edge cost: 14.8838
+position: 12 real edge cost: 18.7411 pred edge cost: 3.8197
+position: 13 real edge cost: 19.0973 pred edge cost: 4.33915
+position: 14 real edge cost: 14.8065 pred edge cost: 6.32769
+position: 15 real edge cost: 26.3296 pred edge cost: 3.89793
+position: 16 real edge cost: 29.2383 pred edge cost: 5.86568
+position: 17 real edge cost: 15.6267 pred edge cost: 4.63508
+position: 18 real edge cost: 13.9431 pred edge cost: 3.45
+position: 19 real edge cost: 36.9571 pred edge cost: 7.88032
+position: 20 real edge cost: 20.0172 pred edge cost: 6.22825
+position: 21 real edge cost: 11.5977 pred edge cost: 3.31325
+position: 22 real edge cost: 29.6395 pred edge cost: 3.45
+position: 23 real edge cost: 3.40002 pred edge cost: 6.96998
+position: 24 real edge cost: 3.40326 pred edge cost: 3.45
+position: 25 real edge cost: 29.8064 pred edge cost: 3.47434
+position: 26 real edge cost: 3.25507 pred edge cost: 4.08722
+position: 27 real edge cost: 37.3965 pred edge cost: 3.56453
+position: 28 real edge cost: 40.7042 pred edge cost: 3.45
+position: 29 real edge cost: 7.81812 pred edge cost: 3.3
+position: 30 real edge cost: 32.9616 pred edge cost: 6.09226
+position: 31 real edge cost: 28.4468 pred edge cost: 5.75671
+position: 32 real edge cost: 45.0513 pred edge cost: 9.77096
+position: 33 real edge cost: 14.8242 pred edge cost: 3.42426
+position: 34 real edge cost: 10.6836 pred edge cost: 15.1193
+position: 35 real edge cost: 3.45038 pred edge cost: 10.2554
+position: 36 real edge cost: 42.1265 pred edge cost: 6.9842
+position: 37 real edge cost: 38.2278 pred edge cost: 7.62774
+position: 38 real edge cost: 12.2274 pred edge cost: 6.57965
+position: 39 real edge cost: 23.0198 pred edge cost: 11.8985
+position: 40 real edge cost: 9.16351 pred edge cost: 12.2718
+position: 41 real edge cost: 36.8301 pred edge cost: 5.74557
+position: 42 real edge cost: 28.1458 pred edge cost: 3
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 8.831, G = 945.060, E = 3.975, DynCost: 8069.472, # of Steps: 40. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.7202 pred edge cost: 15.4309
+position: 2 real edge cost: 18.3985 pred edge cost: 9.0415
+position: 3 real edge cost: 10.2199 pred edge cost: 15.4474
+position: 4 real edge cost: 18.9587 pred edge cost: 9.24736
+position: 5 real edge cost: 44.5824 pred edge cost: 3.47434
+position: 6 real edge cost: 3.41293 pred edge cost: 3.3
+position: 7 real edge cost: 37.4693 pred edge cost: 3.47434
+position: 8 real edge cost: 21.1508 pred edge cost: 12.6949
+position: 9 real edge cost: 44.6942 pred edge cost: 3.42426
+position: 10 real edge cost: 13.9206 pred edge cost: 10.5466
+position: 11 real edge cost: 16.4311 pred edge cost: 3
+position: 12 real edge cost: 12.2593 pred edge cost: 3.63954
+position: 13 real edge cost: 16.9074 pred edge cost: 3.59951
+position: 14 real edge cost: 6.05795 pred edge cost: 4.74098
+position: 15 real edge cost: 22.9812 pred edge cost: 3.89793
+position: 16 real edge cost: 14.2418 pred edge cost: 8.42098
+position: 17 real edge cost: 48.5286 pred edge cost: 3.47434
+position: 18 real edge cost: 7.74454 pred edge cost: 3.45
+position: 19 real edge cost: 15.6891 pred edge cost: 3.58743
+position: 20 real edge cost: 34.9355 pred edge cost: 3.45
+position: 21 real edge cost: 13.4404 pred edge cost: 3.47434
+position: 22 real edge cost: 31.4092 pred edge cost: 3.3
+position: 23 real edge cost: 21.5136 pred edge cost: 3.45
+position: 24 real edge cost: 20.7797 pred edge cost: 3.47434
+position: 25 real edge cost: 22.7418 pred edge cost: 4.16565
+position: 26 real edge cost: 5.7912 pred edge cost: 10.5971
+position: 27 real edge cost: 42.5851 pred edge cost: 5.04632
+position: 28 real edge cost: 15.8081 pred edge cost: 3.47434
+position: 29 real edge cost: 52.2815 pred edge cost: 3.33541
+position: 30 real edge cost: 11.9501 pred edge cost: 8.93587
+position: 31 real edge cost: 42.6271 pred edge cost: 10.7218
+position: 32 real edge cost: 23.4557 pred edge cost: 8.81993
+position: 33 real edge cost: 25.8788 pred edge cost: 5.66026
+position: 34 real edge cost: 34.5666 pred edge cost: 9.81096
+position: 35 real edge cost: 9.0705 pred edge cost: 3
+position: 36 real edge cost: 25.0031 pred edge cost: 7.35288
+position: 37 real edge cost: 27.4911 pred edge cost: 9.93224
+position: 38 real edge cost: 25.2067 pred edge cost: 12.0177
+position: 39 real edge cost: 50.0695 pred edge cost: 11.504
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 37.297, G = 867.303, E = 3.975, DynCost: 7114.613, # of Steps: 43. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.7202 pred edge cost: 15.4309
+position: 2 real edge cost: 18.3985 pred edge cost: 9.0415
+position: 3 real edge cost: 10.2199 pred edge cost: 15.4474
+position: 4 real edge cost: 18.9587 pred edge cost: 9.24736
+position: 5 real edge cost: 44.5824 pred edge cost: 3.47434
+position: 6 real edge cost: 3.41293 pred edge cost: 3.3
+position: 7 real edge cost: 37.4693 pred edge cost: 3.47434
+position: 8 real edge cost: 21.1508 pred edge cost: 12.6949
+position: 9 real edge cost: 46.6322 pred edge cost: 3.42426
+position: 10 real edge cost: 7.95738 pred edge cost: 9.63424
+position: 11 real edge cost: 16.7048 pred edge cost: 3.54083
+position: 12 real edge cost: 36.4395 pred edge cost: 5.35987
+position: 13 real edge cost: 17.3516 pred edge cost: 5.17032
+position: 14 real edge cost: 8.72781 pred edge cost: 6.02944
+position: 15 real edge cost: 12.9576 pred edge cost: 5.62667
+position: 16 real edge cost: 19.8148 pred edge cost: 4.28964
+position: 17 real edge cost: 25.6614 pred edge cost: 11.3709
+position: 18 real edge cost: 7.091 pred edge cost: 6.22825
+position: 19 real edge cost: 26.7607 pred edge cost: 3.82275
+position: 20 real edge cost: 20.2712 pred edge cost: 3.47434
+position: 21 real edge cost: 15.0117 pred edge cost: 4.3518
+position: 22 real edge cost: 18.5154 pred edge cost: 3.45
+position: 23 real edge cost: 6.51587 pred edge cost: 3.3
+position: 24 real edge cost: 37.409 pred edge cost: 3.47434
+position: 25 real edge cost: 3.40485 pred edge cost: 3.24127
+position: 26 real edge cost: 19.0842 pred edge cost: 8.86963
+position: 27 real edge cost: 8.97705 pred edge cost: 7.05394
+position: 28 real edge cost: 9.89435 pred edge cost: 3.41333
+position: 29 real edge cost: 6.07056 pred edge cost: 7.14783
+position: 30 real edge cost: 9.51721 pred edge cost: 3.73177
+position: 31 real edge cost: 15.883 pred edge cost: 5.8628
+position: 32 real edge cost: 25.7175 pred edge cost: 3.42426
+position: 33 real edge cost: 16.4814 pred edge cost: 7.69244
+position: 34 real edge cost: 15.8396 pred edge cost: 3.42426
+position: 35 real edge cost: 31.2115 pred edge cost: 3.47434
+position: 36 real edge cost: 31.5213 pred edge cost: 8.35366
+position: 37 real edge cost: 19.6064 pred edge cost: 10.57
+position: 38 real edge cost: 12.6202 pred edge cost: 12.2625
+position: 39 real edge cost: 51.0698 pred edge cost: 14.9687
+position: 40 real edge cost: 15.4143 pred edge cost: 16.1127
+position: 41 real edge cost: 46.6623 pred edge cost: 10.1972
+position: 42 real edge cost: 15.5071 pred edge cost: 7.32695
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 38.948, G = 815.861, E = 3.622, DynCost: 6508.795, # of Steps: 46. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.7202 pred edge cost: 15.4309
+position: 2 real edge cost: 18.3985 pred edge cost: 9.0415
+position: 3 real edge cost: 10.2199 pred edge cost: 15.4474
+position: 4 real edge cost: 18.9587 pred edge cost: 9.24736
+position: 5 real edge cost: 44.5824 pred edge cost: 3.47434
+position: 6 real edge cost: 3.41293 pred edge cost: 3.3
+position: 7 real edge cost: 37.4693 pred edge cost: 3.47434
+position: 8 real edge cost: 21.1508 pred edge cost: 12.6949
+position: 9 real edge cost: 46.6322 pred edge cost: 3.42426
+position: 10 real edge cost: 7.95738 pred edge cost: 9.63424
+position: 11 real edge cost: 16.7048 pred edge cost: 3.54083
+position: 12 real edge cost: 36.4395 pred edge cost: 5.35987
+position: 13 real edge cost: 17.3516 pred edge cost: 5.17032
+position: 14 real edge cost: 8.72781 pred edge cost: 6.02944
+position: 15 real edge cost: 12.9576 pred edge cost: 5.62667
+position: 16 real edge cost: 19.8148 pred edge cost: 4.28964
+position: 17 real edge cost: 25.6614 pred edge cost: 11.3709
+position: 18 real edge cost: 7.091 pred edge cost: 6.22825
+position: 19 real edge cost: 26.7607 pred edge cost: 3.82275
+position: 20 real edge cost: 20.2712 pred edge cost: 3.47434
+position: 21 real edge cost: 15.0117 pred edge cost: 4.3518
+position: 22 real edge cost: 18.5154 pred edge cost: 3.45
+position: 23 real edge cost: 6.51587 pred edge cost: 3.3
+position: 24 real edge cost: 37.409 pred edge cost: 3.47434
+position: 25 real edge cost: 3.40485 pred edge cost: 3.24127
+position: 26 real edge cost: 19.0842 pred edge cost: 8.86963
+position: 27 real edge cost: 8.97705 pred edge cost: 7.05394
+position: 28 real edge cost: 9.89435 pred edge cost: 3.41333
+position: 29 real edge cost: 6.07056 pred edge cost: 7.14783
+position: 30 real edge cost: 9.51721 pred edge cost: 3.73177
+position: 31 real edge cost: 15.883 pred edge cost: 5.8628
+position: 32 real edge cost: 25.7175 pred edge cost: 3.42426
+position: 33 real edge cost: 16.4814 pred edge cost: 7.69244
+position: 34 real edge cost: 15.8396 pred edge cost: 3.42426
+position: 35 real edge cost: 29.8598 pred edge cost: 3.45
+position: 36 real edge cost: 7.04053 pred edge cost: 3
+position: 37 real edge cost: 9.48602 pred edge cost: 3
+position: 38 real edge cost: 7.32379 pred edge cost: 3.47434
+position: 39 real edge cost: 15.0667 pred edge cost: 5.17047
+position: 40 real edge cost: 4.06897 pred edge cost: 3
+position: 41 real edge cost: 11.0144 pred edge cost: 3
+position: 42 real edge cost: 14.1059 pred edge cost: 18.5849
+position: 43 real edge cost: 24.2039 pred edge cost: 10.3219
+position: 44 real edge cost: 20.8888 pred edge cost: 20.6928
+position: 45 real edge cost: 29.1118 pred edge cost: 3
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 89.464, G = 768.720, E = 3.183, DynCost: 6173.662, # of Steps: 44. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.7202 pred edge cost: 15.4309
+position: 2 real edge cost: 16.6179 pred edge cost: 8.45971
+position: 3 real edge cost: 9.74035 pred edge cost: 13.969
+position: 4 real edge cost: 13.6684 pred edge cost: 3.15
+position: 5 real edge cost: 27.3229 pred edge cost: 12.4967
+position: 6 real edge cost: 29.3825 pred edge cost: 8.90216
+position: 7 real edge cost: 9.78491 pred edge cost: 10.6094
+position: 8 real edge cost: 23.4519 pred edge cost: 9.67884
+position: 9 real edge cost: 31.9777 pred edge cost: 14.5899
+position: 10 real edge cost: 3.50513 pred edge cost: 7.16323
+position: 11 real edge cost: 3.58313 pred edge cost: 3.47434
+position: 12 real edge cost: 3.87744 pred edge cost: 3.3
+position: 13 real edge cost: 5.61966 pred edge cost: 3.95008
+position: 14 real edge cost: 13.4135 pred edge cost: 16.4344
+position: 15 real edge cost: 21.3987 pred edge cost: 9.04761
+position: 16 real edge cost: 5.46597 pred edge cost: 5.39216
+position: 17 real edge cost: 9.93509 pred edge cost: 11.3009
+position: 18 real edge cost: 16.9561 pred edge cost: 5.85712
+position: 19 real edge cost: 8.93341 pred edge cost: 3
+position: 20 real edge cost: 20.2106 pred edge cost: 3.47434
+position: 21 real edge cost: 27.0836 pred edge cost: 3.88749
+position: 22 real edge cost: 11.8327 pred edge cost: 3.45
+position: 23 real edge cost: 16.1689 pred edge cost: 3.45
+position: 24 real edge cost: 17.9966 pred edge cost: 3.3
+position: 25 real edge cost: 13.1037 pred edge cost: 3.45
+position: 26 real edge cost: 7.12772 pred edge cost: 3.45
+position: 27 real edge cost: 16.4236 pred edge cost: 3.3
+position: 28 real edge cost: 21.8507 pred edge cost: 3.47434
+position: 29 real edge cost: 18.4273 pred edge cost: 3.45
+position: 30 real edge cost: 11.3388 pred edge cost: 4.17943
+position: 31 real edge cost: 39.8826 pred edge cost: 4.39744
+position: 32 real edge cost: 22.4495 pred edge cost: 3.42426
+position: 33 real edge cost: 23.8065 pred edge cost: 8.27169
+position: 34 real edge cost: 22.015 pred edge cost: 9.43344
+position: 35 real edge cost: 32.99 pred edge cost: 5.15226
+position: 36 real edge cost: 9.96722 pred edge cost: 9.52523
+position: 37 real edge cost: 21.1655 pred edge cost: 8.19814
+position: 38 real edge cost: 7.5224 pred edge cost: 7.29687
+position: 39 real edge cost: 11.5348 pred edge cost: 3
+position: 40 real edge cost: 21.5128 pred edge cost: 11.2391
+position: 41 real edge cost: 10.9288 pred edge cost: 15.7036
+position: 42 real edge cost: 15.2766 pred edge cost: 12.2718
+position: 43 real edge cost: 58.6624 pred edge cost: 5.74557
+end
+[ContactSpacePlanning.cpp:398 ANAStarPlanning] Solution Found: T = 138.444, G = 721.456, E = 3.034, DynCost: 5726.881, # of Steps: 43. 
+position: 0 real edge cost: 9.08648 pred edge cost: 15.1483
+position: 1 real edge cost: 25.7202 pred edge cost: 15.4309
+position: 2 real edge cost: 16.6179 pred edge cost: 8.45971
+position: 3 real edge cost: 9.74035 pred edge cost: 13.969
+position: 4 real edge cost: 13.6684 pred edge cost: 3.15
+position: 5 real edge cost: 27.3229 pred edge cost: 12.4967
+position: 6 real edge cost: 29.3825 pred edge cost: 8.90216
+position: 7 real edge cost: 9.78491 pred edge cost: 10.6094
+position: 8 real edge cost: 23.4519 pred edge cost: 9.67884
+position: 9 real edge cost: 31.9777 pred edge cost: 14.5899
+position: 10 real edge cost: 3.50513 pred edge cost: 7.16323
+position: 11 real edge cost: 3.58313 pred edge cost: 3.47434
+position: 12 real edge cost: 3.87744 pred edge cost: 3.3
+position: 13 real edge cost: 5.61966 pred edge cost: 3.95008
+position: 14 real edge cost: 13.4135 pred edge cost: 16.4344
+position: 15 real edge cost: 21.3987 pred edge cost: 9.04761
+position: 16 real edge cost: 5.46597 pred edge cost: 5.39216
+position: 17 real edge cost: 9.93509 pred edge cost: 11.3009
+position: 18 real edge cost: 16.9561 pred edge cost: 5.85712
+position: 19 real edge cost: 8.93341 pred edge cost: 3
+position: 20 real edge cost: 20.2106 pred edge cost: 3.47434
+position: 21 real edge cost: 27.0836 pred edge cost: 3.88749
+position: 22 real edge cost: 11.8327 pred edge cost: 3.45
+position: 23 real edge cost: 16.1689 pred edge cost: 3.45
+position: 24 real edge cost: 22.8909 pred edge cost: 3.3
+position: 25 real edge cost: 11.9824 pred edge cost: 3.45
+position: 26 real edge cost: 3.40311 pred edge cost: 3.45
+position: 27 real edge cost: 16.8202 pred edge cost: 4.62206
+position: 28 real edge cost: 28.142 pred edge cost: 3.45
+position: 29 real edge cost: 3.39999 pred edge cost: 3.45
+position: 30 real edge cost: 5.50244 pred edge cost: 3.94729
+position: 31 real edge cost: 14.0308 pred edge cost: 8.6089
+position: 32 real edge cost: 21.8163 pred edge cost: 14.6075
+position: 33 real edge cost: 26.1365 pred edge cost: 9.14474
+position: 34 real edge cost: 30.9355 pred edge cost: 8.60884
+position: 35 real edge cost: 3.2876 pred edge cost: 7.98094
+position: 36 real edge cost: 14.4353 pred edge cost: 3.42426
+position: 37 real edge cost: 3.45441 pred edge cost: 8.87548
+position: 38 real edge cost: 37.7228 pred edge cost: 3.47434
+position: 39 real edge cost: 23.5363 pred edge cost: 11.4864
+position: 40 real edge cost: 29.5481 pred edge cost: 3.33541
+position: 41 real edge cost: 40.4943 pred edge cost: 19.2677
+position: 42 real edge cost: 19.1797 pred edge cost: 7.71815
+end
+

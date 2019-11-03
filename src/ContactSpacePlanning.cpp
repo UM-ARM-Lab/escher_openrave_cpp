@@ -398,6 +398,7 @@ std::vector< std::shared_ptr<ContactState> > ContactSpacePlanning::ANAStarPlanni
                         RAVELOG_INFO("Solution Found: T = %5.3f, G = %5.3f, E = %5.3f, DynCost: %5.3f, # of Steps: %d. \n", planning_time, G_, E_, current_state->accumulated_dynamics_cost_, step_count);
                         contacts_drawing_handler_->ClearHandler();
                         contacts_drawing_handler_->DrawContactPath(solution_contact_path[solution_contact_path.size()-1]);
+                        // getchar();
 
                         // !!!!!!!!!!!!!!!!!!!!
                         for(unsigned int i = 0; i < solution_contact_path.size() - 1; i++) {
@@ -1461,7 +1462,7 @@ bool ContactSpacePlanning::stateFeasibilityCheck(std::shared_ptr<ContactState> c
         // {
         //     return false;
         // }
-
+        
         return state_feasibility;
     }
     else
@@ -2089,6 +2090,7 @@ void ContactSpacePlanning::branchingContacts(std::shared_ptr<ContactState> curre
         bool pass_state_feasibility_check = std::get<0>(check_result);
         std::shared_ptr<ContactState> branching_state = std::get<1>(check_result);
         float dynamics_cost = std::get<2>(check_result);
+        // std::cout << "dynamic_cost: " << dynamics_cost << std::endl;
         float disturbance_cost = std::get<3>(check_result);
 
         // if(pass_state_feasibility_check)

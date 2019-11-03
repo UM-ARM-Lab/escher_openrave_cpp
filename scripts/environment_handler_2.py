@@ -21,10 +21,10 @@ class environment_handler:
             rave.misc.InitOpenRAVELogging()
             self.env = rave.Environment()  # create openrave environment
             self.env.SetViewer('qtcoin')  # attach viewer (optional)
-            # self.env.GetViewer().SetCamera(np.array([[0,-1,0,1],
-            #                                          [-1,0,0,0],
-            #                                          [0,0,-1,7],
-            #                                          [0,0,0,1]], dtype=float))
+            self.env.GetViewer().SetCamera(np.array([[0,-1,0,1],
+                                                     [-1,0,0,0],
+                                                     [0,0,-1,7],
+                                                     [0,0,0,1]], dtype=float))
             
             fcl = rave.RaveCreateCollisionChecker(self.env, "fcl_")
             if fcl is not None:
@@ -140,8 +140,8 @@ class environment_handler:
         structures.append(random_surface)
         # self.DrawSurface(random_surface, transparency=surface_transparancy, style='random_green_yellow_color')
         # self.DrawOrientation(global_transform)
-        # self.draw_handles.append(self.env.drawarrow(np.array([0, 0, 0]), np.array([1, 0, 0]), 0.010, [1, 0, 0]))
-        # self.draw_handles.append(self.env.drawarrow(np.array([0, 0, 0]), np.array([0, 1, 0]), 0.005, [1, 0, 0]))
+        self.draw_handles.append(self.env.drawarrow(np.array([0, 0, 0]), np.array([1, 0, 0]), 0.010, [1, 0, 0]))
+        self.draw_handles.append(self.env.drawarrow(np.array([0, 0, 0]), np.array([0, 1, 0]), 0.005, [1, 0, 0]))
 
     def construct_tilted_rectangle_wall(self, structures, origin_pose, wall_spacing, max_tilted_angle, wall_length, wall_height=1.5, slope=0):
 
@@ -191,7 +191,7 @@ class environment_handler:
 
             self.add_quadrilateral_surface(structures,surface_vertices,surface_transform,surface_type='others',surface_transparancy=0.5)
 
-    def update_environment(self,escher,file_path=None,surface_source='dynopt_test_env_1',save_stl=False,save_stl_path='environment_stl/'):
+    def update_environment(self,escher,p1x,p1y,file_path=None,surface_source='dynopt_test_env_1',save_stl=False,save_stl_path='environment_stl/'):
 
         # remove existing surface kinbodies in openrave
         if(self.structures is not None):
@@ -1527,8 +1527,8 @@ class environment_handler:
                                           (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
             for row in range(row_num): # rows of stepping stones forward
                 for col in range(col_num): # columns of stepping stones
-                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 2 - 0.5,
-                                         (col - col_num // 2)*stepping_stone_size[1] - 0.5 + 0.9,
+                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 2 - 0.45,
+                                         (col - col_num // 2)*stepping_stone_size[1] - 0.5 + 0.5,
                                          random.uniform(-0.05,0.05),
                                          random.uniform(-20,20),
                                          random.uniform(-20,20),
@@ -1683,14 +1683,157 @@ class environment_handler:
             self.construct_tilted_rectangle_wall(structures, [-1.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 4.0, wall_height=1.75, slope=0)
             # self.construct_tilted_rectangle_wall(structures, [(0.5*row_num-row_num // 2)*stepping_stone_size[0] + x_wall_length/2.0 - stepping_stone_size[0] / 2 + x_random, (col_num-0.5-1)*stepping_stone_size[1] - stepping_stone_size[1] * 2 + y_random, 0, 0, 0, 180], 0.5, 20, x_wall_length, wall_height=1.65, slope=0)
 
+        elif surface_source == 'torso_path_planning_test_env_13':
+
+            self.goal_x = 8.0
+            self.goal_y = 0.0
+
+            stepping_stone_size = (0.4, 0.4)
+            row_num = 30
+            col_num = 20
+
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    if col < 10 and 8 <= row and row < 23:
+                        continue
+                    if col >= 12:
+                        continue
+                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 4.1,
+                                         (col - col_num // 2)*stepping_stone_size[1] + 2.55,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+            
+            lateral_surface_vertices = [(9.9,3.2),(9.9,5.0),(-2.1,5.0),(-2.1,3.2)]
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [0,0,0,0,0,0])
+
+
+        elif surface_source == 'torso_path_planning_test_env_14':
+
+            self.goal_x = 8.0
+            self.goal_y = 0.0
+
+            stepping_stone_size = (0.4, 0.4)
+            row_num = 30
+            col_num = 20
+
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    if col < 10 and 8 <= row and row < 23:
+                        continue
+                    if col >= 12:
+                        continue
+                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 4.1,
+                                         (col - col_num // 2)*stepping_stone_size[1] + 2.55,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+            
+            lateral_surface_vertices = [(9.9,3.2),(9.9,5.0),(-2.1,5.0),(-2.1,3.2)]
+            self.add_quadrilateral_surface(structures, lateral_surface_vertices, [0,0,0,0,0,0])
+
+            self.construct_tilted_rectangle_wall(structures, [-2.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [-2.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.0, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [-2.0, 5, 0, 0, 0, 270], 0.5, 20, 6.7, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [-2.0, 5, 0, 0, 0, 270], 0.5, 20, 6.7, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [9.9, 5, 0, 0, 0, 180], 0.5, 20, 12.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [9.9, 5, 0, 0, 0, 180], 0.5, 20, 12.0, wall_height=1.75, slope=0)
+        
+            self.construct_tilted_rectangle_wall(structures, [9.9, -1.5, 0, 0, 0, 90], 0.5, 20, 6.7, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [9.9, -1.5, 0, 0, 0, 90], 0.5, 20, 6.7, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [7.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [7.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.0, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [7.0, 2.3, 0, 0, 0, 270], 0.5, 20, 4.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [7.0, 2.3, 0, 0, 0, 270], 0.5, 20, 4.0, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [1.2, 2.3, 0, 0, 0, 0], 0.5, 20, 5.6, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [1.2, 2.3, 0, 0, 0, 0], 0.5, 20, 5.6, wall_height=1.75, slope=0)
+
+            self.construct_tilted_rectangle_wall(structures, [1.1, -1.6, 0, 0, 0, 90], 0.5, 20, 4.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [1.1, -1.6, 0, 0, 0, 90], 0.5, 20, 4.0, wall_height=1.75, slope=0)
+          
+
+        elif surface_source == 'torso_path_planning_test_env_15':
+
+            self.goal_x = 8.0
+            self.goal_y = 0.0
+
+            stepping_stone_size = (0.4, 0.4)
+            row_num = 30
+            col_num = 20
+
+            surface_projected_vertices = [(stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0),
+                                          (stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,stepping_stone_size[1]/2.0),
+                                          (-stepping_stone_size[0]/2.0,-stepping_stone_size[1]/2.0)]
+            for row in range(row_num): # rows of stepping stones forward
+                for col in range(col_num): # columns of stepping stones
+                    if col < 10 and 10 <= row and row < 20:
+                        continue
+                    surface_transform = [(row - row_num // 2)*stepping_stone_size[0] + 4.1,
+                                         (col - col_num // 2)*stepping_stone_size[1] + 2.55,
+                                         random.uniform(-0.05,0.05),
+                                         random.uniform(-20,20),
+                                         random.uniform(-20,20),
+                                         0]
+
+                    self.add_quadrilateral_surface(structures, surface_projected_vertices, surface_transform)
+
+        
+            self.construct_tilted_rectangle_wall(structures, [-2.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.5, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [-2.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.5, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [-2.0, 6.4, 0, 0, 0, 270], 0.5, 20, 8.2, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [-2.0, 6.4, 0, 0, 0, 270], 0.5, 20, 8.2, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [9.9, 6.5, 0, 0, 0, 180], 0.5, 20, 12.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [9.9, 6.5, 0, 0, 0, 180], 0.5, 20, 12.0, wall_height=1.75, slope=0)
+        
+            self.construct_tilted_rectangle_wall(structures, [9.9, -1.5, 0, 0, 0, 90], 0.5, 20, 8.2, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [9.9, -1.5, 0, 0, 0, 90], 0.5, 20, 8.2, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [6.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.5, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [6.0, -1.0-0.6, 0, 0, 0, 0], 0.5, 20, 3.5, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [5.7, 2.3, 0, 0, 0, 270], 0.5, 20, 4.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [5.7, 2.3, 0, 0, 0, 270], 0.5, 20, 4.0, wall_height=1.75, slope=0)
+          
+            self.construct_tilted_rectangle_wall(structures, [1.8, 2.3, 0, 0, 0, 0], 0.5, 20, 4, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [1.8, 2.3, 0, 0, 0, 0], 0.5, 20, 4, wall_height=1.75, slope=0)
+
+            self.construct_tilted_rectangle_wall(structures, [1.8, -1.6, 0, 0, 0, 90], 0.5, 20, 4.0, wall_height=1.25, slope=0)
+            self.construct_tilted_rectangle_wall(structures, [1.8, -1.6, 0, 0, 0, 90], 0.5, 20, 4.0, wall_height=1.75, slope=0)
+          
+
+
+
 
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))
 
 
         # define a transform
-        ground_wall_transform = xyzrpy_to_SE3([0,0,0,0,0,0])
+        # ground_wall_transform = xyzrpy_to_SE3([0,0,0,0,0,0])
         # ground_wall_transform = xyzrpy_to_SE3([0,0,0,0,0,random.randint(0, 15) * 22.5])
+        ground_wall_transform = xyzrpy_to_SE3([-p1x,-p1y,0,0,0,0])
 
         for struct in structures:
             struct.transform_data(ground_wall_transform, None)

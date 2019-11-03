@@ -4,7 +4,7 @@ import torch
 from torch import nn, optim
 from torch.utils import data
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
+from dataset import Dataset
 
 import matplotlib
 matplotlib.use('agg')
@@ -30,6 +30,13 @@ def loss_across_epoch(loss_list, length_list):
         total_length += length_list[i]
     return total_loss / total_length
 
+# class Weighted_Loss(nn.Module):
+#     def __init__(self):
+#         super(Weighted_Loss, self).__init__()
+
+#     def forward(self, Input, Target):
+#         loss = Input - Target
+#         return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
 
 class Weighted_Loss(nn.Module):
     def __init__(self):
@@ -37,57 +44,19 @@ class Weighted_Loss(nn.Module):
 
     def forward(self, Input, Target):
         loss = Input - Target
-        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * (7 / (1 + 0.01 * Target)) * torch.abs(loss))        
-
+        return torch.mean((3 - (-1)*torch.sign(loss)) / 2 * torch.abs(loss))
 
 def main():
     parser = argparse.ArgumentParser(description='PyTorch Model')
-    parser.add_argument('--depth_map_type', type=str,
-                        help='type of depth map (depth_only, depth_and_boundary_combined)')
     parser.add_argument('--model', type=str, help='model type')
     parser.add_argument('--loss', type=str, help='loss function (l1, weighted)')
     parser.add_argument('--lr', type=float, help='learning rate')
     args = parser.parse_args()
-    
-    if args.depth_map_type == 'depth_only':
-        from dataset_0 import Dataset
-    elif args.depth_map_type == 'depth_and_boundary_combined':
-        from dataset_1 import Dataset
-    else:
-        print('invalid depth map type')
-        exit(1)
 
-    if args.model == 'A_0':
-        from model_A_0 import Model
-
-    elif args.model == 'B_0':
-        from model_B_0 import Model
-    elif args.model == 'B_1':
-        from model_B_1 import Model
-    elif args.model == 'B_2':
-        from model_B_2 import Model
-    elif args.model == 'B_3':
-        from model_B_3 import Model
-    elif args.model == 'B_4':
-        from model_B_4 import Model
-    elif args.model == 'B_5':
-        from model_B_5 import Model
-    elif args.model == 'B_6':
-        from model_B_6 import Model
-    elif args.model == 'B_7':
-        from model_B_7 import Model
-    elif args.model == 'B_8':
-        from model_B_8 import Model
-    elif args.model == 'B_9':
-        from model_B_9 import Model
-    elif args.model == 'B_10':
-        from model_B_10 import Model
-    elif args.model == 'B_11':
-        from model_B_11 import Model
-    elif args.model == 'B_12':
-        from model_B_12 import Model
-    elif args.model == 'B_17':
-        from model_B_17 import Model
+    if args.model == 'v0':
+        from model_v0 import Model
+    elif args.model == 'v1':
+        from model_v1 import Model
     else:
         print('invalid model')
         exit(1)
@@ -100,23 +69,23 @@ def main():
         print('invalid loss')
         exit(1)
 
-    model_version = args.depth_map_type + '_' + args.model + '_' + args.loss + '_' + str(args.lr)
+    model_version = args.model + '_' + args.loss + '_' + str(args.lr)
     
-    with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall_old/ground_truth_p1p2/p2_ddyn', 'r') as file:
-        p2_ddyn = pickle.load(file)
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/data_model_0', 'r') as file:
+        ground_truth_dict = pickle.load(file)
 
-    with open('/mnt/big_narstie_data/chenxi/data/medium_dataset_normal_wall_old/ground_truth_p1p2/partition', 'r') as file:
+    with open('/mnt/big_narstie_data/chenxi/data/ground_truth_p1p2/partition_model_0', 'r') as file:
         partition = pickle.load(file)
     print('number of training examples: {}'.format(len(partition['training'])))
     print('number of validation examples: {}'.format(len(partition['validation'])))
 
     torch.manual_seed(20190808)
-    training_dataset = Dataset(p2_ddyn, partition['training'])
-    training_generator = data.DataLoader(training_dataset, batch_size=64, shuffle=True, num_workers=4)
-    validation_dataset = Dataset(p2_ddyn, partition['validation'])
+    training_dataset = Dataset(ground_truth_dict, partition['training'])
+    training_generator = data.DataLoader(training_dataset, batch_size=256, shuffle=True, num_workers=4)
+    validation_dataset = Dataset(ground_truth_dict, partition['validation'])
     validation_generator = data.DataLoader(validation_dataset, batch_size=256, shuffle=True, num_workers=4)
 
-    num_epoch = 100
+    num_epoch = 50
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('device: {}'.format(device))
 
@@ -170,10 +139,10 @@ def main():
         with torch.set_grad_enabled(False):
             loss_list = []
             length_list = []
-            for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
-                ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
-                loss = criterion(predicted_ddyns, ddyns)
+            for ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs in training_generator:
+                ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs = ground_maps.to(device), left_wall_maps.to(device), right_wall_maps.to(device), p2s.to(device), dynamics_costs.to(device)
+                predicted_ddyns = model(ground_maps, left_wall_maps, right_wall_maps, p2s).squeeze()
+                loss = criterion(predicted_ddyns, dynamics_costs)
                 loss_list.append(loss)
                 length_list.append(predicted_ddyns.shape[0])
             epoch_loss = loss_across_epoch(loss_list, length_list)
@@ -184,10 +153,10 @@ def main():
 
             loss_list = []
             length_list = []
-            for ground_depth_maps, wall_depth_maps, p2s, ddyns in validation_generator:
-                ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
-                loss = criterion(predicted_ddyns, ddyns)
+            for ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs in validation_generator:
+                ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs = ground_maps.to(device), left_wall_maps.to(device), right_wall_maps.to(device), p2s.to(device), dynamics_costs.to(device)
+                predicted_ddyns = model(ground_maps, left_wall_maps, right_wall_maps, p2s).squeeze()
+                loss = criterion(predicted_ddyns, dynamics_costs)
                 loss_list.append(loss)
                 length_list.append(predicted_ddyns.shape[0])
             epoch_loss = loss_across_epoch(loss_list, length_list)
@@ -213,11 +182,11 @@ def main():
 
         # train
         model.train()
-        for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
-            ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
+        for ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs in training_generator:
+            ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs = ground_maps.to(device), left_wall_maps.to(device), right_wall_maps.to(device), p2s.to(device), dynamics_costs.to(device)
             optimizer.zero_grad()
-            predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
-            loss = criterion(predicted_ddyns, ddyns)
+            predicted_ddyns = model(ground_maps, left_wall_maps, right_wall_maps, p2s).squeeze()
+            loss = criterion(predicted_ddyns, dynamics_costs)
             loss.backward()
             # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10)
             optimizer.step()
@@ -228,10 +197,10 @@ def main():
         with torch.set_grad_enabled(False):
             loss_list = []
             length_list = []
-            for ground_depth_maps, wall_depth_maps, p2s, ddyns in training_generator:
-                ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
-                loss = criterion(predicted_ddyns, ddyns)
+            for ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs in training_generator:
+                ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs = ground_maps.to(device), left_wall_maps.to(device), right_wall_maps.to(device), p2s.to(device), dynamics_costs.to(device)
+                predicted_ddyns = model(ground_maps, left_wall_maps, right_wall_maps, p2s).squeeze()
+                loss = criterion(predicted_ddyns, dynamics_costs)
                 loss_list.append(loss)
                 length_list.append(predicted_ddyns.shape[0])
             epoch_loss = loss_across_epoch(loss_list, length_list)
@@ -244,10 +213,10 @@ def main():
 
             loss_list = []
             length_list = []
-            for ground_depth_maps, wall_depth_maps, p2s, ddyns in validation_generator:
-                ground_depth_maps, wall_depth_maps, p2s, ddyns = ground_depth_maps.to(device), wall_depth_maps.to(device), p2s.to(device), ddyns.to(device)
-                predicted_ddyns = model(ground_depth_maps, wall_depth_maps, p2s).squeeze()
-                loss = criterion(predicted_ddyns, ddyns)
+            for ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs in validation_generator:
+                ground_maps, left_wall_maps, right_wall_maps, p2s, dynamics_costs = ground_maps.to(device), left_wall_maps.to(device), right_wall_maps.to(device), p2s.to(device), dynamics_costs.to(device)
+                predicted_ddyns = model(ground_maps, left_wall_maps, right_wall_maps, p2s).squeeze()
+                loss = criterion(predicted_ddyns, dynamics_costs)
                 loss_list.append(loss)
                 length_list.append(predicted_ddyns.shape[0])
             epoch_loss = loss_across_epoch(loss_list, length_list)

@@ -46,21 +46,6 @@ def contact_degree_to_radian(long_list):
             new_list[6 * i + j] = long_list[6 * i + j] * np.pi / 180
     return new_list
 
-"""
-def position_to_cell_index(position,resolution):
-    resolutions = [resolution, resolution, ANGLE_RESOLUTION] # resolution is the resolution of x and y, which is 0.15m in this case
-    adjusted_position = [position[0], position[1], first_terminal_angle(position[2])] # first_terminal_angle is defined in transformation_conversion.py
-    cell_index = [None] * len(position)
-
-    for i, v in enumerate(adjusted_position):
-        if abs(v) > resolutions[i]/2.0:
-            v += -np.sign(v) * resolutions[i]/2.0
-            cell_index[i] = int(np.sign(v) * math.ceil(abs(v)/resolutions[i]))
-        else:
-            cell_index[i] = 0
-
-    return cell_index
-"""
 
 class contact_transition:
     def __init__(self,init_node,final_node,grid_resolution):
@@ -457,9 +442,9 @@ def main(robot_name='athena'): # for test
                 print('invalid structure type')
                 exit(1)
 
-        # IPython.embed()
-        with open('../data/dataset_225/complete_' + environment_file + '_' + str(i), 'w') as file:
-            pickle.dump(env, file)
+        raw_input()
+        # with open('../data/dataset_225/complete_' + environment_file + '_' + str(i), 'w') as file:
+        #     pickle.dump(env, file)
 
         # save all transitions to this list
         # transitions = []
