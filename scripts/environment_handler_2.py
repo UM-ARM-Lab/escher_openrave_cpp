@@ -5,7 +5,7 @@ import math
 import IPython
 import os
 import shutil
-from stl import mesh
+# from stl import mesh
 
 from structures_2 import *
 from color_library import *
@@ -1542,11 +1542,38 @@ class environment_handler:
             self.goal_x = ground_max_x - 0.7
             self.goal_y = ground_min_y + 0.7
 
+        elif(surface_source == 'centaur_wall_env_1'): # narrow flat ground
+
+            corridor_length = 2.2
+            corridor_width = 0.7
+
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.4,corridor_width/2.0),
+                                                        (-0.4,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            self.goal_x = corridor_length - 0.4
+            self.goal_y = 0
+
+        elif(surface_source == 'centaur_wall_env_2'): # narrow flat ground
+
+            corridor_length = 2.2
+            corridor_width = 0.7
+
+            # initial platform
+            self.add_quadrilateral_surface(structures, [(-0.4,corridor_width/2.0),
+                                                        (-0.4,-corridor_width/2.0),
+                                                        (corridor_length,-corridor_width/2.0),
+                                                        (corridor_length,corridor_width/2.0)],
+                                                        [0,0,0,0,0,0])
+
+            self.goal_x = corridor_length - 0.4
+            self.goal_y = 0
+
         else:
             raw_input('Unknown surface soruce: %s.'%(surface_source))
-
-
-
 
 
         for struct in structures:
@@ -1560,23 +1587,23 @@ class environment_handler:
                 if(temp_goal_p is not None and struct.inside_polygon(temp_goal_p) and temp_goal_p[2,0] >= self.goal_z):
                     self.goal_z = temp_goal_p[2,0]
 
-        # store the mesh to stl files (if save_stl is true)
-        if save_stl:
-            # first clean all the files in the path to avoid confusion
-            if os.path.exists(save_stl_path):
-                shutil.rmtree(save_stl_path)
-            os.mkdir(save_stl_path)
+        # # store the mesh to stl files (if save_stl is true)
+        # if save_stl:
+        #     # first clean all the files in the path to avoid confusion
+        #     if os.path.exists(save_stl_path):
+        #         shutil.rmtree(save_stl_path)
+        #     os.mkdir(save_stl_path)
 
-            for struct in structures:
-                new_surface = mesh.Mesh(np.zeros(struct.trimesh_indices.shape[0]*2, dtype=mesh.Mesh.dtype))
-                for i, face in enumerate(struct.trimesh_indices):
-                    for j in range(3):
-                        new_surface.vectors[i][j] = struct.trimesh_vertices[face[j],:]
+        #     for struct in structures:
+        #         new_surface = mesh.Mesh(np.zeros(struct.trimesh_indices.shape[0]*2, dtype=mesh.Mesh.dtype))
+        #         for i, face in enumerate(struct.trimesh_indices):
+        #             for j in range(3):
+        #                 new_surface.vectors[i][j] = struct.trimesh_vertices[face[j],:]
 
-                for i, face in enumerate(struct.trimesh_indices):
-                    for j in range(3):
-                        new_surface.vectors[struct.trimesh_indices.shape[0]+i][j] = struct.trimesh_vertices[face[2-j],:]
+        #         for i, face in enumerate(struct.trimesh_indices):
+        #             for j in range(3):
+        #                 new_surface.vectors[struct.trimesh_indices.shape[0]+i][j] = struct.trimesh_vertices[face[2-j],:]
 
-                new_surface.save(save_stl_path + struct.kinbody.GetName() + '.stl')
+        #         new_surface.save(save_stl_path + struct.kinbody.GetName() + '.stl')
 
         self.structures = structures

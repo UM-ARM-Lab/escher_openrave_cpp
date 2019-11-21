@@ -118,7 +118,10 @@ void GetSupportPointsForLink(OpenRAVE::RobotBase::LinkPtr p_link, OpenRAVE::Vect
        strcmp(p_link->GetName().c_str(), "l_palm") != 0 &&
        strcmp(p_link->GetName().c_str(), "r_palm") != 0 &&
        strcmp(p_link->GetName().c_str(), "L_ANKLE_AA") != 0 &&
-       strcmp(p_link->GetName().c_str(), "R_ANKLE_AA") != 0)
+       strcmp(p_link->GetName().c_str(), "R_ANKLE_AA") != 0 &&
+       strcmp(p_link->GetName().c_str(), "left_fist_surface") != 0 &&
+       strcmp(p_link->GetName().c_str(), "right_fist_surface") != 0 &&
+       strcmp(p_link->GetName().c_str(), "base_footprint") != 0)
     {
         return;
     }
@@ -141,11 +144,8 @@ void GetSupportPointsForLink(OpenRAVE::RobotBase::LinkPtr p_link, OpenRAVE::Vect
         if (!is_invalid) {
             OpenRAVE::Vector contact_t = tf * contact;
             contacts.push_back(contact_t);
-
-//            return; //! TEMP
         }
     }
-
 }
 
 /// Returns the support points of the given manipulator in the WORLD frame

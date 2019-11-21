@@ -24,8 +24,10 @@ float ContactPoint::getClearanceScore(ContactType type)
 
     if(type == FOOT)
     {
+        // max_clearance = FOOT_RADIUS;
+        // min_clearance = FOOT_WIDTH/2.0;
         max_clearance = FOOT_RADIUS;
-        min_clearance = FOOT_WIDTH/2.0;
+        min_clearance = FOOT_RADIUS;
     }
     else if(type == HAND)
     {

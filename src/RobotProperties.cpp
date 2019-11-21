@@ -148,6 +148,10 @@ RobotProperties::RobotProperties(OpenRAVE::RobotBasePtr _robot, std::vector<Open
                                 0,  0,  0, 1;
         ee_offset_transform_to_dynopt_[ContactManipulator::R_ARM] = rh_offset_transform;
     }
+    else if(name_ == "centaur")
+    {
+        RAVELOG_WARN("%s robot's DOF index to SL index mapping is not defined.\n", name_);
+    }
     else
     {
         RAVELOG_WARN("%s robot's DOF index to SL index mapping is not defined.\n", name_);

@@ -21,6 +21,7 @@ import multiprocessing
 import load_escher
 import load_athena
 import load_hermes_full
+import load_centaur
 
 # from config_parameter import *
 from transformation_conversion import *
@@ -137,7 +138,7 @@ def main(meta_path_generation_method='all_planning',
          recording_data=False,
          use_env_transition_bias=False,
          load_planning_result=False,
-         robot_name='hermes_full'):
+         robot_name='centaur'):
 
     ### Initialize the ros node
     rave.raveLogInfo('Using %s method...'%(meta_path_generation_method))
@@ -184,7 +185,8 @@ def main(meta_path_generation_method='all_planning',
         # f = open(escher_planning_data_path + 'step_transition_model_ik_verified.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_wide_range.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range.txt','r')
-        f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        # f = open(escher_planning_data_path + 'step_transition_model_mid_range_2.txt','r')
+        f = open(escher_planning_data_path + 'step_transition_model_centaur.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_short_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_mid_range_straight.txt','r')
         # f = open(escher_planning_data_path + 'step_transition_model_straight_v3.txt','r')
@@ -240,6 +242,8 @@ def main(meta_path_generation_method='all_planning',
         escher = load_athena.athena(env)
     elif robot_name == 'hermes_full':
         escher = load_hermes_full.hermes_full(env)
+    elif robot_name == 'centaur':
+        escher = load_centaur.centaur(env)
 
     env_id = start_env_id
 
@@ -253,13 +257,13 @@ def main(meta_path_generation_method='all_planning',
                 escher.env.Remove(struct.kinbody)
                 struct.kinbody = None
 
-        initial_left_leg = [0.025,0.1,0.0,0,0,0]
-        initial_right_leg = [0.025,-0.1,0.0,0,0,0]
+        initial_left_leg = [0.05,0,0,0,0,-90]
+        initial_right_leg = [-0.05,0,0,0,0,-90]
         initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
         initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
 
         disturbance_samples = []
-        robot_mass = 63.47
+        robot_mass = escher.mass
 
         if surface_source == 'capture_test_env_1':
             disturbance_samples.append([0.5 * robot_mass, 0, 0, 0, 0, 0, 0.1666])
@@ -301,7 +305,6 @@ def main(meta_path_generation_method='all_planning',
             initial_right_leg = [0.2,-1.8,0.0,0,0,90]
             initial_left_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
             initial_right_arm = [-99.0,-99.0,-99.0,-99.0,-99.0,-99.0]
-
         elif surface_source == 'capture_test_env_5_2':
             # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
             # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
@@ -315,7 +318,6 @@ def main(meta_path_generation_method='all_planning',
             # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.3333])
             # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.3334])
             # disturbance_samples.append([0, -0.7 * robot_mass, 0, 0, 0, 0, 0.3333])
-
         elif surface_source == 'capture_test_env_6':
             # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
             # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
@@ -337,7 +339,6 @@ def main(meta_path_generation_method='all_planning',
             # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 0.3333])
 
             # disturbance_samples.append([0, 0.7 * robot_mass, 0, 0, 0, 0, 1.0])
-
         elif surface_source == 'capture_test_env_7':
             # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
             # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
@@ -360,7 +361,6 @@ def main(meta_path_generation_method='all_planning',
             #     disturbance_samples.append([disturbance_magnitude * math.cos(2*i*math.pi/disturbance_sample_num),
             #                                 disturbance_magnitude * math.sin(2*i*math.pi/disturbance_sample_num),
             #                                 0, 0, 0, 0, 1.0/disturbance_sample_num])
-
         elif surface_source == 'capture_test_env_8':
             # disturbance_samples.append([0, -0.5 * robot_mass, 0, 0, 0, 0, 0.25])
             # disturbance_samples.append([0, -0.6 * robot_mass, 0, 0, 0, 0, 0.25])
@@ -404,8 +404,11 @@ def main(meta_path_generation_method='all_planning',
 
         initial_node = node(initial_left_leg, initial_right_leg, initial_left_arm, initial_right_arm)
 
-        # IPython.embed()
+        env_handler.DrawOrientation(escher.robot.GetManipulator('wheel_base').GetTransform())
+        env_handler.DrawOrientation(escher.robot.GetManipulator('left_arm').GetTransform())
+        env_handler.DrawOrientation(escher.robot.GetManipulator('right_arm').GetTransform())
 
+        IPython.embed()
 
         # # for collect data
         # escher_cpp.SendStartPlanningFromScratch(robot_name=robot_name,
@@ -435,9 +438,9 @@ def main(meta_path_generation_method='all_planning',
         #                                         planning_id=env_id,
         #                                         printing=False)
 
-        escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
+        # escher.robot.SetTransform([[1,0,0,100],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
-        generate_Objects_cf("/home/yuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/push_recovery/", structures)
+        # generate_Objects_cf("/home/linyuchi/amd_workspace_video/workspace/src/catkin/humanoids/humanoid_control/motion_planning/momentumopt_sl/momentumopt_hermes_full/config/push_recovery/", structures)
 
 
         # for planning test
@@ -458,11 +461,11 @@ def main(meta_path_generation_method='all_planning',
                                                 branching_method='contact_projection',
                                                 output_first_solution=False,
                                                 goal_as_exact_poses=False,
-                                                use_dynamics_planning=True,
-                                                use_learned_dynamics_model=True,
+                                                use_dynamics_planning=False,
+                                                use_learned_dynamics_model=False,
                                                 enforce_stop_in_the_end=False,
-                                                check_zero_step_capturability=True,
-                                                check_one_step_capturability=True,
+                                                check_zero_step_capturability=False,
+                                                check_one_step_capturability=False,
                                                 check_contact_transition_feasibility=True,
                                                 disturbance_samples=disturbance_samples,
                                                 thread_num=1,

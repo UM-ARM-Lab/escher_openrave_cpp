@@ -701,3 +701,66 @@ class escher_openrave_cpp_wrapper(object):
         print('Constructing Command Time: %d miliseconds.'%((after_constructing_command-start)*1000))
         print('Planning Time: %d miliseconds.'%((after_calculation-after_constructing_command)*1000))
         print('Parsing Output Time: %d miliseconds.'%((after_parsing_output-after_calculation)*1000))
+
+
+    def SendStartCalculatingFeasibleFootstepCombination(self,robot_name=None,escher=None,foot_transition_model=None,
+                                                        structures=None,map_grid=None,torso_transitions=None,printing=None):
+
+        cmd = ['StartCalculatingFeasibleFootstepCombination']
+
+        if printing:
+            cmd.append('printing')
+
+        if robot_name is not None:
+            cmd.append('robot_name')
+            cmd.append(robot_name)
+        else:
+            print('robot name is required for planning. Abort.')
+            return
+
+        if escher is not None:
+            self.AppendRobotPropertiesCommand(cmd, escher)
+        else:
+            print('robot properties(escher) is required for planning. Abort.')
+            return
+
+        if structures is not None:
+            self.AppendStructuresCommand(cmd, structures)
+        else:
+            print('structures are required for planning. Abort.')
+            return
+
+        if foot_transition_model is not None:
+            self.AppendFootTransitionModelCommand(cmd, foot_transition_model)
+        else:
+            print('foot transition model is required for planning. Abort.')
+            return
+
+        if map_grid is not None:
+            self.AppendMapGridCommand(cmd, map_grid)
+
+        if torso_transitions is not None:
+            cmd.append('torso_transitions')
+            cmd.append(len(torso_transitions))
+
+            for transition in torso_transitions:
+                cmd.extend(transition)
+
+
+        cmd_str = " ".join(str(item) for item in cmd)
+
+        result_str = self.module.SendCommand(cmd_str)
+
+        result = [float(x) for x in result_str.split()]
+
+        feasible_footstep_combination_num = {}
+
+        counter = 0
+
+        torso_transition_num = result[counter]
+        counter += 1
+        for i in range(int(torso_transition_num)):
+            feasible_footstep_combination_num[tuple(int(x) for x in result[counter:counter+5])] = result[counter+5]
+            counter += 6
+
+        return feasible_footstep_combination_num

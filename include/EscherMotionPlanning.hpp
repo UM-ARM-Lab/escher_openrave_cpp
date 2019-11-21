@@ -24,6 +24,8 @@ class EscherMotionPlanning : public OpenRAVE::ModuleBase
 
         bool startCollectDynamicsOptimizationData(std::ostream& sout, std::istream& sinput);
 
+        bool calculateFeasibleFootstepCombination(std::ostream& sout, std::istream& sinput);
+
     private:
         void constructContactPointGrid();
         void constructGroundContactPointGrid();

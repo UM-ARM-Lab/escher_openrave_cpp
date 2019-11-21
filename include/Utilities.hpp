@@ -87,8 +87,10 @@ typedef std::array<float,3> GridPositions3D;
 const float RAD2DEG = 180.0/M_PI;
 const float DEG2RAD = M_PI/180.0;
 
-const float FOOT_HEIGHT = 0.25;
-const float FOOT_WIDTH = 0.135;
+// const float FOOT_HEIGHT = 0.25;
+// const float FOOT_WIDTH = 0.135;
+const float FOOT_HEIGHT = 0.05;
+const float FOOT_WIDTH = 0.05;
 const float FOOT_RADIUS = hypot(FOOT_HEIGHT/2.0,FOOT_WIDTH/2.0);
 const float HAND_HEIGHT = 0.20;
 const float HAND_WIDTH = 0.14;

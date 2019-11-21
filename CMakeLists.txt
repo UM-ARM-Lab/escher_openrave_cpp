@@ -12,12 +12,12 @@ find_package(Boost REQUIRED COMPONENTS regex filesystem system)
 find_package(OpenRAVE REQUIRED)
 find_package(OpenMP REQUIRED)
 
-SET( Tensorflow_LIBRARY_DIRS "/home/yuchi/tensorflow/bazel-bin/tensorflow" )
-# SET( Tensorflow_INCLUDE_DIRS "/home/yuchi/tensorflow/bazel-genfiles;/home/yuchi/tensorflow" )
-SET( Tensorflow_INCLUDE_DIRS "/home/yuchi/tensorflow/bazel-genfiles;/home/yuchi/tensorflow;/home/yuchi/tensorflow/bazel-tensorflow/external/protobuf_archive/src;/home/yuchi/tensorflow/bazel-tensorflow/external/eigen_archive;/home/yuchi/tensorflow/bazel-tensorflow/external/nsync/public;/home/yuchi/tensorflow/bazel-tensorflow/external/com_google_absl" )
+SET( Tensorflow_LIBRARY_DIRS "/home/linyuchi/tensorflow/bazel-bin/tensorflow" )
+# SET( Tensorflow_INCLUDE_DIRS "/home/linyuchi/tensorflow/bazel-genfiles;/home/linyuchi/tensorflow" )
+SET( Tensorflow_INCLUDE_DIRS "/home/linyuchi/tensorflow/bazel-genfiles;/home/linyuchi/tensorflow;/home/linyuchi/tensorflow/bazel-tensorflow/external/protobuf_archive/src;/home/linyuchi/tensorflow/bazel-tensorflow/external/eigen_archive;/home/linyuchi/tensorflow/bazel-tensorflow/external/nsync/public;/home/linyuchi/tensorflow/bazel-tensorflow/external/com_google_absl" )
 
 # SET( Eigen_INCLUDE_DIRS "/usr/local/include/eigen3" ) # compiled with version 3.3.5
-# SET( Eigen_INCLUDE_DIRS "/home/yuchi/tensorflow/external/eigen_archive" ) # compiled with version 3.3.90
+# SET( Eigen_INCLUDE_DIRS "/home/linyuchi/tensorflow/external/eigen_archive" ) # compiled with version 3.3.90
 IF( NOT Eigen_INCLUDE_DIRS )
     find_package(Eigen REQUIRED)
 ENDIF()
@@ -38,7 +38,7 @@ include_directories(
     include
 )
 
-# /home/yuchi/tensorflow/bazel-genfiles /home/yuchi/tensorflow /home/yuchi/tensorflow/bazel-tensorflow/external/protobuf_archive/src/home/yuchi/tensorflow/bazel-tensorflow/external/eigen_archive/home/yuchi/tensorflow/bazel-tensorflow/external/nsync/public/home/yuchi/tensorflow/bazel-tensorflow/external/com_google_absl
+# /home/linyuchi/tensorflow/bazel-genfiles /home/linyuchi/tensorflow /home/linyuchi/tensorflow/bazel-tensorflow/external/protobuf_archive/src/home/linyuchi/tensorflow/bazel-tensorflow/external/eigen_archive/home/linyuchi/tensorflow/bazel-tensorflow/external/nsync/public/home/linyuchi/tensorflow/bazel-tensorflow/external/com_google_absl
 
 include_directories(
     SYSTEM
